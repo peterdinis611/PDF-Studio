@@ -1,0 +1,69 @@
+<div class="nf-page relative flex min-h-full flex-col overflow-hidden" x-data="themeToggle">
+  <div class="nf-atmosphere pointer-events-none absolute inset-0" aria-hidden="true"></div>
+  <div class="nf-grain pointer-events-none absolute inset-0" aria-hidden="true"></div>
+
+  {{!-- Full-bleed paper plane --}}
+  <div class="nf-stage pointer-events-none absolute inset-x-0 bottom-0 top-[18%] md:top-[12%]" aria-hidden="true">
+    <div class="nf-sheet nf-sheet--back"></div>
+    <div class="nf-sheet nf-sheet--mid"></div>
+    <div class="nf-sheet nf-sheet--front">
+      <div class="nf-sheet-lines"></div>
+      <div class="nf-sheet-gap">
+        <span class="nf-sheet-404">404</span>
+      </div>
+    </div>
+  </div>
+
+  <header class="relative z-20 flex items-center justify-between px-6 py-5 md:px-10">
+    <a href="/" class="flex items-center gap-2.5">
+      <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white shadow-sm">PS</span>
+      <span class="text-lg font-semibold tracking-tight text-fg">PDF Studio</span>
+    </a>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="tool-btn h-9 w-9"
+        @click="toggleTheme()"
+        :title="theme === 'dark' ? 'Light mode' : 'Dark mode'"
+      >
+        <svg x-show="theme === 'dark'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.4 6.4l-1.4-1.4M7 7L5.6 5.6m12.8 0L17 7M7 17l-1.4 1.4M12 8a4 4 0 100 8 4 4 0 000-8z" />
+        </svg>
+        <svg x-show="theme === 'light'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
+        </svg>
+      </button>
+      <a href="/editor" class="btn-primary">Open editor</a>
+    </div>
+  </header>
+
+  <main class="nf-copy relative z-20 mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 pb-28 pt-6 md:px-10 md:pb-36">
+    <h1 class="nf-brand font-display text-5xl font-semibold leading-[0.95] tracking-tight text-fg md:text-7xl lg:text-8xl">
+      PDF Studio
+    </h1>
+    <p class="nf-headline mt-5 text-xl font-medium text-fg/80 md:text-2xl">
+      This page isn’t in the document.
+    </p>
+    <p class="nf-support mt-3 max-w-md text-base leading-relaxed text-slate-muted">
+      The URL you opened doesn’t exist — go home or start a blank canvas.
+    </p>
+    <div class="nf-cta mt-9 flex flex-wrap gap-3">
+      <a
+        href="/"
+        class="inline-flex items-center gap-2 rounded-xl bg-fg px-5 py-3 text-sm font-semibold transition hover:opacity-90"
+        style="color: rgb(var(--color-panel))"
+      >
+        Back home
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+        </svg>
+      </a>
+      <a
+        href="/editor?new=1"
+        class="inline-flex items-center rounded-xl border border-slate-line bg-slate-panel/70 px-5 py-3 text-sm font-medium text-fg backdrop-blur-sm transition hover:border-accent hover:text-accent-soft"
+      >
+        Start blank
+      </a>
+    </div>
+  </main>
+</div>

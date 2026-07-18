@@ -52,6 +52,7 @@
       <button type="button" class="menu-item" @click="showFileMenu = false; $refs.pdfInput.click()">Import PDF…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; $refs.jsonInput.click()">Open JSON…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; $refs.fontInput.click()">Upload font…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; openSignatureModal()">Sign PDF…</button>
       <div class="my-1 border-t border-slate-line"></div>
       <button type="button" class="menu-item" @click="showFileMenu = false; downloadStudioJson()">Share as JSON</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; openExportModal()">Export PDF…</button>

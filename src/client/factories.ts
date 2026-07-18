@@ -16,6 +16,7 @@ import type {
   PdfPage,
   RectElement,
   StampElement,
+  SignatureElement,
   StickyElement,
   TableElement,
   TextElement,
@@ -133,6 +134,26 @@ export function createImage(
   return {
     id: uid(),
     type: "image",
+    x,
+    y,
+    width: data.width,
+    height: data.height,
+    rotation: 0,
+    opacity: 1,
+    locked: false,
+    src: data.src,
+    name: data.name,
+  };
+}
+
+export function createSignature(
+  x: number,
+  y: number,
+  data: { src: string; name: string; width: number; height: number },
+): SignatureElement {
+  return {
+    id: uid(),
+    type: "signature",
     x,
     y,
     width: data.width,
@@ -414,6 +435,8 @@ export function elementLabel(el: PdfElement): string {
       return el.content.slice(0, 24) || "Text";
     case "image":
       return el.name || "Image";
+    case "signature":
+      return el.name || "Signature";
     case "sticky":
       return el.content.slice(0, 24) || "Sticky";
     case "badge":

@@ -60,6 +60,7 @@ export const LIBRARY_ITEMS: LibraryItem[] = [
   // Basics
   { id: "text", category: "basics", label: "Text", hint: "Editable paragraph", tags: ["text", "paragraph", "copy"], kind: "text", preview: "T" },
   { id: "image", category: "basics", label: "Image", hint: "Upload PNG/JPEG", tags: ["photo", "picture", "media"], kind: "image", preview: "🖼" },
+  { id: "sign", category: "basics", label: "Signature", hint: "Draw, type, or upload", tags: ["sign", "signature", "ink"], kind: "signature", preview: "✍" },
   { id: "divider", category: "basics", label: "Divider", hint: "Horizontal rule", tags: ["line", "hr", "separator"], kind: "divider", preview: "—" },
   { id: "divider-dash", category: "basics", label: "Dashed line", hint: "Dashed divider", tags: ["line", "dashed"], kind: "preset:divider-dash", preview: "- -" },
   { id: "divider-thick", category: "basics", label: "Thick rule", hint: "Bold separator", tags: ["line", "bold"], kind: "preset:divider-thick", preview: "━━" },
@@ -103,7 +104,7 @@ export const LIBRARY_ITEMS: LibraryItem[] = [
   { id: "bullets", category: "presets", label: "Bullet list", hint: "3 bullet points", tags: ["list", "ul"], kind: "preset:bullets", preview: "•" },
   { id: "numbers", category: "presets", label: "Numbered list", hint: "1–3 steps", tags: ["list", "ol"], kind: "preset:numbers", preview: "1." },
   { id: "cta", category: "presets", label: "CTA button", hint: "Call to action", tags: ["button", "cta"], kind: "preset:cta", preview: "→" },
-  { id: "signature", category: "presets", label: "Signature line", hint: "Sign here", tags: ["sign"], kind: "preset:signature", preview: "✍" },
+  { id: "signature-line", category: "presets", label: "Signature line", hint: "Blank sign-here line", tags: ["sign", "line"], kind: "preset:signature", preview: "___" },
   { id: "address", category: "presets", label: "Address block", hint: "Contact address", tags: ["address", "contact"], kind: "preset:address", preview: "⌂" },
 
   // Layout
@@ -537,8 +538,9 @@ function createPreset(id: string, x: number, y: number): PdfElement {
   }
 }
 
-export function createFromLibrary(kind: LibraryItem["kind"], x: number, y: number): PdfElement | "image" {
+export function createFromLibrary(kind: LibraryItem["kind"], x: number, y: number): PdfElement | "image" | "signature" {
   if (kind === "image") return "image";
+  if (kind === "signature") return "signature";
   if (kind === "text") return createText(x, y);
   if (kind === "rect") return createRect(x, y);
   if (kind === "ellipse") return createEllipse(x, y);

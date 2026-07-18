@@ -379,10 +379,20 @@
         </div>
       </template>
 
-      <template x-if="selected?.type === 'image'">
-        <div>
-          <label class="panel-label">File</label>
-          <p class="truncate text-sm text-slate-muted" x-text="selected.name"></p>
+      <template x-if="selected?.type === 'image' || selected?.type === 'signature'">
+        <div class="space-y-3">
+          <div>
+            <label class="panel-label" x-text="selected.type === 'signature' ? 'Signature' : 'File'"></label>
+            <p class="truncate text-sm text-slate-muted" x-text="selected.name"></p>
+          </div>
+          <button
+            type="button"
+            class="btn-ghost w-full justify-center"
+            x-show="selected.type === 'signature'"
+            @click="openSignatureModal(null, null, selected.id)"
+          >
+            Replace signature
+          </button>
         </div>
       </template>
     </div>

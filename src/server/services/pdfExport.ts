@@ -15,6 +15,7 @@ import {
   type FormTextElement,
   type IconElement,
   type ImageElement,
+  type SignatureElement,
   type LineElement,
   type PdfElement,
   type RectElement,
@@ -497,7 +498,7 @@ async function drawStamp(page: PDFPage, el: StampElement, pageHeight: number, fo
 async function drawImage(
   doc: PDFDocument,
   page: PDFPage,
-  el: ImageElement,
+  el: ImageElement | SignatureElement,
   pageHeight: number,
   quality = 0.85,
 ) {
@@ -695,6 +696,7 @@ async function drawElement(
       await drawLine(page, el, pageHeight);
       break;
     case "image":
+    case "signature":
       await drawImage(doc, page, el, pageHeight, imageQuality);
       break;
     case "arrow":

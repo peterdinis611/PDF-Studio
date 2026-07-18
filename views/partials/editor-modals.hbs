@@ -136,3 +136,69 @@
     </div>
   </div>
 </div>
+
+{{!-- Signature modal --}}
+<div
+  x-show="showSignatureModal"
+  x-cloak
+  class="modal-backdrop"
+  @keydown.escape.window="closeSignatureModal()"
+>
+  <div class="modal-panel max-w-xl" @click.outside="closeSignatureModal()">
+    <h3 class="modal-title">Sign document</h3>
+    <p class="mt-1 text-xs text-slate-muted">Draw, type, or upload a signature — it will be placed on the page.</p>
+
+    <div class="mt-4 flex gap-1 rounded-xl border border-slate-line bg-black/5 p-1 dark:bg-white/5">
+      <button type="button" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-medium" :class="signatureTab === 'draw' ? 'bg-slate-panel text-fg shadow-sm' : 'text-slate-muted'" @click="signatureTab = 'draw'; resetSignaturePad()">Draw</button>
+      <button type="button" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-medium" :class="signatureTab === 'type' ? 'bg-slate-panel text-fg shadow-sm' : 'text-slate-muted'" @click="signatureTab = 'type'; clearSignaturePad()">Type</button>
+      <button type="button" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-medium" :class="signatureTab === 'upload' ? 'bg-slate-panel text-fg shadow-sm' : 'text-slate-muted'" @click="signatureTab = 'upload'">Upload</button>
+    </div>
+
+    <div class="mt-4" x-show="signatureTab !== 'upload'">
+      <div class="mb-2 flex items-center justify-between gap-3">
+        <label class="flex items-center gap-2 text-xs text-slate-muted">
+          Ink
+          <input type="color" class="h-7 w-9 cursor-pointer rounded border border-slate-line bg-transparent" x-model="signatureInk" @change="signatureTab === 'type' && renderTypedSignature()" />
+        </label>
+        <button type="button" class="text-xs text-slate-muted underline hover:text-fg" @click="clearSignaturePad()">Clear</button>
+      </div>
+      <div x-show="signatureTab === 'type'" class="mb-2">
+        <input
+          type="text"
+          class="panel-input"
+          placeholder="Type your name"
+          x-model="signatureTyped"
+          @input="renderTypedSignature()"
+        />
+      </div>
+      <canvas
+        x-ref="signaturePad"
+        class="h-44 w-full cursor-crosshair touch-none rounded-xl border border-dashed border-slate-line bg-white"
+        style="touch-action: none"
+        @pointerdown="onSignaturePointerDown($event)"
+        @pointermove="onSignaturePointerMove($event)"
+        @pointerup="onSignaturePointerUp($event)"
+        @pointerleave="onSignaturePointerUp($event)"
+      ></canvas>
+      <p class="mt-1.5 text-[10px] text-slate-muted" x-show="signatureTab === 'draw'">Draw with mouse or finger on the pad above.</p>
+    </div>
+
+    <div class="mt-4" x-show="signatureTab === 'upload'">
+      <button type="button" class="btn-ghost w-full justify-center py-8" @click="$refs.signatureFileInput.click()">
+        Choose PNG or JPEG signature image…
+      </button>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" @click="closeSignatureModal()">Cancel</button>
+      <button
+        type="button"
+        class="btn-primary"
+        :disabled="signatureBusy || (signatureTab !== 'upload' && !signatureHasInk && !signatureTyped.trim())"
+        @click="confirmSignature()"
+      >
+        <span x-text="signatureBusy ? 'Adding…' : (signatureTab === 'upload' ? 'Choose file' : 'Add signature')"></span>
+      </button>
+    </div>
+  </div>
+</div>

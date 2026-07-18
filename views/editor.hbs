@@ -35,6 +35,7 @@
   </footer>
 
   <input type="file" accept="image/png,image/jpeg" class="hidden" x-ref="imageInput" @change="onImageSelected($event)" />
+  <input type="file" accept="image/png,image/jpeg" class="hidden" x-ref="signatureFileInput" @change="onSignatureFileSelected($event)" />
   <input type="file" accept="application/pdf,.pdf" class="hidden" x-ref="pdfInput" @change="onPdfImportSelected($event)" />
   <input
     type="file"

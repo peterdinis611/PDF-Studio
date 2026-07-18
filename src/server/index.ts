@@ -46,10 +46,13 @@ app.get("/editor", (_req, res) => {
 
 app.use("/api", apiRouter);
 
+app.use("/api", (_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
 app.use((_req, res) => {
-  res.status(404).render("home", {
-    title: "Not found — PDF Studio",
-    tagline: "That page does not exist.",
+  res.status(404).render("not-found", {
+    title: "Page not found — PDF Studio",
   });
 });
 

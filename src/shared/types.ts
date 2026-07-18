@@ -12,6 +12,7 @@ export type ElementType =
   | "icon"
   | "table"
   | "stamp"
+  | "signature"
   | "formText"
   | "formCheck"
   | "formSelect";
@@ -160,6 +161,12 @@ export interface StampElement extends PdfElementBase {
   fontSize: number;
 }
 
+export interface SignatureElement extends PdfElementBase {
+  type: "signature";
+  src: string;
+  name: string;
+}
+
 export interface FormTextElement extends PdfElementBase {
   type: "formText";
   name: string;
@@ -202,6 +209,7 @@ export type PdfElement =
   | IconElement
   | TableElement
   | StampElement
+  | SignatureElement
   | FormTextElement
   | FormCheckElement
   | FormSelectElement;

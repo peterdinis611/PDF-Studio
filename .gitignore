@@ -1,7 +1,5 @@
 node_modules/
 dist/
-public/css/app.css
-public/js/app.js
 uploads/
 .tmp/
 .DS_Store

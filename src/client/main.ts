@@ -20,6 +20,7 @@ import {
   createFormSelect,
   createFormText,
   createImage,
+  createSignature,
   createLine,
   createRect,
   createText,
@@ -138,6 +139,43 @@ function normalizeDoc(doc: PdfDocument): PdfDocument {
   };
 }
 
+/** Crop transparent padding from a signature canvas (device pixels). */
+function trimSignatureCanvas(source: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = source.getContext("2d");
+  if (!ctx) return source;
+  const { width, height } = source;
+  const { data } = ctx.getImageData(0, 0, width, height);
+  let top = height;
+  let left = width;
+  let right = 0;
+  let bottom = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > 8) {
+        if (x < left) left = x;
+        if (x > right) right = x;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+    }
+  }
+  if (right < left || bottom < top) return source;
+  const pad = Math.round(Math.min(width, height) * 0.04);
+  left = Math.max(0, left - pad);
+  top = Math.max(0, top - pad);
+  right = Math.min(width - 1, right + pad);
+  bottom = Math.min(height - 1, bottom + pad);
+  const w = right - left + 1;
+  const h = bottom - top + 1;
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const outCtx = out.getContext("2d");
+  if (!outCtx) return source;
+  outCtx.drawImage(source, left, top, w, h, 0, 0, w, h);
+  return out;
+}
+
 function pdfEditor() {
   const history = new HistoryStack();
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -162,6 +200,7 @@ function pdfEditor() {
     showLibrary: true,
     leftRail: "insert" as "insert" | "pages",
     showExportModal: false,
+    showSignatureModal: false,
     showFindReplace: false,
     showBrandKit: false,
     showDocLibrary: false,
@@ -178,6 +217,13 @@ function pdfEditor() {
     recentIds: [] as string[],
     pendingLibraryKind: null as LibraryItem["kind"] | null,
     placeHint: false,
+    signatureTab: "draw" as "draw" | "type" | "upload",
+    signatureInk: "#1a1a1a",
+    signatureTyped: "",
+    signatureBusy: false,
+    signatureHasInk: false,
+    signaturePlace: null as { x: number; y: number } | null,
+    signatureReplaceId: null as string | null,
     templates: TEMPLATE_LIST,
     snapEnabled: true,
     canUndo: false,
@@ -857,6 +903,10 @@ function pdfEditor() {
         (this as unknown as { $refs: { imageInput: HTMLInputElement } }).$refs.imageInput.click();
         return;
       }
+      if (item.kind === "signature") {
+        this.openSignatureModal();
+        return;
+      }
       this.pendingLibraryKind = item.kind;
       this.tool = "place";
       this.placeHint = true;
@@ -869,9 +919,13 @@ function pdfEditor() {
         (this as unknown as { $refs: { imageInput: HTMLInputElement } }).$refs.imageInput.click();
         return;
       }
+      if (item.kind === "signature") {
+        this.openSignatureModal();
+        return;
+      }
       const { width, height } = this.pageSize;
       const el = createFromLibrary(item.kind, width / 2 - 80, height / 2 - 40);
-      if (el === "image") return;
+      if (el === "image" || el === "signature") return;
       el.x = this.snap(Math.max(24, width / 2 - el.width / 2));
       el.y = this.snap(Math.max(24, height / 2 - el.height / 2));
       this.pushElement(el);
@@ -881,6 +935,10 @@ function pdfEditor() {
       const el = createFromLibrary(kind, x, y);
       if (el === "image") {
         (this as unknown as { $refs: { imageInput: HTMLInputElement } }).$refs.imageInput.click();
+        return;
+      }
+      if (el === "signature") {
+        this.openSignatureModal(x, y);
         return;
       }
       this.pushElement(el);
@@ -1122,7 +1180,7 @@ function pdfEditor() {
       if (el.type === "text" || el.type === "sticky") {
         return `<span style="font-size:${el.fontSize}px;color:${el.color};background:${el.type === "sticky" ? el.fill : "transparent"}">${escapeHtml(el.content.slice(0, 28))}</span>`;
       }
-      if (el.type === "image") {
+      if (el.type === "image" || el.type === "signature") {
         return `<img src="${el.src}" style="width:100%;height:100%;object-fit:contain" />`;
       }
       if (el.type === "line" || el.type === "divider" || el.type === "arrow") {
@@ -1718,6 +1776,7 @@ function pdfEditor() {
         this.placeHint = false;
         this.libraryKeepPlacing = false;
         this.showExportModal = false;
+        this.showSignatureModal = false;
         this.showFindReplace = false;
         this.showFileMenu = false;
         this.showTemplates = false;
@@ -1798,6 +1857,210 @@ function pdfEditor() {
         console.error(err);
         alert(err instanceof Error ? err.message : "Could not upload image.");
       } finally {
+        input.value = "";
+      }
+    },
+
+    openSignatureModal(x: number | null = null, y: number | null = null, replaceId: string | null = null) {
+      this.signaturePlace =
+        x != null && y != null ? { x, y } : null;
+      this.signatureReplaceId = replaceId;
+      this.signatureTab = "draw";
+      this.signatureTyped = "";
+      this.signatureHasInk = false;
+      this.signatureBusy = false;
+      this.showSignatureModal = true;
+      this.tool = "select";
+      this.pendingLibraryKind = null;
+      this.placeHint = false;
+      setTimeout(() => this.resetSignaturePad(), 40);
+    },
+
+    closeSignatureModal() {
+      this.showSignatureModal = false;
+      this.signaturePlace = null;
+      this.signatureReplaceId = null;
+      this.signatureHasInk = false;
+    },
+
+    signaturePad(): HTMLCanvasElement | null {
+      return (this as unknown as { $refs: { signaturePad?: HTMLCanvasElement } }).$refs.signaturePad ?? null;
+    },
+
+    resetSignaturePad() {
+      const canvas = this.signaturePad();
+      if (!canvas) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const cssW = canvas.clientWidth || 520;
+      const cssH = canvas.clientHeight || 180;
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, cssW, cssH);
+      this.signatureHasInk = false;
+    },
+
+    clearSignaturePad() {
+      this.resetSignaturePad();
+      this.signatureTyped = "";
+    },
+
+    signaturePointerPos(event: PointerEvent) {
+      const canvas = this.signaturePad();
+      if (!canvas) return { x: 0, y: 0 };
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      };
+    },
+
+    onSignaturePointerDown(event: PointerEvent) {
+      if (this.signatureTab !== "draw") return;
+      const canvas = this.signaturePad();
+      const ctx = canvas?.getContext("2d");
+      if (!canvas || !ctx) return;
+      canvas.setPointerCapture(event.pointerId);
+      const { x, y } = this.signaturePointerPos(event);
+      ctx.strokeStyle = this.signatureInk;
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      this.signatureHasInk = true;
+      (this as unknown as { _sigDrawing: boolean })._sigDrawing = true;
+    },
+
+    onSignaturePointerMove(event: PointerEvent) {
+      if (!(this as unknown as { _sigDrawing?: boolean })._sigDrawing) return;
+      const canvas = this.signaturePad();
+      const ctx = canvas?.getContext("2d");
+      if (!ctx) return;
+      const { x, y } = this.signaturePointerPos(event);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    },
+
+    onSignaturePointerUp(event: PointerEvent) {
+      const canvas = this.signaturePad();
+      canvas?.releasePointerCapture(event.pointerId);
+      (this as unknown as { _sigDrawing: boolean })._sigDrawing = false;
+    },
+
+    renderTypedSignature() {
+      const text = this.signatureTyped.trim();
+      if (!text) {
+        this.resetSignaturePad();
+        return;
+      }
+      const canvas = this.signaturePad();
+      const ctx = canvas?.getContext("2d");
+      if (!canvas || !ctx) return;
+      const cssW = canvas.clientWidth || 520;
+      const cssH = canvas.clientHeight || 180;
+      this.resetSignaturePad();
+      const again = this.signaturePad()?.getContext("2d");
+      if (!again) return;
+      again.fillStyle = this.signatureInk;
+      again.textAlign = "center";
+      again.textBaseline = "middle";
+      let size = 64;
+      again.font = `${size}px "Caveat", "Segoe Script", "Comic Sans MS", cursive`;
+      while (size > 28 && again.measureText(text).width > cssW - 40) {
+        size -= 2;
+        again.font = `${size}px "Caveat", "Segoe Script", "Comic Sans MS", cursive`;
+      }
+      again.fillText(text, cssW / 2, cssH / 2);
+      this.signatureHasInk = true;
+    },
+
+    async uploadSignatureBlob(blob: Blob, name: string) {
+      const form = new FormData();
+      form.append("image", blob, name);
+      const res = await apiFetch("/api/upload", { method: "POST", body: form });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || "Signature upload failed");
+      return payload as { url: string; name: string; width: number; height: number };
+    },
+
+    async placeSignatureFromPayload(payload: { url: string; name: string; width: number; height: number }) {
+      const maxW = 280;
+      const scale = Math.min(1, maxW / Math.max(payload.width, 1));
+      const width = Math.max(120, Math.round(payload.width * scale));
+      const height = Math.max(48, Math.round(payload.height * scale));
+      const page = this.pageSize;
+      const x = this.snap(this.signaturePlace?.x ?? page.width / 2 - width / 2);
+      const y = this.snap(this.signaturePlace?.y ?? page.height - height - 72);
+
+      if (this.signatureReplaceId) {
+        const existing = this.workingElements.find((e) => e.id === this.signatureReplaceId);
+        if (existing && existing.type === "signature") {
+          existing.src = payload.url;
+          existing.name = payload.name || "Signature";
+          existing.width = width;
+          existing.height = height;
+          this.commit();
+          this.closeSignatureModal();
+          return;
+        }
+      }
+
+      const el = createSignature(x, y, {
+        src: payload.url,
+        name: payload.name || "Signature",
+        width,
+        height,
+      });
+      this.pushElement(el);
+      this.closeSignatureModal();
+    },
+
+    async confirmSignature() {
+      if (this.signatureBusy) return;
+      try {
+        this.signatureBusy = true;
+        if (this.signatureTab === "type") {
+          this.renderTypedSignature();
+        }
+        if (this.signatureTab === "upload") {
+          (this as unknown as { $refs: { signatureFileInput: HTMLInputElement } }).$refs.signatureFileInput.click();
+          return;
+        }
+        const canvas = this.signaturePad();
+        if (!canvas || !this.signatureHasInk) {
+          alert("Draw or type a signature first.");
+          return;
+        }
+        const trimmed = trimSignatureCanvas(canvas);
+        const blob = await new Promise<Blob | null>((resolve) => trimmed.toBlob(resolve, "image/png"));
+        if (!blob) throw new Error("Could not capture signature");
+        const payload = await this.uploadSignatureBlob(blob, "signature.png");
+        await this.placeSignatureFromPayload({
+          ...payload,
+          name: this.signatureTyped.trim() || "Signature",
+        });
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Could not add signature");
+      } finally {
+        this.signatureBusy = false;
+      }
+    },
+
+    async onSignatureFileSelected(event: Event) {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        this.signatureBusy = true;
+        const payload = await this.uploadSignatureBlob(file, file.name);
+        await this.placeSignatureFromPayload(payload);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Could not upload signature");
+      } finally {
+        this.signatureBusy = false;
         input.value = "";
       }
     },
