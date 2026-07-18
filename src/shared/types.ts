@@ -1,5 +1,3 @@
-export type PageSize = "a4" | "letter" | "square" | "a5" | "legal";
-
 export type ElementType =
   | "text"
   | "rect"
@@ -272,16 +270,104 @@ export interface PageDimensions {
   width: number;
   height: number;
   label: string;
+  group: "iso-a" | "iso-b" | "iso-c" | "us" | "arch" | "photo" | "other";
 }
 
-/** Points (1/72") used by PDF */
-export const PAGE_SIZES: Record<PageSize, PageDimensions> = {
-  a4: { width: 595.28, height: 841.89, label: "A4" },
-  a5: { width: 419.53, height: 595.28, label: "A5" },
-  letter: { width: 612, height: 792, label: "US Letter" },
-  legal: { width: 612, height: 1008, label: "Legal" },
-  square: { width: 600, height: 600, label: "Square" },
+/** Points (1/72") used by PDF — full ISO / US / Arch / photo set */
+export const PAGE_SIZES = {
+  // ISO A
+  a0: { width: 2383.94, height: 3370.39, label: "A0", group: "iso-a" },
+  a1: { width: 1683.78, height: 2383.94, label: "A1", group: "iso-a" },
+  a2: { width: 1190.55, height: 1683.78, label: "A2", group: "iso-a" },
+  a3: { width: 841.89, height: 1190.55, label: "A3", group: "iso-a" },
+  a4: { width: 595.28, height: 841.89, label: "A4", group: "iso-a" },
+  a5: { width: 419.53, height: 595.28, label: "A5", group: "iso-a" },
+  a6: { width: 297.64, height: 419.53, label: "A6", group: "iso-a" },
+  a7: { width: 209.76, height: 297.64, label: "A7", group: "iso-a" },
+  a8: { width: 147.4, height: 209.76, label: "A8", group: "iso-a" },
+  a9: { width: 104.88, height: 147.4, label: "A9", group: "iso-a" },
+  a10: { width: 73.7, height: 104.88, label: "A10", group: "iso-a" },
+  // ISO B
+  b0: { width: 2834.65, height: 4008.19, label: "B0", group: "iso-b" },
+  b1: { width: 2004.09, height: 2834.65, label: "B1", group: "iso-b" },
+  b2: { width: 1417.32, height: 2004.09, label: "B2", group: "iso-b" },
+  b3: { width: 1000.63, height: 1417.32, label: "B3", group: "iso-b" },
+  b4: { width: 708.66, height: 1000.63, label: "B4", group: "iso-b" },
+  b5: { width: 498.9, height: 708.66, label: "B5", group: "iso-b" },
+  b6: { width: 354.33, height: 498.9, label: "B6", group: "iso-b" },
+  b7: { width: 249.45, height: 354.33, label: "B7", group: "iso-b" },
+  b8: { width: 175.75, height: 249.45, label: "B8", group: "iso-b" },
+  b9: { width: 124.72, height: 175.75, label: "B9", group: "iso-b" },
+  b10: { width: 87.87, height: 124.72, label: "B10", group: "iso-b" },
+  // ISO C / envelopes
+  c4: { width: 649.13, height: 918.43, label: "C4", group: "iso-c" },
+  c5: { width: 459.21, height: 649.13, label: "C5", group: "iso-c" },
+  c6: { width: 323.15, height: 459.21, label: "C6", group: "iso-c" },
+  dl: { width: 311.81, height: 623.62, label: "DL", group: "iso-c" },
+  // North America
+  letter: { width: 612, height: 792, label: "Letter", group: "us" },
+  legal: { width: 612, height: 1008, label: "Legal", group: "us" },
+  tabloid: { width: 792, height: 1224, label: "Tabloid", group: "us" },
+  ledger: { width: 1224, height: 792, label: "Ledger", group: "us" },
+  executive: { width: 522, height: 756, label: "Executive", group: "us" },
+  statement: { width: 396, height: 612, label: "Statement", group: "us" },
+  folio: { width: 612, height: 936, label: "Folio", group: "us" },
+  quarto: { width: 540, height: 720, label: "Quarto", group: "us" },
+  governmentLetter: { width: 576, height: 756, label: "Government Letter", group: "us" },
+  governmentLegal: { width: 612, height: 936, label: "Government Legal", group: "us" },
+  juniorLegal: { width: 360, height: 576, label: "Junior Legal", group: "us" },
+  // ANSI / Architectural
+  archA: { width: 648, height: 864, label: "Arch A", group: "arch" },
+  archB: { width: 864, height: 1296, label: "Arch B", group: "arch" },
+  archC: { width: 1296, height: 1728, label: "Arch C", group: "arch" },
+  archD: { width: 1728, height: 2592, label: "Arch D", group: "arch" },
+  archE: { width: 2592, height: 3456, label: "Arch E", group: "arch" },
+  // Photo & cards
+  photo4x6: { width: 288, height: 432, label: '4 × 6"', group: "photo" },
+  photo5x7: { width: 360, height: 504, label: '5 × 7"', group: "photo" },
+  photo8x10: { width: 576, height: 720, label: '8 × 10"', group: "photo" },
+  photo8x12: { width: 576, height: 864, label: '8 × 12"', group: "photo" },
+  businessCard: { width: 252, height: 144, label: "Business card", group: "photo" },
+  // Other
+  square: { width: 600, height: 600, label: "Square", group: "other" },
+  squareSmall: { width: 432, height: 432, label: "Square (6\")", group: "other" },
+  widescreen: { width: 792, height: 445.5, label: "Widescreen 16:9", group: "other" },
+  presentation: { width: 720, height: 540, label: "Presentation 4:3", group: "other" },
+} as const satisfies Record<string, PageDimensions>;
+
+export type PageSize = keyof typeof PAGE_SIZES;
+
+const PAGE_SIZE_GROUP_LABELS: Record<PageDimensions["group"], string> = {
+  "iso-a": "ISO A",
+  "iso-b": "ISO B",
+  "iso-c": "Envelopes (ISO C)",
+  us: "North America",
+  arch: "Architectural",
+  photo: "Photo & cards",
+  other: "Other",
 };
+
+const PAGE_SIZE_GROUP_ORDER: PageDimensions["group"][] = [
+  "iso-a",
+  "iso-b",
+  "iso-c",
+  "us",
+  "arch",
+  "photo",
+  "other",
+];
+
+export const PAGE_SIZE_OPTIONS = (Object.keys(PAGE_SIZES) as PageSize[]).map((id) => ({
+  id,
+  label: PAGE_SIZES[id].label,
+  group: PAGE_SIZES[id].group,
+}));
+
+export const PAGE_SIZE_GROUPS = PAGE_SIZE_GROUP_ORDER.map((group) => ({
+  id: group,
+  label: PAGE_SIZE_GROUP_LABELS[group],
+  options: PAGE_SIZE_OPTIONS.filter((o) => o.group === group),
+}));
 
 export const GOOGLE_FONTS = [
   { id: "Inter", label: "Inter", css: "Inter, sans-serif" },

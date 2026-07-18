@@ -3,6 +3,7 @@ import { engine } from "express-handlebars";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { apiRouter } from "./routes/api.js";
+import { sessionMiddleware } from "./session.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +26,7 @@ app.set("views", path.join(root, "views"));
 
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true }));
+app.use(sessionMiddleware);
 app.use("/public", express.static(path.join(root, "public")));
 app.use("/uploads", express.static(path.join(root, "uploads")));
 

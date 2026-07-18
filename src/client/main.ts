@@ -39,18 +39,20 @@ import {
   type LibraryCategory,
   type LibraryItem,
 } from "./library.js";
+import { apiFetch, getSessionId, storeGet, storeSet } from "./session.js";
 import { computeSmartGuides, type SmartGuide } from "./smartGuides.js";
 import { TEMPLATE_LIST, buildTemplate } from "./templates.js";
 
-const STORAGE_KEY = "pdf-studio-doc";
-const DOCS_INDEX_KEY = "pdf-studio-docs";
+const STORAGE_KEY = "doc";
+const DOCS_INDEX_KEY = "docs";
 const THEME_KEY = "pdf-studio-theme";
-const SETTINGS_KEY = "pdf-studio-settings";
-const FAV_KEY = "pdf-studio-favorites";
-const RECENT_KEY = "pdf-studio-recent";
-const BRAND_KEY = "pdf-studio-brand";
-const EXPORT_KEY = "pdf-studio-export";
-const AUTHOR_KEY = "pdf-studio-author";
+const SETTINGS_KEY = "settings";
+const FAV_KEY = "favorites";
+const RECENT_KEY = "recent";
+const BRAND_KEY = "brand";
+const EXPORT_KEY = "export";
+const AUTHOR_KEY = "author";
+const docKey = (id: string) => `doc:${id}`;
 
 type Tool = "select" | "text" | "rect" | "ellipse" | "line" | "place" | "comment";
 
@@ -306,6 +308,7 @@ function pdfEditor() {
     },
 
     init() {
+      getSessionId();
       const params = new URLSearchParams(window.location.search);
       const templateId = params.get("template");
       const fresh = params.get("new") === "1";
@@ -319,7 +322,7 @@ function pdfEditor() {
       this.applyTheme(this.theme);
 
       try {
-        const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") as {
+        const settings = JSON.parse(storeGet(SETTINGS_KEY) || "{}") as {
           showGuides?: boolean;
           showGrid?: boolean;
           snapEnabled?: boolean;
@@ -334,28 +337,28 @@ function pdfEditor() {
       }
 
       try {
-        this.favorites = JSON.parse(localStorage.getItem(FAV_KEY) || "[]") as string[];
-        this.recentIds = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]") as string[];
+        this.favorites = JSON.parse(storeGet(FAV_KEY) || "[]") as string[];
+        this.recentIds = JSON.parse(storeGet(RECENT_KEY) || "[]") as string[];
       } catch {
         this.favorites = [];
         this.recentIds = [];
       }
 
       try {
-        const brand = JSON.parse(localStorage.getItem(BRAND_KEY) || "null");
+        const brand = JSON.parse(storeGet(BRAND_KEY) || "null");
         if (brand) this.brand = { ...this.brand, ...brand };
       } catch {
         /* ignore */
       }
 
       try {
-        const exp = JSON.parse(localStorage.getItem(EXPORT_KEY) || "null");
+        const exp = JSON.parse(storeGet(EXPORT_KEY) || "null");
         if (exp) this.exportSettings = { ...this.exportSettings, ...exp };
       } catch {
         /* ignore */
       }
 
-      this.authorName = localStorage.getItem(AUTHOR_KEY) || "Reviewer";
+      this.authorName = storeGet(AUTHOR_KEY) || "Reviewer";
       this.refreshDocLibrary();
 
       if (templateId) {
@@ -365,7 +368,7 @@ function pdfEditor() {
         this.doc = normalizeDoc(defaultDoc());
         this.commit(true);
       } else if (openId) {
-        const saved = localStorage.getItem(`pdf-studio-doc:${openId}`);
+        const saved = storeGet(docKey(openId));
         if (saved) {
           try {
             this.doc = normalizeDoc(JSON.parse(saved) as PdfDocument);
@@ -374,7 +377,7 @@ function pdfEditor() {
           }
         }
       } else {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = storeGet(STORAGE_KEY);
         if (saved) {
           try {
             this.doc = normalizeDoc(JSON.parse(saved) as PdfDocument);
@@ -446,7 +449,7 @@ function pdfEditor() {
     },
 
     saveSettings() {
-      localStorage.setItem(
+      storeSet(
         SETTINGS_KEY,
         JSON.stringify({
           showGuides: this.showGuides,
@@ -473,8 +476,8 @@ function pdfEditor() {
       if (persistTimer) clearTimeout(persistTimer);
       persistTimer = setTimeout(() => {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
-          localStorage.setItem(`pdf-studio-doc:${this.doc.id}`, JSON.stringify(this.doc));
+          storeSet(STORAGE_KEY, JSON.stringify(this.doc));
+          storeSet(docKey(this.doc.id), JSON.stringify(this.doc));
           this.upsertDocLibrary();
         } catch (err) {
           console.warn("Could not persist document", err);
@@ -490,15 +493,15 @@ function pdfEditor() {
       this.commit(false);
       if (persistTimer) clearTimeout(persistTimer);
       persistTimer = setTimeout(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
-        localStorage.setItem(`pdf-studio-doc:${this.doc.id}`, JSON.stringify(this.doc));
+        storeSet(STORAGE_KEY, JSON.stringify(this.doc));
+        storeSet(docKey(this.doc.id), JSON.stringify(this.doc));
         this.upsertDocLibrary();
       }, 120);
     },
 
     refreshDocLibrary() {
       try {
-        this.docLibrary = JSON.parse(localStorage.getItem(DOCS_INDEX_KEY) || "[]") as DocIndexEntry[];
+        this.docLibrary = JSON.parse(storeGet(DOCS_INDEX_KEY) || "[]") as DocIndexEntry[];
       } catch {
         this.docLibrary = [];
       }
@@ -513,11 +516,11 @@ function pdfEditor() {
       const list = this.docLibrary.filter((d) => d.id !== this.doc.id);
       list.unshift(entry);
       this.docLibrary = list.slice(0, 40);
-      localStorage.setItem(DOCS_INDEX_KEY, JSON.stringify(this.docLibrary));
+      storeSet(DOCS_INDEX_KEY, JSON.stringify(this.docLibrary));
     },
 
     openDocFromLibrary(id: string) {
-      const raw = localStorage.getItem(`pdf-studio-doc:${id}`);
+      const raw = storeGet(docKey(id));
       if (!raw) return;
       try {
         this.doc = normalizeDoc(JSON.parse(raw) as PdfDocument);
@@ -528,7 +531,7 @@ function pdfEditor() {
         this.showDocLibrary = false;
         this.fontOptions = allFontOptions(this.doc.customFonts);
         this.injectCustomFontFaces();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
+        storeSet(STORAGE_KEY, JSON.stringify(this.doc));
       } catch {
         alert("Could not open document.");
       }
@@ -583,7 +586,7 @@ function pdfEditor() {
       this.doc = normalizeDoc(prev);
       this.selectedIds = [];
       this.syncHistoryFlags();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
+      storeSet(STORAGE_KEY, JSON.stringify(this.doc));
       skipHistory = false;
     },
 
@@ -594,7 +597,7 @@ function pdfEditor() {
       this.doc = normalizeDoc(next);
       this.selectedIds = [];
       this.syncHistoryFlags();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
+      storeSet(STORAGE_KEY, JSON.stringify(this.doc));
       skipHistory = false;
     },
 
@@ -832,7 +835,7 @@ function pdfEditor() {
 
     rememberLibraryUse(item: LibraryItem) {
       this.recentIds = [item.id, ...this.recentIds.filter((id) => id !== item.id)].slice(0, 16);
-      localStorage.setItem(RECENT_KEY, JSON.stringify(this.recentIds));
+      storeSet(RECENT_KEY, JSON.stringify(this.recentIds));
     },
 
     isFavorite(id: string) {
@@ -845,7 +848,7 @@ function pdfEditor() {
       } else {
         this.favorites = [id, ...this.favorites].slice(0, 40);
       }
-      localStorage.setItem(FAV_KEY, JSON.stringify(this.favorites));
+      storeSet(FAV_KEY, JSON.stringify(this.favorites));
     },
 
     pickLibraryItem(item: LibraryItem) {
@@ -1497,7 +1500,11 @@ function pdfEditor() {
     },
 
     saveBrand() {
-      localStorage.setItem(BRAND_KEY, JSON.stringify(this.brand));
+      storeSet(BRAND_KEY, JSON.stringify(this.brand));
+    },
+
+    saveAuthorName() {
+      storeSet(AUTHOR_KEY, this.authorName || "Reviewer");
     },
 
     applyBrandToSelection() {
@@ -1519,7 +1526,7 @@ function pdfEditor() {
       const form = new FormData();
       form.append("image", file);
       try {
-        const res = await fetch("/api/upload", { method: "POST", body: form });
+        const res = await apiFetch("/api/upload", { method: "POST", body: form });
         const payload = await res.json();
         if (!res.ok) throw new Error(payload.error || "Upload failed");
         this.brand.logoUrl = payload.url;
@@ -1558,7 +1565,7 @@ function pdfEditor() {
       const form = new FormData();
       form.append("font", file);
       try {
-        const res = await fetch("/api/fonts", { method: "POST", body: form });
+        const res = await apiFetch("/api/fonts", { method: "POST", body: form });
         const payload = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(payload.error || "Font upload failed");
 
@@ -1614,7 +1621,7 @@ function pdfEditor() {
       const form = new FormData();
       form.append("pdf", file);
       try {
-        const res = await fetch("/api/import", { method: "POST", body: form });
+        const res = await apiFetch("/api/import", { method: "POST", body: form });
         const payload = await res.json();
         if (!res.ok) throw new Error(payload.error || "Import failed");
         this.doc = normalizeDoc(payload.document as PdfDocument);
@@ -1635,7 +1642,7 @@ function pdfEditor() {
     },
 
     saveExportSettings() {
-      localStorage.setItem(EXPORT_KEY, JSON.stringify(this.exportSettings));
+      storeSet(EXPORT_KEY, JSON.stringify(this.exportSettings));
     },
 
     onKeydown(event: KeyboardEvent) {
@@ -1694,7 +1701,7 @@ function pdfEditor() {
       if (mod && event.key.toLowerCase() === "s") {
         event.preventDefault();
         this.commit(false);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
+        storeSet(STORAGE_KEY, JSON.stringify(this.doc));
         return;
       }
       if (mod && event.key.toLowerCase() === "e") {
@@ -1776,7 +1783,7 @@ function pdfEditor() {
       form.append("image", file);
 
       try {
-        const res = await fetch("/api/upload", { method: "POST", body: form });
+        const res = await apiFetch("/api/upload", { method: "POST", body: form });
         const payload = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(payload.error || "Upload failed");
 
@@ -1800,7 +1807,7 @@ function pdfEditor() {
       this.exporting = true;
       this.showExportModal = false;
       try {
-        const res = await fetch("/api/export", {
+        const res = await apiFetch("/api/export", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

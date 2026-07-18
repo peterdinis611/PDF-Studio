@@ -28,7 +28,7 @@ import { resolveUploadPath } from "./pdfImport.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "../../..");
-const fontsRoot = path.resolve(root, "uploads/fonts");
+const fontsRoot = path.resolve(root, "uploads/fonts"); // legacy shared fonts fallback
 
 type Fonts = {
   helvetica: PDFFont;

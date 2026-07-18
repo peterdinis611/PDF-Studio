@@ -2,38 +2,63 @@ import { Router } from "express";
 import multer from "multer";
 import path from "node:path";
 import fs from "node:fs";
-import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { imageSize } from "image-size";
 import { exportPdf } from "../services/pdfExport.js";
 import { importPdfFromPath } from "../services/pdfImport.js";
 import type { ExportPayload } from "../../shared/types.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadsDir = path.resolve(__dirname, "../../../uploads");
-const fontsDir = path.resolve(uploadsDir, "fonts");
-
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-if (!fs.existsSync(fontsDir)) {
-  fs.mkdirSync(fontsDir, { recursive: true });
-}
+import { PAGE_SIZES } from "../../shared/types.js";
+import {
+  ensureSessionDirs,
+  sessionPublicUrl,
+} from "../session.js";
 
 const ALLOWED_EXT = new Set([".png", ".jpg", ".jpeg"]);
 const FONT_EXT = new Set([".ttf", ".otf"]);
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const safe = ALLOWED_EXT.has(ext) ? ext : ".png";
-    cb(null, `${randomUUID()}${safe}`);
-  },
-});
+function imageStorage() {
+  return multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const { uploads } = ensureSessionDirs(req.sessionId);
+      cb(null, uploads);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const safe = ALLOWED_EXT.has(ext) ? ext : ".png";
+      cb(null, `${randomUUID()}${safe}`);
+    },
+  });
+}
+
+function pdfStorage() {
+  return multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const { uploads } = ensureSessionDirs(req.sessionId);
+      cb(null, uploads);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase() === ".pdf" ? ".pdf" : ".pdf";
+      cb(null, `${randomUUID()}${ext}`);
+    },
+  });
+}
+
+function fontStorage() {
+  return multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const { fonts } = ensureSessionDirs(req.sessionId);
+      cb(null, fonts);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const safe = FONT_EXT.has(ext) ? ext : ".ttf";
+      cb(null, `${randomUUID()}${safe}`);
+    },
+  });
+}
 
 const upload = multer({
-  storage,
+  storage: imageStorage(),
   limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (/^image\/(png|jpeg|jpg)$/.test(file.mimetype)) {
@@ -45,13 +70,7 @@ const upload = multer({
 });
 
 const pdfUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() === ".pdf" ? ".pdf" : ".pdf";
-      cb(null, `${randomUUID()}${ext}`);
-    },
-  }),
+  storage: pdfStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype === "application/pdf" || file.originalname.toLowerCase().endsWith(".pdf")) {
@@ -63,14 +82,7 @@ const pdfUpload = multer({
 });
 
 const fontUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, fontsDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      const safe = FONT_EXT.has(ext) ? ext : ".ttf";
-      cb(null, `${randomUUID()}${safe}`);
-    },
-  }),
+  storage: fontStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -91,7 +103,7 @@ apiRouter.post("/export", async (req, res) => {
       res.status(400).json({ error: "Document needs at least one page" });
       return;
     }
-    if (!["a4", "a5", "letter", "legal", "square"].includes(payload.pageSize)) {
+    if (!(payload.pageSize in PAGE_SIZES)) {
       res.status(400).json({ error: "Invalid page size" });
       return;
     }
@@ -135,7 +147,7 @@ apiRouter.post("/upload", (req, res) => {
     }
 
     res.json({
-      url: `/uploads/${req.file.filename}`,
+      url: sessionPublicUrl(req.sessionId, req.file.filename),
       name: req.file.originalname,
       width,
       height,
@@ -154,7 +166,7 @@ apiRouter.post("/import", (req, res) => {
       return;
     }
     try {
-      const url = `/uploads/${req.file.filename}`;
+      const url = sessionPublicUrl(req.sessionId, req.file.filename);
       const doc = await importPdfFromPath(req.file.path, url, req.file.originalname);
       res.json({ document: doc });
     } catch (e) {
@@ -178,7 +190,7 @@ apiRouter.post("/fonts", (req, res) => {
     res.json({
       id: path.basename(req.file.filename, path.extname(req.file.filename)),
       name,
-      url: `/uploads/fonts/${req.file.filename}`,
+      url: sessionPublicUrl(req.sessionId, req.file.filename, "font"),
     });
   });
 });
