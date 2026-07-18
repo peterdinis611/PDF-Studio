@@ -40,6 +40,12 @@ import {
   type LibraryItem,
 } from "./library.js";
 import { apiFetch, getSessionId, storeGet, storeSet } from "./session.js";
+import {
+  bytesToBase64,
+  clearSessionImportedPdf,
+  getSessionImportedPdfBytes,
+  importPdfInBrowser,
+} from "./pdfImport.js";
 import { computeSmartGuides, type SmartGuide } from "./smartGuides.js";
 import { TEMPLATE_LIST, buildTemplate } from "./templates.js";
 
@@ -127,7 +133,7 @@ function normalizeTextElement(el: PdfElement): PdfElement {
 }
 
 function normalizeDoc(doc: PdfDocument): PdfDocument {
-  return {
+  const normalized: PdfDocument = {
     ...doc,
     pageBackground: doc.pageBackground || "#faf9f6",
     guides: doc.guides || [],
@@ -141,6 +147,13 @@ function normalizeDoc(doc: PdfDocument): PdfDocument {
       elements: p.elements.map(normalizeTextElement),
     })),
   };
+
+  // Ephemeral imports live only in the open tab — drop stale refs after reload.
+  if (normalized.importedPdf?.ephemeral && !getSessionImportedPdfBytes()) {
+    normalized.importedPdf = null;
+  }
+
+  return normalized;
 }
 
 /** Crop transparent padding from a signature canvas (device pixels). */
@@ -271,6 +284,10 @@ function pdfEditor() {
 
     get pageSize() {
       return PAGE_SIZES[this.doc.pageSize] ?? PAGE_SIZES.a4;
+    },
+
+    hasSessionPdf() {
+      return Boolean(getSessionImportedPdfBytes());
     },
 
     get activePage(): PdfPage {
@@ -558,6 +575,7 @@ function pdfEditor() {
       const raw = storeGet(docKey(id));
       if (!raw) return;
       try {
+        clearSessionImportedPdf();
         this.doc = normalizeDoc(JSON.parse(raw) as PdfDocument);
         this.activePageIndex = 0;
         this.selectedIds = [];
@@ -636,6 +654,7 @@ function pdfEditor() {
 
     newDocument() {
       if (!confirm("Start a blank document? Unsaved changes stay in browser history only.")) return;
+      clearSessionImportedPdf();
       this.doc = normalizeDoc(defaultDoc());
       this.activePageIndex = 0;
       this.selectedIds = [];
@@ -645,6 +664,7 @@ function pdfEditor() {
     },
 
     applyTemplate(id: string) {
+      clearSessionImportedPdf();
       this.doc = normalizeDoc(buildTemplate(id));
       this.activePageIndex = 0;
       this.selectedIds = [];
@@ -1613,19 +1633,21 @@ function pdfEditor() {
       const input = event.target as HTMLInputElement;
       const file = input.files?.[0];
       if (!file) return;
-      const form = new FormData();
-      form.append("pdf", file);
+      if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
+        alert("Please choose a PDF file.");
+        input.value = "";
+        return;
+      }
       try {
-        const res = await apiFetch("/api/import", { method: "POST", body: form });
-        const payload = await res.json();
-        if (!res.ok) throw new Error(payload.error || "Import failed");
-        this.doc = normalizeDoc(payload.document as PdfDocument);
+        const document = await importPdfInBrowser(file);
+        this.doc = normalizeDoc(document);
         this.activePageIndex = 0;
         this.selectedIds = [];
         history.reset(this.doc);
         this.syncHistoryFlags();
         this.commit(false);
       } catch (err) {
+        clearSessionImportedPdf();
         alert(err instanceof Error ? err.message : "Could not import PDF");
       } finally {
         input.value = "";
@@ -2029,6 +2051,13 @@ function pdfEditor() {
       this.exporting = true;
       this.showExportModal = false;
       try {
+        const sessionBytes = getSessionImportedPdfBytes();
+        if (this.doc.importedPdf && !sessionBytes && !this.doc.importedPdf.url) {
+          throw new Error(
+            "The imported PDF is only kept while this window is open. Please import the PDF again, then export.",
+          );
+        }
+
         const res = await apiFetch("/api/export", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -2040,6 +2069,7 @@ function pdfEditor() {
             master: this.doc.master,
             watermark: this.doc.watermark,
             importedPdf: this.doc.importedPdf,
+            importedPdfData: sessionBytes ? bytesToBase64(sessionBytes) : undefined,
             exportSettings: this.exportSettings,
           }),
         });

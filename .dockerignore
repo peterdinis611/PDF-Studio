@@ -1,0 +1,16 @@
+node_modules
+dist
+.git
+.gitignore
+.tmp
+uploads
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+README.md
+biome.json
+**/*.md
+.cursor
+agent-transcripts

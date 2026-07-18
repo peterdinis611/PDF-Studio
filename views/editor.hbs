@@ -16,6 +16,7 @@
   <footer class="status-bar">
     <div class="flex min-w-0 items-center gap-2.5">
       <span class="status-chip" x-text="'Page ' + (activePageIndex + 1) + ' / ' + doc.pages.length"></span>
+      <span class="status-chip accent" x-show="doc.importedPdf && hasSessionPdf()" x-text="'PDF in memory · ' + (doc.importedPdf.name || 'imported')"></span>
       <span class="status-chip" x-show="selectedIds.length" x-text="selectedIds.length + ' selected'"></span>
       <span class="status-chip accent" x-show="editingMaster">Master</span>
       <span class="status-chip accent" x-show="reviewMode">Review</span>

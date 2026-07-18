@@ -1,8 +1,21 @@
 import { PDFDocument } from "pdf-lib";
-import path from "node:path";
-import { PAGE_SIZES, type PageSize, type PdfDocument, type PdfPage } from "../../shared/types.js";
-import { randomUUID } from "node:crypto";
-import { uploadsRoot } from "../session.js";
+import { PAGE_SIZES, type PageSize, type PdfDocument, type PdfPage } from "../shared/types.js";
+import { uid } from "./factories.js";
+
+/** In-memory only — cleared when the tab/window closes. Never written to disk or localStorage. */
+let sessionPdfBytes: Uint8Array | null = null;
+
+export function getSessionImportedPdfBytes(): Uint8Array | null {
+  return sessionPdfBytes;
+}
+
+export function clearSessionImportedPdf(): void {
+  sessionPdfBytes = null;
+}
+
+export function setSessionImportedPdfBytes(bytes: Uint8Array): void {
+  sessionPdfBytes = bytes;
+}
 
 function closestPageSize(width: number, height: number): PageSize {
   let best: PageSize = "a4";
@@ -20,28 +33,14 @@ function closestPageSize(width: number, height: number): PageSize {
   return best;
 }
 
-/** Resolve a path under the ephemeral OS temp uploads root (images only). */
-export function resolveUploadPath(src: string): string | null {
-  if (!src.startsWith("/uploads/")) return null;
-  const relative = src.replace(/^\/uploads\//, "");
-  if (!relative || relative.includes("..")) return null;
-  const resolved = path.resolve(uploadsRoot, relative);
-  if (!resolved.startsWith(uploadsRoot + path.sep) && resolved !== uploadsRoot) return null;
-  return resolved;
-}
-
-function base64ToBytes(data: string): Uint8Array {
-  const cleaned = data.includes(",") ? data.split(",").pop()! : data;
-  return Uint8Array.from(Buffer.from(cleaned, "base64"));
-}
-
-/** Build a studio document from PDF bytes (used in tests / optional server paths). */
-export async function importPdfFromBytes(
-  bytes: Uint8Array,
-  originalName: string,
-): Promise<PdfDocument> {
+/** Parse a PDF file entirely in the browser — nothing is uploaded to the server. */
+export async function importPdfInBrowser(file: File): Promise<PdfDocument> {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
   const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
   const pageCount = src.getPageCount();
+  if (!pageCount) throw new Error("PDF has no pages");
+
   const first = src.getPage(0);
   const { width, height } = first.getSize();
   const pageSize = closestPageSize(width, height);
@@ -51,10 +50,10 @@ export async function importPdfFromBytes(
     const page = src.getPage(i);
     const size = page.getSize();
     pages.push({
-      id: randomUUID(),
+      id: uid(),
       elements: [
         {
-          id: randomUUID(),
+          id: uid(),
           type: "text",
           x: 40,
           y: 40,
@@ -63,7 +62,7 @@ export async function importPdfFromBytes(
           rotation: 0,
           opacity: 0.55,
           locked: true,
-          content: `Imported PDF page ${i + 1} of ${pageCount}\nAdd overlays above this background`,
+          content: `Imported PDF · page ${i + 1} of ${pageCount}\nAdd overlays above this page (kept in memory only)`,
           fontSize: 12,
           fontFamily: "Helvetica",
           fontWeight: "normal",
@@ -81,10 +80,11 @@ export async function importPdfFromBytes(
     });
   }
 
-  const name = originalName.replace(/\.pdf$/i, "") || "Imported PDF";
+  sessionPdfBytes = bytes;
 
+  const name = file.name.replace(/\.pdf$/i, "") || "Imported PDF";
   return {
-    id: randomUUID(),
+    id: uid(),
     name,
     pageSize,
     pageBackground: "#ffffff",
@@ -93,8 +93,19 @@ export async function importPdfFromBytes(
     updatedAt: new Date().toISOString(),
     guides: [],
     comments: [],
-    importedPdf: { pageCount, name: originalName, ephemeral: true },
+    importedPdf: {
+      pageCount,
+      name: file.name,
+      ephemeral: true,
+    },
   };
 }
 
-export { base64ToBytes };
+export function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}

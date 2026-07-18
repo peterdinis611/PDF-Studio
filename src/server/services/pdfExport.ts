@@ -25,7 +25,7 @@ import {
   type TextElement,
   type DocWatermark,
 } from "../../shared/types.js";
-import { resolveUploadPath } from "./pdfImport.js";
+import { resolveUploadPath, base64ToBytes } from "./pdfImport.js";
 import { embedGoogleFonts, pickGoogleFont, type FontNeed } from "./fontEmbed.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -757,7 +757,15 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
   const pageCount = payload.pages.length;
 
   let sourcePdf: PDFDocument | null = null;
-  if (payload.importedPdf?.url) {
+  if (payload.importedPdfData) {
+    try {
+      const bytes = base64ToBytes(payload.importedPdfData);
+      sourcePdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    } catch {
+      sourcePdf = null;
+    }
+  } else if (payload.importedPdf?.url) {
+    // Legacy path for older docs that still point at a temp upload URL
     const srcPath = resolveUploadPath(payload.importedPdf.url);
     if (srcPath) {
       try {

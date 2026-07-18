@@ -5,7 +5,6 @@ import fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import { imageSize } from "image-size";
 import { exportPdf } from "../services/pdfExport.js";
-import { importPdfFromPath } from "../services/pdfImport.js";
 import type { ExportPayload } from "../../shared/types.js";
 import { PAGE_SIZES } from "../../shared/types.js";
 import { ensureSessionDirs, sessionPublicUrl } from "../session.js";
@@ -26,19 +25,6 @@ function imageStorage() {
   });
 }
 
-function pdfStorage() {
-  return multer.diskStorage({
-    destination: (req, _file, cb) => {
-      const { uploads } = ensureSessionDirs(req.sessionId);
-      cb(null, uploads);
-    },
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() === ".pdf" ? ".pdf" : ".pdf";
-      cb(null, `${randomUUID()}${ext}`);
-    },
-  });
-}
-
 const upload = multer({
   storage: imageStorage(),
   limits: { fileSize: 8 * 1024 * 1024 },
@@ -47,18 +33,6 @@ const upload = multer({
       cb(null, true);
     } else {
       cb(new Error("Only PNG and JPEG images are allowed"));
-    }
-  },
-});
-
-const pdfUpload = multer({
-  storage: pdfStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype === "application/pdf" || file.originalname.toLowerCase().endsWith(".pdf")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only PDF files are allowed"));
     }
   },
 });
@@ -121,26 +95,5 @@ apiRouter.post("/upload", (req, res) => {
       width,
       height,
     });
-  });
-});
-
-apiRouter.post("/import", (req, res) => {
-  pdfUpload.single("pdf")(req, res, async (err) => {
-    if (err) {
-      res.status(400).json({ error: err.message || "Import failed" });
-      return;
-    }
-    if (!req.file) {
-      res.status(400).json({ error: "No PDF uploaded" });
-      return;
-    }
-    try {
-      const url = sessionPublicUrl(req.sessionId, req.file.filename);
-      const doc = await importPdfFromPath(req.file.path, url, req.file.originalname);
-      res.json({ document: doc });
-    } catch (e) {
-      console.error("Import failed:", e);
-      res.status(500).json({ error: "Failed to import PDF" });
-    }
   });
 });

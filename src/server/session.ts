@@ -1,12 +1,15 @@
 import type { Request, Response, NextFunction } from "express";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { fileURLToPath } from "node:url";
 import { SESSION_COOKIE, SESSION_HEADER, isValidSessionId } from "../shared/session.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const uploadsRoot = path.resolve(__dirname, "../../uploads");
+/** Ephemeral storage — never lives in the project / deploy bundle. */
+export const uploadsRoot = path.join(os.tmpdir(), "pdf-studio-uploads");
+
+/** Session folders older than this are deleted on startup / periodic prune. */
+const UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
 
 declare global {
   namespace Express {
@@ -51,6 +54,26 @@ export function sessionPublicUrl(
 ): string {
   if (kind === "font") return `/uploads/sessions/${sessionId}/fonts/${filename}`;
   return `/uploads/sessions/${sessionId}/${filename}`;
+}
+
+/** Remove expired session upload dirs so deploys don't accumulate files. */
+export function pruneExpiredUploads(maxAgeMs = UPLOAD_TTL_MS): void {
+  const sessionsRoot = path.join(uploadsRoot, "sessions");
+  if (!fs.existsSync(sessionsRoot)) return;
+
+  const now = Date.now();
+  for (const name of fs.readdirSync(sessionsRoot)) {
+    const dir = path.join(sessionsRoot, name);
+    try {
+      const stat = fs.statSync(dir);
+      if (!stat.isDirectory()) continue;
+      if (now - stat.mtimeMs > maxAgeMs) {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 /** Attach anonymous session id (no login). Isolates uploads between browsers/tabs. */

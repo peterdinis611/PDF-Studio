@@ -254,8 +254,12 @@ export interface DocMaster {
 }
 
 export interface ImportedPdfRef {
-  url: string;
   pageCount: number;
+  name?: string;
+  /** True when the source PDF lives only in the open browser tab (not on disk). */
+  ephemeral?: boolean;
+  /** @deprecated Legacy server upload URL — unused for new imports. */
+  url?: string;
 }
 
 export interface PdfDocument {
@@ -400,6 +404,8 @@ export interface ExportPayload {
   master?: DocMaster;
   watermark?: DocWatermark | null;
   importedPdf?: ImportedPdfRef | null;
+  /** Base64 of the original PDF — sent only for export, never persisted. */
+  importedPdfData?: string;
   customFonts?: { id: string; name: string; url: string }[];
   exportSettings?: ExportSettings;
 }
