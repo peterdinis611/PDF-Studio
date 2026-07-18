@@ -158,6 +158,7 @@ function pdfEditor() {
     marquee: null as { x: number; y: number; w: number; h: number } | null,
     showTemplates: false,
     showLibrary: true,
+    leftRail: "insert" as "insert" | "pages",
     showExportModal: false,
     showFindReplace: false,
     showBrandKit: false,
@@ -165,7 +166,7 @@ function pdfEditor() {
     showComments: false,
     editingMaster: false,
     reviewMode: false,
-    libraryCategory: "basics" as LibraryCategory,
+    libraryCategory: "all" as LibraryCategory,
     libraryItems: LIBRARY_ITEMS,
     libraryCategories: LIBRARY_CATEGORIES,
     libraryQuery: "",
@@ -1546,22 +1547,64 @@ function pdfEditor() {
       const input = event.target as HTMLInputElement;
       const file = input.files?.[0];
       if (!file) return;
+
+      const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+      if (ext !== ".ttf" && ext !== ".otf") {
+        alert("Please upload a .ttf or .otf font file.");
+        input.value = "";
+        return;
+      }
+
       const form = new FormData();
       form.append("font", file);
       try {
         const res = await fetch("/api/fonts", { method: "POST", body: form });
-        const payload = await res.json();
+        const payload = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(payload.error || "Font upload failed");
+
         if (!this.doc.customFonts) this.doc.customFonts = [];
-        this.doc.customFonts.push({ id: payload.id, name: payload.name, url: payload.url });
+        const entry = {
+          id: payload.id as string,
+          name: (payload.name as string) || file.name.replace(/\.(ttf|otf)$/i, ""),
+          url: payload.url as string,
+        };
+        this.doc.customFonts.push(entry);
         this.fontOptions = allFontOptions(this.doc.customFonts);
         this.injectCustomFontFaces();
+
+        const fontId = `custom:${entry.id}`;
+        if (this.selected?.type === "text") {
+          this.selected.fontFamily = fontId;
+        } else if (this.brand) {
+          this.brand.defaultFont = fontId;
+          this.saveBrand();
+        }
+
         this.commit();
       } catch (err) {
         alert(err instanceof Error ? err.message : "Font upload failed");
       } finally {
         input.value = "";
       }
+    },
+
+    removeCustomFont(id: string) {
+      const fontKey = `custom:${id}`;
+      this.doc.customFonts = (this.doc.customFonts || []).filter((f) => f.id !== id);
+      for (const page of this.doc.pages) {
+        for (const el of page.elements) {
+          if (el.type === "text" && el.fontFamily === fontKey) {
+            el.fontFamily = "Helvetica";
+          }
+        }
+      }
+      if (this.brand?.defaultFont === fontKey) {
+        this.brand.defaultFont = "Helvetica";
+        this.saveBrand();
+      }
+      this.fontOptions = allFontOptions(this.doc.customFonts);
+      this.injectCustomFontFaces();
+      this.commit();
     },
 
     async onPdfImportSelected(event: Event) {
@@ -1676,6 +1719,7 @@ function pdfEditor() {
 
       if (event.key === "/" && !event.metaKey && !event.ctrlKey) {
         event.preventDefault();
+        this.leftRail = "insert";
         this.showLibrary = true;
         queueMicrotask(() => {
           const input = (this as unknown as { $refs: { librarySearch?: HTMLInputElement } }).$refs

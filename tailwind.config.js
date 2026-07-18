@@ -8,6 +8,7 @@ export default {
         ink: "rgb(var(--color-ink) / <alpha-value>)",
         paper: "rgb(var(--color-paper) / <alpha-value>)",
         fg: "rgb(var(--color-fg) / <alpha-value>)",
+        rail: "rgb(var(--color-rail) / <alpha-value>)",
         slate: {
           panel: "rgb(var(--color-panel) / <alpha-value>)",
           muted: "rgb(var(--color-muted) / <alpha-value>)",
@@ -22,7 +23,7 @@ export default {
         warn: "rgb(var(--color-warn) / <alpha-value>)",
       },
       fontFamily: {
-        display: ["\"DM Sans\"", "system-ui", "sans-serif"],
+        display: ["\"Sora\"", "\"DM Sans\"", "system-ui", "sans-serif"],
         mono: ["\"JetBrains Mono\"", "ui-monospace", "monospace"],
       },
       boxShadow: {

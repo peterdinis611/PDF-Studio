@@ -26,6 +26,6 @@ export function allFontOptions(customFonts: { id: string; name: string; url: str
   return [
     ...STANDARD_FONTS.map((f) => ({ id: f.id, label: f.label })),
     ...GOOGLE_FONTS.map((f) => ({ id: f.id, label: f.label })),
-    ...customFonts.map((f) => ({ id: `custom:${f.id}`, label: f.name })),
+    ...customFonts.map((f) => ({ id: `custom:${f.id}`, label: `${f.name} (custom)` })),
   ];
 }

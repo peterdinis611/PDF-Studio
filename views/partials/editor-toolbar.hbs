@@ -1,4 +1,4 @@
-<header class="editor-chrome relative z-30 flex h-14 shrink-0 items-center gap-2 border-b border-slate-line bg-slate-panel/95 px-2 backdrop-blur-md md:gap-3 md:px-4">
+<header class="editor-chrome relative z-30 flex h-13 shrink-0 items-center gap-2 border-b border-slate-line px-3 md:gap-3 md:px-4" style="height: 3.25rem">
   <a href="/" class="group flex items-center gap-2.5 pr-1" title="Home">
     <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-xs font-bold tracking-tight text-white shadow-sm transition group-hover:bg-accent-dim">PS</span>
     <span class="hidden text-sm font-semibold tracking-tight text-fg lg:inline">PDF Studio</span>
@@ -51,6 +51,7 @@
       <button type="button" class="menu-item" @click="showFileMenu = false; showDocLibrary = true">Open library…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; $refs.pdfInput.click()">Import PDF…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; $refs.jsonInput.click()">Open JSON…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; $refs.fontInput.click()">Upload font…</button>
       <div class="my-1 border-t border-slate-line"></div>
       <button type="button" class="menu-item" @click="showFileMenu = false; downloadStudioJson()">Share as JSON</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; openExportModal()">Export PDF…</button>
@@ -91,16 +92,17 @@
 
     <button
       type="button"
-      class="tool-btn h-8 w-8"
+      class="btn-ghost gap-1.5"
       @click="toggleTheme()"
-      :title="theme === 'dark' ? 'Light mode' : 'Dark mode'"
+      :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
     >
-      <svg x-show="theme === 'dark'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+      <svg x-show="theme === 'dark'" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.4 6.4l-1.4-1.4M7 7L5.6 5.6m12.8 0L17 7M7 17l-1.4 1.4M12 8a4 4 0 100 8 4 4 0 000-8z" />
       </svg>
-      <svg x-show="theme === 'light'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+      <svg x-show="theme === 'light'" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
         <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
       </svg>
+      <span class="hidden sm:inline" x-text="theme === 'dark' ? 'Light' : 'Dark'"></span>
     </button>
 
     <button
@@ -177,6 +179,22 @@
     @click.outside="showSettings = false"
     class="absolute right-3 top-14 z-40 w-[min(92vw,22rem)] rounded-2xl border border-slate-line bg-slate-panel p-4 shadow-page"
   >
+    <p class="mb-3 text-xs font-medium uppercase tracking-wider text-slate-muted">Appearance</p>
+    <div class="mb-3 flex gap-2">
+      <button
+        type="button"
+        class="btn-ghost flex-1 justify-center"
+        :class="theme === 'dark' && 'border-accent text-accent-soft'"
+        @click="applyTheme('dark')"
+      >Dark</button>
+      <button
+        type="button"
+        class="btn-ghost flex-1 justify-center"
+        :class="theme === 'light' && 'border-accent text-accent-soft'"
+        @click="applyTheme('light')"
+      >Light</button>
+    </div>
+
     <p class="mb-3 text-xs font-medium uppercase tracking-wider text-slate-muted">Workspace</p>
     <div class="space-y-1 text-sm">
       <label class="settings-row">
@@ -234,8 +252,19 @@
         <input type="text" class="panel-input" x-model="authorName" @change="localStorage.setItem('pdf-studio-author', authorName)" />
       </div>
       <div>
-        <label class="panel-label">Custom font</label>
-        <button type="button" class="btn-ghost w-full justify-center" @click="$refs.fontInput.click()">Upload TTF / OTF</button>
+        <label class="panel-label">Custom fonts</label>
+        <button type="button" class="btn-ghost mb-2 w-full justify-center" @click="$refs.fontInput.click()">
+          Upload TTF / OTF
+        </button>
+        <ul class="max-h-28 space-y-1 overflow-y-auto" x-show="(doc.customFonts || []).length">
+          <template x-for="f in (doc.customFonts || [])" :key="f.id">
+            <li class="flex items-center justify-between gap-2 rounded-lg border border-slate-line px-2 py-1.5 text-xs">
+              <span class="truncate text-fg" :style="`font-family: '${f.name}', sans-serif`" x-text="f.name"></span>
+              <button type="button" class="text-slate-muted hover:text-warn" @click="removeCustomFont(f.id)" title="Remove">×</button>
+            </li>
+          </template>
+        </ul>
+        <p class="mt-1.5 text-[10px] text-slate-muted" x-show="!(doc.customFonts || []).length">No custom fonts yet.</p>
       </div>
     </div>
   </div>

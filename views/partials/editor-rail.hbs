@@ -1,0 +1,202 @@
+<aside class="editor-rail flex w-[19rem] shrink-0 flex-col border-r border-slate-line bg-rail">
+  <div class="rail-tabs">
+    <button
+      type="button"
+      class="rail-tab"
+      :class="leftRail === 'insert' && 'is-active'"
+      @click="leftRail = 'insert'"
+    >
+      Insert
+    </button>
+    <button
+      type="button"
+      class="rail-tab"
+      :class="leftRail === 'pages' && 'is-active'"
+      @click="leftRail = 'pages'"
+    >
+      Pages
+      <span class="rail-count" x-text="doc.pages.length"></span>
+    </button>
+  </div>
+
+  {{!-- Insert library --}}
+  <div class="flex min-h-0 flex-1 flex-col" x-show="leftRail === 'insert'" x-cloak>
+    <div class="insert-header space-y-2.5 border-b border-slate-line p-3">
+      <div class="search-field">
+        <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.3-4.3M11 18a7 7 0 100-14 7 7 0 000 14z" />
+        </svg>
+        <input
+          type="search"
+          class="search-input"
+          placeholder="Search elements"
+          x-model="libraryQuery"
+          x-ref="librarySearch"
+          @keydown.escape.stop="libraryQuery = ''"
+        />
+        <kbd class="search-kbd">/</kbd>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <select class="panel-select flex-1 py-2 text-xs" x-model="libraryCategory">
+          <template x-for="cat in libraryCategories" :key="cat.id">
+            <option :value="cat.id" x-text="cat.label"></option>
+          </template>
+        </select>
+        <button
+          type="button"
+          class="view-toggle"
+          :class="libraryView === 'grid' && 'is-active'"
+          @click="libraryView = libraryView === 'list' ? 'grid' : 'list'"
+          :title="libraryView === 'list' ? 'Grid view' : 'List view'"
+        >
+          <svg x-show="libraryView === 'list'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+            <path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <svg x-show="libraryView === 'grid'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-1">
+        <button
+          type="button"
+          class="quick-filter"
+          :class="libraryCategory === 'all' && 'is-active'"
+          @click="libraryCategory = 'all'"
+        >All</button>
+        <button
+          type="button"
+          class="quick-filter"
+          :class="libraryCategory === 'favorites' && 'is-active'"
+          @click="libraryCategory = 'favorites'"
+          title="Favorites"
+        >★</button>
+        <button
+          type="button"
+          class="quick-filter"
+          :class="libraryCategory === 'recent' && 'is-active'"
+          @click="libraryCategory = 'recent'"
+        >Recent</button>
+        <button
+          type="button"
+          class="quick-filter"
+          :class="libraryCategory === 'basics' && 'is-active'"
+          @click="libraryCategory = 'basics'"
+        >Basics</button>
+        <button
+          type="button"
+          class="quick-filter"
+          :class="libraryCategory === 'shapes' && 'is-active'"
+          @click="libraryCategory = 'shapes'"
+        >Shapes</button>
+        <button
+          type="button"
+          class="quick-filter"
+          :class="libraryCategory === 'notes' && 'is-active'"
+          @click="libraryCategory = 'notes'"
+        >Notes</button>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between px-3 py-2">
+      <span class="text-[11px] text-slate-muted">
+        <span class="font-medium text-fg/80" x-text="filteredLibrary.length"></span>
+        <span x-text="filteredLibrary.length === 1 ? ' element' : ' elements'"></span>
+      </span>
+      <label class="flex cursor-pointer items-center gap-1.5 text-[11px] text-slate-muted hover:text-fg">
+        <input type="checkbox" class="accent-accent" x-model="libraryKeepPlacing" />
+        Keep placing
+      </label>
+    </div>
+
+    <div
+      class="flex-1 overflow-y-auto px-2.5 pb-4"
+      :class="libraryView === 'grid' ? 'grid grid-cols-2 content-start gap-2' : 'space-y-1'"
+    >
+      <template x-for="(item, idx) in filteredLibrary" :key="item.id">
+        <div class="group relative" :style="`animation-delay: ${Math.min(idx, 16) * 16}ms`">
+          <button
+            type="button"
+            class="lib-item"
+            :class="[
+              pendingLibraryKind === item.kind && 'is-pending',
+              libraryView === 'grid' ? 'lib-item-grid' : 'lib-item-list'
+            ]"
+            @click="pickLibraryItem(item)"
+            @dblclick.prevent="insertLibraryQuick(item)"
+            :title="item.hint + ' · Click to place · Double-click to center'"
+          >
+            <span class="lib-preview" x-text="item.preview"></span>
+            <span class="min-w-0 flex-1" :class="libraryView === 'grid' && 'w-full text-center'">
+              <span class="block truncate text-[13px] font-medium tracking-tight text-fg" x-text="item.label"></span>
+              <span class="mt-0.5 block truncate text-[11px] leading-snug text-slate-muted" x-show="libraryView === 'list'" x-text="item.hint"></span>
+            </span>
+            <span class="lib-hint hidden text-[10px] text-slate-muted opacity-0 transition group-hover:opacity-100 sm:inline" x-show="libraryView === 'list'">Place</span>
+          </button>
+          <button
+            type="button"
+            class="fav-btn"
+            :class="isFavorite(item.id) && 'is-on'"
+            @click.stop="toggleFavorite(item.id)"
+            title="Favorite"
+            x-text="isFavorite(item.id) ? '★' : '☆'"
+          ></button>
+        </div>
+      </template>
+
+      <div x-show="filteredLibrary.length === 0" class="col-span-2 px-3 py-12 text-center">
+        <p class="text-sm text-slate-muted">No elements found</p>
+        <button type="button" class="mt-2 text-xs text-accent-soft hover:underline" @click="libraryQuery = ''; libraryCategory = 'all'">
+          Clear filters
+        </button>
+      </div>
+    </div>
+
+    <div class="insert-footer border-t border-slate-line px-3 py-2 text-[10px] text-slate-muted">
+      Click to place · Double-click to center
+    </div>
+  </div>
+
+  {{!-- Pages --}}
+  <div class="flex min-h-0 flex-1 flex-col" x-show="leftRail === 'pages'" x-cloak>
+    <div class="flex items-center justify-between border-b border-slate-line px-3 py-2.5">
+      <span class="text-xs text-slate-muted">Document pages</span>
+      <button type="button" class="tool-btn h-8 w-8" @click="addPage()" title="Add page">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
+    </div>
+    <div class="flex-1 space-y-3 overflow-y-auto p-3">
+      <template x-for="(page, index) in doc.pages" :key="page.id">
+        <div class="group">
+          <button
+            type="button"
+            class="page-thumb"
+            :aria-current="index === activePageIndex ? 'true' : 'false'"
+            :style="pageThumbStyle"
+            @click="setActivePage(index)"
+          >
+            <span
+              class="pointer-events-none absolute inset-0 origin-top-left scale-[0.32] overflow-hidden"
+              :style="`width: ${pageSize.width}px; height: ${pageSize.height}px;`"
+            >
+              <template x-for="el in page.elements" :key="el.id">
+                <div class="absolute" :style="thumbElementStyle(el)" x-html="thumbPreview(el)"></div>
+              </template>
+            </span>
+            <span class="absolute bottom-1.5 left-1.5 rounded-md bg-ink/80 px-1.5 py-0.5 font-mono text-[10px] text-white" x-text="index + 1"></span>
+          </button>
+          <div class="mt-1.5 flex justify-center gap-0.5 opacity-0 transition group-hover:opacity-100">
+            <button type="button" class="tool-btn h-7 w-7" @click="movePage(index, -1)" :disabled="index === 0">↑</button>
+            <button type="button" class="tool-btn h-7 w-7" @click="movePage(index, 1)" :disabled="index === doc.pages.length - 1">↓</button>
+            <button type="button" class="tool-btn h-7 w-7" @click="duplicatePage(index)" title="Duplicate">⧉</button>
+            <button type="button" class="tool-btn h-7 w-7 text-warn/80" x-show="doc.pages.length > 1" @click="removePage(index)">×</button>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</aside>

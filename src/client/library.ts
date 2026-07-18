@@ -41,8 +41,8 @@ export interface LibraryItem {
 }
 
 export const LIBRARY_CATEGORIES: { id: LibraryCategory; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "favorites", label: "★" },
+  { id: "all", label: "All elements" },
+  { id: "favorites", label: "Favorites" },
   { id: "recent", label: "Recent" },
   { id: "basics", label: "Basics" },
   { id: "shapes", label: "Shapes" },
