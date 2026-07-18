@@ -1,4 +1,3 @@
-import Alpine from "alpinejs";
 import {
   PAGE_SIZES,
   type DocComment,
@@ -2031,22 +2030,22 @@ function pdfEditor() {
   };
 }
 
-Alpine.data("pdfEditor", pdfEditor);
-
-Alpine.data("themeToggle", () => ({
-  theme: (document.documentElement.getAttribute("data-theme") as "dark" | "light") || "dark",
-  init() {
-    const saved = localStorage.getItem(THEME_KEY);
-    if (saved === "light" || saved === "dark") {
-      this.theme = saved;
-      document.documentElement.setAttribute("data-theme", saved);
-    }
-  },
-  toggleTheme() {
-    this.theme = this.theme === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", this.theme);
-    localStorage.setItem(THEME_KEY, this.theme);
-  },
-}));
-
-Alpine.start();
+document.addEventListener("alpine:init", () => {
+  const Alpine = window.Alpine;
+  Alpine.data("pdfEditor", pdfEditor);
+  Alpine.data("themeToggle", () => ({
+    theme: (document.documentElement.getAttribute("data-theme") as "dark" | "light") || "dark",
+    init() {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === "light" || saved === "dark") {
+        this.theme = saved;
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+    },
+    toggleTheme() {
+      this.theme = this.theme === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", this.theme);
+      localStorage.setItem(THEME_KEY, this.theme);
+    },
+  }));
+});
