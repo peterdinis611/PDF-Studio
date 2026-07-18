@@ -1,0 +1,25 @@
+<div
+  x-data="pdfEditor"
+  @keydown.window="onKeydown($event)"
+  class="flex h-full flex-col animate-fade-in"
+>
+  {{> editor-toolbar}}
+
+  <div class="flex min-h-0 flex-1">
+    {{> editor-pages}}
+
+    {{> editor-library}}
+
+    {{> editor-canvas}}
+
+    {{> editor-inspector}}
+  </div>
+
+  <input
+    type="file"
+    accept="image/png,image/jpeg"
+    class="hidden"
+    x-ref="imageInput"
+    @change="onImageSelected($event)"
+  />
+</div>

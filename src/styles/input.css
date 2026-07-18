@@ -1,0 +1,245 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[x-cloak] {
+  display: none !important;
+}
+
+:root,
+[data-theme="dark"] {
+  --color-canvas: 232 228 220;
+  --color-ink: 26 26 26;
+  --color-paper: 250 249 246;
+  --color-fg: 255 255 255;
+  --color-panel: 30 35 48;
+  --color-muted: 139 147 167;
+  --color-line: 44 51 68;
+  --color-hover: 42 49 66;
+  --color-accent: 13 148 136;
+  --color-accent-soft: 20 184 166;
+  --color-accent-dim: 15 118 110;
+  --color-warn: 225 29 72;
+  --shadow-page: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
+  --preload-bg: #141820;
+  --color-accent-hex: #0d9488;
+}
+
+[data-theme="light"] {
+  --color-canvas: 217 212 202;
+  --color-ink: 26 26 26;
+  --color-paper: 255 252 247;
+  --color-fg: 26 26 26;
+  --color-panel: 243 240 234;
+  --color-muted: 107 114 128;
+  --color-line: 221 214 203;
+  --color-hover: 232 226 216;
+  --color-accent: 15 118 110;
+  --color-accent-soft: 13 148 136;
+  --color-accent-dim: 17 94 89;
+  --color-warn: 190 18 60;
+  --shadow-page: 0 10px 36px rgba(40, 30, 10, 0.12), 0 2px 8px rgba(40, 30, 10, 0.06);
+  --preload-bg: #f3f0ea;
+  --color-accent-hex: #0f766e;
+}
+
+@layer base {
+  html,
+  body {
+    @apply h-full overflow-hidden bg-slate-panel text-fg font-display antialiased;
+  }
+
+  ::selection {
+    @apply bg-accent/40 text-fg;
+  }
+}
+
+@layer components {
+  .tool-btn {
+    @apply flex h-10 w-10 items-center justify-center rounded-lg text-slate-muted transition
+      duration-200 hover:scale-105 hover:bg-slate-hover hover:text-fg
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
+      disabled:pointer-events-none disabled:opacity-30 active:scale-95;
+  }
+
+  .tool-btn[aria-pressed="true"] {
+    @apply scale-105 bg-accent/20 text-accent-soft shadow-[0_0_0_1px_rgba(13,148,136,0.35)];
+  }
+
+  .panel-label {
+    @apply mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-slate-muted;
+  }
+
+  .panel-input {
+    @apply w-full rounded-md border border-slate-line bg-slate-panel px-2.5 py-1.5 text-sm text-fg
+      transition focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent
+      placeholder:text-slate-muted/60;
+  }
+
+  .panel-select {
+    @apply panel-input appearance-none bg-[length:12px] bg-[right_0.6rem_center] bg-no-repeat pr-8;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238b93a7'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  }
+
+  .page-thumb {
+    @apply relative aspect-[210/297] w-full cursor-pointer overflow-hidden rounded border-2 border-transparent bg-paper transition
+      duration-200 hover:-translate-y-0.5 hover:border-slate-muted/40 hover:shadow-md;
+  }
+
+  .page-thumb[aria-current="true"] {
+    @apply border-accent shadow-[0_0_0_1px_rgba(13,148,136,0.4)];
+  }
+
+  .canvas-element {
+    @apply absolute select-none transition-[box-shadow,outline-color] duration-150;
+  }
+
+  .canvas-element.is-selected {
+    @apply outline outline-2 outline-accent outline-offset-1;
+    animation: select-pulse 0.45s ease-out;
+  }
+
+  .canvas-element.is-pop {
+    animation: element-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .resize-handle {
+    @apply absolute h-2.5 w-2.5 rounded-sm border border-white bg-accent shadow transition
+      hover:scale-125;
+  }
+
+  .library-card {
+    animation: library-in 0.35s ease-out both;
+  }
+
+  .toolbar-strip {
+    animation: slide-down 0.35s ease-out;
+  }
+
+  .page-surface {
+    animation: page-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .place-banner {
+    animation: banner-in 0.3s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.4s ease-out;
+  }
+
+  .btn-ghost {
+    @apply rounded-lg border border-slate-line px-2.5 py-1.5 text-xs text-slate-muted transition
+      hover:border-slate-muted hover:text-fg;
+  }
+
+  .guide-grid {
+    background-image:
+      linear-gradient(to right, rgb(var(--color-accent) / 0.18) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--color-accent) / 0.18) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+  }
+
+  .preload-screen {
+    @apply fixed inset-0 z-[100] flex flex-col items-center justify-center;
+    background: var(--preload-bg);
+  }
+
+  .preload-screen.is-done {
+    animation: preload-out 0.55s ease-in forwards;
+    pointer-events: none;
+  }
+
+  .preload-logo {
+    animation: preload-pulse 1.4s ease-in-out infinite;
+  }
+
+  .preload-bar {
+    @apply mt-6 h-1 w-40 overflow-hidden rounded-full bg-slate-line;
+  }
+
+  .preload-bar > span {
+    @apply block h-full rounded-full bg-accent;
+    animation: preload-bar 1.1s ease-in-out infinite;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes element-pop {
+  0% {
+    box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.55);
+    filter: brightness(1.15);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(13, 148, 136, 0);
+    filter: brightness(1);
+  }
+}
+
+@keyframes select-pulse {
+  0% { outline-color: rgba(13, 148, 136, 0.2); outline-offset: 4px; }
+  100% { outline-color: #0d9488; outline-offset: 1px; }
+}
+
+@keyframes library-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes banner-in {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes preload-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.06); opacity: 0.85; }
+}
+
+@keyframes preload-bar {
+  0% { width: 12%; transform: translateX(0); }
+  50% { width: 70%; transform: translateX(30%); }
+  100% { width: 12%; transform: translateX(280%); }
+}
+
+@keyframes preload-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-element.is-pop,
+  .canvas-element.is-selected,
+  .library-card,
+  .toolbar-strip,
+  .page-surface,
+  .place-banner,
+  .animate-fade-in,
+  .preload-logo,
+  .preload-bar > span {
+    animation: none !important;
+  }
+
+  .tool-btn:hover,
+  .page-thumb:hover {
+    transform: none !important;
+  }
+}

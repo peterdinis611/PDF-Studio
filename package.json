@@ -1,0 +1,38 @@
+{
+  "name": "pdf-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n server,css,client -c blue,magenta,green \"tsx watch src/server/index.ts\" \"npm run build:css -- --watch\" \"npm run build:client -- --watch\"",
+    "build": "npm run build:css && npm run build:client && tsc -p tsconfig.server.json",
+    "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/css/app.css --minify",
+    "build:client": "esbuild src/client/main.ts --bundle --outfile=public/js/app.js --format=esm --target=es2020",
+    "start": "node dist/server/index.js",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json --noEmit"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "express-handlebars": "^8.0.3",
+    "image-size": "^2.0.2",
+    "multer": "^2.0.2",
+    "pdf-lib": "^1.17.1",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/alpinejs": "^3.13.11",
+    "@types/express": "^5.0.3",
+    "@types/image-size": "^0.7.0",
+    "@types/multer": "^1.4.13",
+    "@types/node": "^22.15.30",
+    "@types/uuid": "^10.0.0",
+    "alpinejs": "^3.14.9",
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^9.1.2",
+    "esbuild": "^0.25.5",
+    "postcss": "^8.5.4",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,0 +1,321 @@
+<aside class="flex w-56 shrink-0 flex-col border-l border-slate-line bg-slate-panel md:w-64">
+  <div class="border-b border-slate-line px-3 py-2.5">
+    <span class="text-xs font-medium uppercase tracking-wider text-slate-muted">Properties</span>
+  </div>
+
+  <div class="flex-1 space-y-4 overflow-y-auto p-3">
+    <div x-show="selected" class="space-y-4">
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="panel-label">X</label>
+          <input type="number" class="panel-input" x-model.number="selected.x" @change="persist()" />
+        </div>
+        <div>
+          <label class="panel-label">Y</label>
+          <input type="number" class="panel-input" x-model.number="selected.y" @change="persist()" />
+        </div>
+        <div>
+          <label class="panel-label">W</label>
+          <input type="number" class="panel-input" x-model.number="selected.width" @change="persist()" />
+        </div>
+        <div>
+          <label class="panel-label">H</label>
+          <input type="number" class="panel-input" x-model.number="selected.height" @change="persist()" />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="panel-label">Rotation</label>
+          <input type="number" class="panel-input" min="-180" max="180" x-model.number="selected.rotation" @change="persist()" />
+        </div>
+        <div>
+          <label class="panel-label">Locked</label>
+          <button
+            type="button"
+            class="panel-input text-left"
+            @click="toggleLock()"
+            x-text="selected.locked ? 'Locked' : 'Unlocked'"
+          ></button>
+        </div>
+      </div>
+
+      <div>
+        <label class="panel-label">Opacity</label>
+        <input
+          type="range"
+          min="0.1"
+          max="1"
+          step="0.05"
+          class="w-full accent-accent"
+          x-model.number="selected.opacity"
+          @input="persistSoft()"
+          @change="persist()"
+        />
+      </div>
+
+      <div>
+        <label class="panel-label">Layer order</label>
+        <div class="flex flex-wrap gap-1">
+          <button type="button" class="rounded border border-slate-line px-2 py-1 text-xs text-slate-muted hover:text-fg" @click="bringToFront()">Front</button>
+          <button type="button" class="rounded border border-slate-line px-2 py-1 text-xs text-slate-muted hover:text-fg" @click="bringForward()">Up</button>
+          <button type="button" class="rounded border border-slate-line px-2 py-1 text-xs text-slate-muted hover:text-fg" @click="sendBackward()">Down</button>
+          <button type="button" class="rounded border border-slate-line px-2 py-1 text-xs text-slate-muted hover:text-fg" @click="sendToBack()">Back</button>
+        </div>
+      </div>
+
+      <template x-if="selected?.type === 'text'">
+        <div class="space-y-3">
+          <div>
+            <label class="panel-label">Content</label>
+            <textarea class="panel-input min-h-[5rem] resize-y" x-model="selected.content" @change="persist()"></textarea>
+          </div>
+          <div>
+            <label class="panel-label">Font</label>
+            <select class="panel-select" x-model="selected.fontFamily" @change="persist()">
+              <option value="Helvetica">Helvetica</option>
+              <option value="Times-Roman">Times</option>
+              <option value="Courier">Courier</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="panel-label">Size</label>
+              <input type="number" class="panel-input" min="8" max="120" x-model.number="selected.fontSize" @change="persist()" />
+            </div>
+            <div>
+              <label class="panel-label">Weight</label>
+              <select class="panel-select" x-model="selected.fontWeight" @change="persist()">
+                <option value="normal">Regular</option>
+                <option value="bold">Bold</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="panel-label">Color</label>
+              <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.color" @input="persistSoft()" @change="persist()" />
+            </div>
+            <div>
+              <label class="panel-label">Align</label>
+              <select class="panel-select" x-model="selected.align" @change="persist()">
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template x-if="selected?.type === 'rect' || selected?.type === 'ellipse'">
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="panel-label">Fill</label>
+              <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.fill" @input="persistSoft()" @change="persist()" />
+            </div>
+            <div>
+              <label class="panel-label">Stroke</label>
+              <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.stroke" @input="persistSoft()" @change="persist()" />
+            </div>
+          </div>
+          <div>
+            <label class="panel-label">Stroke width</label>
+            <input type="number" class="panel-input" min="0" max="40" x-model.number="selected.strokeWidth" @change="persist()" />
+          </div>
+          <div x-show="selected?.type === 'rect'">
+            <label class="panel-label">Corner radius</label>
+            <input type="number" class="panel-input" min="0" max="80" x-model.number="selected.cornerRadius" @change="persist()" />
+          </div>
+        </div>
+      </template>
+
+      <template x-if="selected?.type === 'line' || selected?.type === 'arrow' || selected?.type === 'divider'">
+        <div class="space-y-3">
+          <div>
+            <label class="panel-label">Stroke</label>
+            <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.stroke" @input="persistSoft()" @change="persist()" />
+          </div>
+          <div>
+            <label class="panel-label">Stroke width</label>
+            <input type="number" class="panel-input" min="1" max="40" x-model.number="selected.strokeWidth" @change="persist()" />
+          </div>
+          <div x-show="selected?.type === 'arrow'">
+            <label class="panel-label">Arrow head</label>
+            <input type="number" class="panel-input" min="6" max="40" x-model.number="selected.headSize" @change="persist()" />
+          </div>
+          <div x-show="selected?.type === 'divider'">
+            <label class="panel-label">Style</label>
+            <select class="panel-select" x-model="selected.style" @change="persist()">
+              <option value="solid">Solid</option>
+              <option value="dashed">Dashed</option>
+            </select>
+          </div>
+        </div>
+      </template>
+
+      <template x-if="selected?.type === 'sticky'">
+        <div class="space-y-3">
+          <div>
+            <label class="panel-label">Note</label>
+            <textarea class="panel-input min-h-[5rem] resize-y" x-model="selected.content" @change="persist()"></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="panel-label">Paper</label>
+              <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.fill" @input="persistSoft()" @change="persist()" />
+            </div>
+            <div>
+              <label class="panel-label">Ink</label>
+              <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.color" @input="persistSoft()" @change="persist()" />
+            </div>
+          </div>
+          <div>
+            <label class="panel-label">Font size</label>
+            <input type="number" class="panel-input" min="8" max="48" x-model.number="selected.fontSize" @change="persist()" />
+          </div>
+        </div>
+      </template>
+
+      <template x-if="selected?.type === 'badge' || selected?.type === 'stamp'">
+        <div class="space-y-3">
+          <div>
+            <label class="panel-label">Label</label>
+            <input type="text" class="panel-input" x-model="selected.label" @change="persist()" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div x-show="selected?.type === 'badge'">
+              <label class="panel-label">Fill</label>
+              <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.fill" @input="persistSoft()" @change="persist()" />
+            </div>
+            <div>
+              <label class="panel-label">Color</label>
+              <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.color" @input="persistSoft()" @change="persist()" />
+            </div>
+          </div>
+          <div>
+            <label class="panel-label">Font size</label>
+            <input type="number" class="panel-input" min="8" max="48" x-model.number="selected.fontSize" @change="persist()" />
+          </div>
+        </div>
+      </template>
+
+      <template x-if="selected?.type === 'checkbox'">
+        <div class="space-y-3">
+          <div>
+            <label class="panel-label">Label</label>
+            <input type="text" class="panel-input" x-model="selected.label" @change="persist()" />
+          </div>
+          <label class="flex items-center gap-2 text-sm text-slate-muted">
+            <input type="checkbox" class="accent-accent" x-model="selected.checked" @change="persist()" />
+            Checked
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="panel-label">Color</label>
+              <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.color" @input="persistSoft()" @change="persist()" />
+            </div>
+            <div>
+              <label class="panel-label">Size</label>
+              <input type="number" class="panel-input" min="8" max="32" x-model.number="selected.fontSize" @change="persist()" />
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template x-if="selected?.type === 'icon'">
+        <div class="space-y-3">
+          <div>
+            <label class="panel-label">Icon</label>
+            <select class="panel-select" x-model="selected.icon" @change="persist()">
+              <option value="star">Star</option>
+              <option value="heart">Heart</option>
+              <option value="check">Check</option>
+              <option value="x">Close</option>
+              <option value="warning">Warning</option>
+              <option value="info">Info</option>
+              <option value="mail">Mail</option>
+              <option value="phone">Phone</option>
+              <option value="pin">Pin</option>
+              <option value="user">User</option>
+            </select>
+          </div>
+          <div>
+            <label class="panel-label">Color</label>
+            <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.color" @input="persistSoft()" @change="persist()" />
+          </div>
+        </div>
+      </template>
+
+      <template x-if="selected?.type === 'table'">
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="panel-label">Rows</label>
+              <input type="number" class="panel-input" min="1" max="12" x-model.number="selected.rows" @change="selected.cells = Array.from({length: selected.rows * selected.cols}, (_, i) => selected.cells[i] || ''); persist()" />
+            </div>
+            <div>
+              <label class="panel-label">Cols</label>
+              <input type="number" class="panel-input" min="1" max="8" x-model.number="selected.cols" @change="selected.cells = Array.from({length: selected.rows * selected.cols}, (_, i) => selected.cells[i] || ''); persist()" />
+            </div>
+          </div>
+          <label class="flex items-center gap-2 text-sm text-slate-muted">
+            <input type="checkbox" class="accent-accent" x-model="selected.header" @change="persist()" />
+            Header row
+          </label>
+          <div>
+            <label class="panel-label">Cells (comma / newline)</label>
+            <textarea
+              class="panel-input min-h-[6rem] resize-y font-mono text-xs"
+              :value="selected.cells.join('\n')"
+              @change="selected.cells = $event.target.value.split(/\n/).slice(0, selected.rows * selected.cols); while (selected.cells.length < selected.rows * selected.cols) selected.cells.push(''); persist()"
+            ></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="panel-label">Header fill</label>
+              <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.headerFill" @change="persist()" />
+            </div>
+            <div>
+              <label class="panel-label">Cell fill</label>
+              <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.fill" @change="persist()" />
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template x-if="selected?.type === 'image'">
+        <div>
+          <label class="panel-label">File</label>
+          <p class="truncate text-sm text-slate-muted" x-text="selected.name"></p>
+        </div>
+      </template>
+    </div>
+
+    <div x-show="!selected" class="py-6 text-center">
+      <p class="text-sm text-slate-muted">Select an element to edit its properties.</p>
+    </div>
+
+    <div class="border-t border-slate-line pt-4">
+      <label class="panel-label">Layers</label>
+      <ul class="max-h-48 space-y-1 overflow-y-auto">
+        <template x-for="layer in layers" :key="layer.id">
+          <li>
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition hover:bg-slate-hover"
+              :class="selectedId === layer.id ? 'bg-accent/15 text-accent-soft' : 'text-slate-muted'"
+              @click="selectedId = layer.id"
+            >
+              <span class="truncate font-medium" x-text="layer.label"></span>
+              <span class="ml-auto font-mono text-[10px] uppercase opacity-60" x-text="layer.type"></span>
+              <span x-show="layer.locked" title="Locked">🔒</span>
+            </button>
+          </li>
+        </template>
+        <li x-show="layers.length === 0" class="px-2 py-2 text-xs text-slate-muted">No elements on this page.</li>
+      </ul>
+    </div>
+  </div>
+</aside>

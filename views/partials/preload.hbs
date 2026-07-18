@@ -1,0 +1,48 @@
+<div
+  id="preload"
+  class="preload-screen"
+  role="status"
+  aria-live="polite"
+  aria-label="Loading PDF Studio"
+>
+  <div class="preload-logo flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-xl font-bold text-white shadow-page">
+    PS
+  </div>
+  <p class="mt-5 text-sm font-medium tracking-wide text-fg">PDF Studio</p>
+  <p class="mt-1 text-xs text-slate-muted" id="preload-status">Preparing workspace…</p>
+  <div class="preload-bar" aria-hidden="true"><span></span></div>
+</div>
+
+<script>
+  (function () {
+    var key = "pdf-studio-theme";
+    var saved = localStorage.getItem(key);
+    var theme = saved === "light" || saved === "dark"
+      ? saved
+      : (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    document.documentElement.setAttribute("data-theme", theme);
+
+    var minMs = {{#if preloadMin}}{{preloadMin}}{{else}}700{{/if}};
+    var start = Date.now();
+    var status = document.getElementById("preload-status");
+    var messages = ["Loading fonts…", "Warming editor…", "Almost ready…"];
+    var i = 0;
+    var tick = setInterval(function () {
+      if (status && messages[i]) status.textContent = messages[i++];
+    }, 280);
+
+    function finish() {
+      clearInterval(tick);
+      var el = document.getElementById("preload");
+      if (!el) return;
+      var wait = Math.max(0, minMs - (Date.now() - start));
+      setTimeout(function () {
+        el.classList.add("is-done");
+        setTimeout(function () { el.remove(); }, 560);
+      }, wait);
+    }
+
+    if (document.readyState === "complete") finish();
+    else window.addEventListener("load", finish);
+  })();
+</script>

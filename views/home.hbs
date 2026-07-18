@@ -1,0 +1,105 @@
+<div class="relative min-h-full overflow-y-auto bg-slate-panel" x-data="themeToggle">
+  <div
+    class="pointer-events-none absolute inset-0 opacity-40"
+    style="background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgb(var(--color-accent) / 0.35), transparent), linear-gradient(180deg, transparent 0%, rgb(var(--color-panel)) 70%);"
+  ></div>
+
+  <header class="relative z-10 flex items-center justify-between px-6 py-5 md:px-10">
+    <a href="/" class="flex items-center gap-2.5">
+      <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white">PS</span>
+      <span class="text-lg font-semibold tracking-tight text-fg">PDF Studio</span>
+    </a>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="tool-btn h-9 w-9"
+        @click="toggleTheme()"
+        :title="theme === 'dark' ? 'Light mode' : 'Dark mode'"
+      >
+        <svg x-show="theme === 'dark'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.4 6.4l-1.4-1.4M7 7L5.6 5.6m12.8 0L17 7M7 17l-1.4 1.4M12 8a4 4 0 100 8 4 4 0 000-8z" />
+        </svg>
+        <svg x-show="theme === 'light'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
+        </svg>
+      </button>
+      <a
+        href="/editor"
+        class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dim"
+      >
+        Open editor
+      </a>
+    </div>
+  </header>
+
+  <main class="relative z-10 mx-auto flex max-w-5xl flex-col px-6 pb-20 pt-16 md:px-10 md:pt-24">
+    <p class="mb-3 font-mono text-xs uppercase tracking-[0.2em] text-accent-soft">Online PDF builder</p>
+    <h1 class="max-w-2xl text-4xl font-semibold leading-tight tracking-tight text-fg md:text-6xl">
+      PDF Studio
+    </h1>
+    <p class="mt-5 max-w-xl text-lg text-slate-muted">
+      {{tagline}}. Insert any element from the library, switch themes, and export a print-ready PDF.
+    </p>
+    <div class="mt-10 flex flex-wrap gap-3">
+      <a
+        href="/editor?new=1"
+        class="inline-flex items-center gap-2 rounded-lg bg-fg px-5 py-3 text-sm font-semibold transition hover:opacity-90"
+        style="color: rgb(var(--color-panel))"
+      >
+        Start designing
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+        </svg>
+      </a>
+      <a
+        href="/editor?template=invoice"
+        class="inline-flex items-center rounded-lg border border-slate-line px-5 py-3 text-sm font-medium text-slate-muted transition hover:border-slate-muted hover:text-fg"
+      >
+        Try invoice template
+      </a>
+    </div>
+
+    <section class="mt-20">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-muted">Templates</h2>
+      <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <a href="/editor?new=1" class="rounded-xl border border-slate-line p-4 transition hover:border-accent">
+          <p class="font-medium text-fg">Blank A4</p>
+          <p class="mt-1 text-sm text-slate-muted">Empty canvas</p>
+        </a>
+        <a href="/editor?template=invoice" class="rounded-xl border border-slate-line p-4 transition hover:border-accent">
+          <p class="font-medium text-fg">Invoice</p>
+          <p class="mt-1 text-sm text-slate-muted">Header, line items, totals</p>
+        </a>
+        <a href="/editor?template=letter" class="rounded-xl border border-slate-line p-4 transition hover:border-accent">
+          <p class="font-medium text-fg">Letter</p>
+          <p class="mt-1 text-sm text-slate-muted">Formal correspondence</p>
+        </a>
+        <a href="/editor?template=flyer" class="rounded-xl border border-slate-line p-4 transition hover:border-accent">
+          <p class="font-medium text-fg">Flyer</p>
+          <p class="mt-1 text-sm text-slate-muted">Bold promo layout</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="mt-20 grid gap-10 md:grid-cols-3">
+      <div>
+        <h2 class="text-sm font-semibold text-fg">Element library</h2>
+        <p class="mt-2 text-sm leading-relaxed text-slate-muted">
+          Text, shapes, stickies, badges, tables, icons, stamps, and ready-made presets.
+        </p>
+      </div>
+      <div>
+        <h2 class="text-sm font-semibold text-fg">Dark &amp; light</h2>
+        <p class="mt-2 text-sm leading-relaxed text-slate-muted">
+          Switch themes anytime. Your preference is saved in the browser.
+        </p>
+      </div>
+      <div>
+        <h2 class="text-sm font-semibold text-fg">Guides &amp; export</h2>
+        <p class="mt-2 text-sm leading-relaxed text-slate-muted">
+          Grid, margins, page background, snap — then export a real PDF.
+        </p>
+      </div>
+    </section>
+  </main>
+</div>
