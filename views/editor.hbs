@@ -15,11 +15,30 @@
     {{> editor-inspector}}
   </div>
 
-  <input
-    type="file"
-    accept="image/png,image/jpeg"
-    class="hidden"
-    x-ref="imageInput"
-    @change="onImageSelected($event)"
-  />
+  <footer class="status-bar">
+    <div class="flex min-w-0 items-center gap-3">
+      <span class="status-chip" x-text="'Page ' + (activePageIndex + 1) + ' / ' + doc.pages.length"></span>
+      <span class="status-chip" x-show="selectedIds.length" x-text="selectedIds.length + (selectedIds.length === 1 ? ' selected' : ' selected')"></span>
+      <span class="status-chip" x-show="editingMaster">Master</span>
+      <span class="status-chip" x-show="reviewMode">Review</span>
+    </div>
+    <div class="hidden items-center gap-4 text-[11px] text-slate-muted md:flex">
+      <span>Space + drag to pan</span>
+      <span>⌘ scroll to zoom</span>
+      <span>Press / to search library</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button type="button" class="status-action" @click="fitWidth()">Fit width</button>
+      <button type="button" class="status-action" @click="fitPage()">Fit page</button>
+      <span class="font-mono text-[11px] text-slate-muted" x-text="Math.round(zoom * 100) + '%'"></span>
+    </div>
+  </footer>
+
+  <input type="file" accept="image/png,image/jpeg" class="hidden" x-ref="imageInput" @change="onImageSelected($event)" />
+  <input type="file" accept="application/pdf,.pdf" class="hidden" x-ref="pdfInput" @change="onPdfImportSelected($event)" />
+  <input type="file" accept=".ttf,.otf,font/ttf,font/otf" class="hidden" x-ref="fontInput" @change="onFontSelected($event)" />
+  <input type="file" accept="application/json,.json,.pdfstudio.json" class="hidden" x-ref="jsonInput" @change="onStudioJsonSelected($event)" />
+  <input type="file" accept="image/png,image/jpeg" class="hidden" x-ref="brandLogoInput" @change="onBrandLogoSelected($event)" />
+
+  {{> editor-modals}}
 </div>

@@ -1,6 +1,9 @@
 import Alpine from "alpinejs";
 import {
   PAGE_SIZES,
+  type DocComment,
+  type ExportSettings,
+  type GuideLine,
   type PdfDocument,
   type PdfElement,
   type PdfPage,
@@ -13,6 +16,9 @@ import {
   blankPage,
   cloneElement,
   createEllipse,
+  createFormCheck,
+  createFormSelect,
+  createFormText,
   createImage,
   createLine,
   createRect,
@@ -22,6 +28,7 @@ import {
   escapeHtml,
   uid,
 } from "./factories.js";
+import { allFontOptions, fontCssFamily } from "./fonts.js";
 import { HistoryStack } from "./history.js";
 import { iconSvg } from "./icons.js";
 import {
@@ -32,24 +39,28 @@ import {
   type LibraryCategory,
   type LibraryItem,
 } from "./library.js";
+import { computeSmartGuides, type SmartGuide } from "./smartGuides.js";
 import { TEMPLATE_LIST, buildTemplate } from "./templates.js";
 
 const STORAGE_KEY = "pdf-studio-doc";
+const DOCS_INDEX_KEY = "pdf-studio-docs";
 const THEME_KEY = "pdf-studio-theme";
 const SETTINGS_KEY = "pdf-studio-settings";
 const FAV_KEY = "pdf-studio-favorites";
 const RECENT_KEY = "pdf-studio-recent";
+const BRAND_KEY = "pdf-studio-brand";
+const EXPORT_KEY = "pdf-studio-export";
+const AUTHOR_KEY = "pdf-studio-author";
 
-type Tool = "select" | "text" | "rect" | "ellipse" | "line" | "place";
+type Tool = "select" | "text" | "rect" | "ellipse" | "line" | "place" | "comment";
 
 type DragState =
   | {
       mode: "move";
-      id: string;
+      ids: string[];
       startX: number;
       startY: number;
-      origX: number;
-      origY: number;
+      origins: { id: string; x: number; y: number }[];
     }
   | {
       mode: "resize";
@@ -58,24 +69,102 @@ type DragState =
       startY: number;
       origW: number;
       origH: number;
+    }
+  | {
+      mode: "pan";
+      startX: number;
+      startY: number;
+      origPanX: number;
+      origPanY: number;
+    }
+  | {
+      mode: "marquee";
+      startX: number;
+      startY: number;
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    }
+  | {
+      mode: "guide";
+      axis: "x" | "y";
+      id: string;
     };
+
+interface BrandKit {
+  colors: string[];
+  logoUrl: string;
+  logoName: string;
+  defaultFont: string;
+  name: string;
+}
+
+interface DocIndexEntry {
+  id: string;
+  name: string;
+  updatedAt: string;
+}
+
+function normalizeTextElement(el: PdfElement): PdfElement {
+  if (el.type !== "text") return el;
+  const t = el as TextElement;
+  return {
+    ...t,
+    fontStyle: t.fontStyle ?? "normal",
+    underline: t.underline ?? false,
+    lineHeight: t.lineHeight ?? 1.25,
+    letterSpacing: t.letterSpacing ?? 0,
+    listStyle: t.listStyle ?? "none",
+  };
+}
+
+function normalizeDoc(doc: PdfDocument): PdfDocument {
+  return {
+    ...doc,
+    pageBackground: doc.pageBackground || "#faf9f6",
+    guides: doc.guides || [],
+    comments: doc.comments || [],
+    customFonts: doc.customFonts || [],
+    master: doc.master || { header: [], footer: [] },
+    watermark: doc.watermark ?? null,
+    pages: doc.pages.map((p) => ({
+      ...p,
+      applyMaster: p.applyMaster !== false,
+      elements: p.elements.map(normalizeTextElement),
+    })),
+  };
+}
 
 function pdfEditor() {
   const history = new HistoryStack();
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
   let skipHistory = false;
+  let clipboard: PdfElement[] = [];
+  let spaceDown = false;
 
   return {
     doc: defaultDoc() as PdfDocument,
     activePageIndex: 0,
-    selectedId: null as string | null,
+    selectedIds: [] as string[],
     tool: "select" as Tool,
     zoom: 0.85,
+    panX: 0,
+    panY: 0,
     exporting: false,
     editingTextId: null as string | null,
     drag: null as DragState | null,
+    smartGuides: [] as SmartGuide[],
+    marquee: null as { x: number; y: number; w: number; h: number } | null,
     showTemplates: false,
     showLibrary: true,
+    showExportModal: false,
+    showFindReplace: false,
+    showBrandKit: false,
+    showDocLibrary: false,
+    showComments: false,
+    editingMaster: false,
+    reviewMode: false,
     libraryCategory: "basics" as LibraryCategory,
     libraryItems: LIBRARY_ITEMS,
     libraryCategories: LIBRARY_CATEGORIES,
@@ -93,8 +182,39 @@ function pdfEditor() {
     justInsertedId: null as string | null,
     theme: "dark" as "dark" | "light",
     showSettings: false,
+    showFileMenu: false,
     showGuides: false,
     showGrid: false,
+    showRulers: true,
+    fontOptions: allFontOptions(),
+    findQuery: "",
+    replaceQuery: "",
+    findMatches: [] as { pageIndex: number; elId: string; field: string }[],
+    findIndex: -1,
+    brand: {
+      colors: ["#0d9488", "#0f766e", "#1a1a1a", "#faf9f6"],
+      logoUrl: "",
+      logoName: "",
+      defaultFont: "Helvetica",
+      name: "My Brand",
+    } as BrandKit,
+    exportSettings: {
+      margin: 0,
+      imageQuality: 0.85,
+      flatten: false,
+      pdfaLite: false,
+    } as ExportSettings,
+    authorName: "Reviewer",
+    docLibrary: [] as DocIndexEntry[],
+    commentDraft: "",
+
+    get selectedId(): string | null {
+      return this.selectedIds[0] ?? null;
+    },
+
+    set selectedId(id: string | null) {
+      this.selectedIds = id ? [id] : [];
+    },
 
     get pageSize() {
       return PAGE_SIZES[this.doc.pageSize] ?? PAGE_SIZES.a4;
@@ -105,22 +225,31 @@ function pdfEditor() {
     },
 
     get selected(): PdfElement | null {
-      if (!this.selectedId) return null;
-      return this.activePage.elements.find((e) => e.id === this.selectedId) ?? null;
+      if (!this.selectedIds.length) return null;
+      return this.workingElements.find((e) => e.id === this.selectedIds[0]) ?? null;
+    },
+
+    get selectedElements(): PdfElement[] {
+      return this.workingElements.filter((e) => this.selectedIds.includes(e.id));
     },
 
     get selectedIndex(): number {
-      if (!this.selectedId) return -1;
-      return this.activePage.elements.findIndex((e) => e.id === this.selectedId);
+      if (!this.selectedIds.length) return -1;
+      return this.workingElements.findIndex((e) => e.id === this.selectedIds[0]);
     },
 
     get layers() {
-      return [...this.activePage.elements].reverse().map((el) => ({
+      return [...this.workingElements].reverse().map((el) => ({
         id: el.id,
         label: elementLabel(el),
         type: el.type,
         locked: el.locked,
+        groupId: el.groupId,
       }));
+    },
+
+    get pageComments(): DocComment[] {
+      return (this.doc.comments || []).filter((c) => c.pageId === this.activePage.id);
     },
 
     get filteredLibrary() {
@@ -143,6 +272,13 @@ function pdfEditor() {
         width: `${width * this.zoom}px`,
         height: `${height * this.zoom}px`,
         backgroundColor: this.doc.pageBackground || "#faf9f6",
+        transform: `translate(${this.panX}px, ${this.panY}px)`,
+      };
+    },
+
+    get viewportStyle() {
+      return {
+        cursor: spaceDown || this.drag?.mode === "pan" ? "grab" : undefined,
       };
     },
 
@@ -151,10 +287,28 @@ function pdfEditor() {
       return { aspectRatio: `${width} / ${height}` };
     },
 
+    get workingElements(): PdfElement[] {
+      if (this.editingMaster) {
+        return this.doc.master?.header || [];
+      }
+      return this.activePage.elements;
+    },
+
+    get displayElements(): PdfElement[] {
+      return this.workingElements;
+    },
+
+    get masterPreviewElements(): PdfElement[] {
+      if (this.editingMaster) return [];
+      if (this.activePage.applyMaster === false) return [];
+      return [...(this.doc.master?.header || []), ...(this.doc.master?.footer || [])];
+    },
+
     init() {
       const params = new URLSearchParams(window.location.search);
       const templateId = params.get("template");
       const fresh = params.get("new") === "1";
+      const openId = params.get("doc");
 
       const savedTheme = localStorage.getItem(THEME_KEY);
       this.theme =
@@ -168,10 +322,12 @@ function pdfEditor() {
           showGuides?: boolean;
           showGrid?: boolean;
           snapEnabled?: boolean;
+          showRulers?: boolean;
         };
         if (typeof settings.showGuides === "boolean") this.showGuides = settings.showGuides;
         if (typeof settings.showGrid === "boolean") this.showGrid = settings.showGrid;
         if (typeof settings.snapEnabled === "boolean") this.snapEnabled = settings.snapEnabled;
+        if (typeof settings.showRulers === "boolean") this.showRulers = settings.showRulers;
       } catch {
         /* ignore */
       }
@@ -184,31 +340,98 @@ function pdfEditor() {
         this.recentIds = [];
       }
 
+      try {
+        const brand = JSON.parse(localStorage.getItem(BRAND_KEY) || "null");
+        if (brand) this.brand = { ...this.brand, ...brand };
+      } catch {
+        /* ignore */
+      }
+
+      try {
+        const exp = JSON.parse(localStorage.getItem(EXPORT_KEY) || "null");
+        if (exp) this.exportSettings = { ...this.exportSettings, ...exp };
+      } catch {
+        /* ignore */
+      }
+
+      this.authorName = localStorage.getItem(AUTHOR_KEY) || "Reviewer";
+      this.refreshDocLibrary();
+
       if (templateId) {
-        this.doc = buildTemplate(templateId);
+        this.doc = normalizeDoc(buildTemplate(templateId));
         this.commit(true);
       } else if (fresh) {
-        this.doc = defaultDoc();
+        this.doc = normalizeDoc(defaultDoc());
         this.commit(true);
+      } else if (openId) {
+        const saved = localStorage.getItem(`pdf-studio-doc:${openId}`);
+        if (saved) {
+          try {
+            this.doc = normalizeDoc(JSON.parse(saved) as PdfDocument);
+          } catch {
+            this.doc = normalizeDoc(defaultDoc());
+          }
+        }
       } else {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
           try {
-            this.doc = JSON.parse(saved) as PdfDocument;
-            if (!this.doc.pageBackground) this.doc.pageBackground = "#faf9f6";
+            this.doc = normalizeDoc(JSON.parse(saved) as PdfDocument);
           } catch {
-            this.doc = defaultDoc();
+            this.doc = normalizeDoc(defaultDoc());
           }
+        } else {
+          this.doc = normalizeDoc(defaultDoc());
         }
       }
 
       if (typeof this.doc.showGrid === "boolean") this.showGrid = this.doc.showGrid;
+      this.fontOptions = allFontOptions(this.doc.customFonts);
+      this.injectCustomFontFaces();
 
       history.reset(this.doc);
       this.syncHistoryFlags();
 
       window.addEventListener("mousemove", (e) => this.onMouseMove(e));
       window.addEventListener("mouseup", () => this.onMouseUp());
+      window.addEventListener("keydown", (e) => {
+        if (e.code === "Space" && !(e.target as HTMLElement)?.isContentEditable) {
+          spaceDown = true;
+        }
+      });
+      window.addEventListener("keyup", (e) => {
+        if (e.code === "Space") spaceDown = false;
+      });
+      queueMicrotask(() => {
+        const viewport = (this as unknown as { $el: HTMLElement }).$el?.querySelector(".canvas-workspace");
+        viewport?.addEventListener(
+          "wheel",
+          (e) => {
+            const ev = e as WheelEvent;
+            if (ev.metaKey || ev.ctrlKey) {
+              ev.preventDefault();
+              this.onViewportWheel(ev);
+            }
+          },
+          { passive: false },
+        );
+      });
+    },
+
+    injectCustomFontFaces() {
+      const id = "pdf-studio-custom-fonts";
+      let style = document.getElementById(id) as HTMLStyleElement | null;
+      if (!style) {
+        style = document.createElement("style");
+        style.id = id;
+        document.head.appendChild(style);
+      }
+      style.textContent = (this.doc.customFonts || [])
+        .map(
+          (f) =>
+            `@font-face{font-family:"${f.name}";src:url("${f.url}");font-display:swap;}`,
+        )
+        .join("\n");
     },
 
     applyTheme(theme: "dark" | "light") {
@@ -228,6 +451,7 @@ function pdfEditor() {
           showGuides: this.showGuides,
           showGrid: this.showGrid,
           snapEnabled: this.snapEnabled,
+          showRulers: this.showRulers,
         }),
       );
       this.doc.showGrid = this.showGrid;
@@ -239,7 +463,6 @@ function pdfEditor() {
       this.canRedo = history.canRedo;
     },
 
-    /** Save to localStorage; optionally push undo snapshot */
     commit(recordHistory = true) {
       this.doc.updatedAt = new Date().toISOString();
       if (recordHistory && !skipHistory) {
@@ -250,13 +473,14 @@ function pdfEditor() {
       persistTimer = setTimeout(() => {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
+          localStorage.setItem(`pdf-studio-doc:${this.doc.id}`, JSON.stringify(this.doc));
+          this.upsertDocLibrary();
         } catch (err) {
           console.warn("Could not persist document", err);
         }
       }, 180);
     },
 
-    /** Debounced live updates (sliders) — no history spam */
     persist() {
       this.commit(true);
     },
@@ -266,15 +490,97 @@ function pdfEditor() {
       if (persistTimer) clearTimeout(persistTimer);
       persistTimer = setTimeout(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
+        localStorage.setItem(`pdf-studio-doc:${this.doc.id}`, JSON.stringify(this.doc));
+        this.upsertDocLibrary();
       }, 120);
+    },
+
+    refreshDocLibrary() {
+      try {
+        this.docLibrary = JSON.parse(localStorage.getItem(DOCS_INDEX_KEY) || "[]") as DocIndexEntry[];
+      } catch {
+        this.docLibrary = [];
+      }
+    },
+
+    upsertDocLibrary() {
+      const entry: DocIndexEntry = {
+        id: this.doc.id,
+        name: this.doc.name,
+        updatedAt: this.doc.updatedAt,
+      };
+      const list = this.docLibrary.filter((d) => d.id !== this.doc.id);
+      list.unshift(entry);
+      this.docLibrary = list.slice(0, 40);
+      localStorage.setItem(DOCS_INDEX_KEY, JSON.stringify(this.docLibrary));
+    },
+
+    openDocFromLibrary(id: string) {
+      const raw = localStorage.getItem(`pdf-studio-doc:${id}`);
+      if (!raw) return;
+      try {
+        this.doc = normalizeDoc(JSON.parse(raw) as PdfDocument);
+        this.activePageIndex = 0;
+        this.selectedIds = [];
+        history.reset(this.doc);
+        this.syncHistoryFlags();
+        this.showDocLibrary = false;
+        this.fontOptions = allFontOptions(this.doc.customFonts);
+        this.injectCustomFontFaces();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
+      } catch {
+        alert("Could not open document.");
+      }
+    },
+
+    duplicateDocInLibrary() {
+      const copy = structuredClone(this.doc) as PdfDocument;
+      copy.id = uid();
+      copy.name = `${this.doc.name} copy`;
+      copy.updatedAt = new Date().toISOString();
+      this.doc = normalizeDoc(copy);
+      history.reset(this.doc);
+      this.syncHistoryFlags();
+      this.commit(false);
+    },
+
+    downloadStudioJson() {
+      const blob = new Blob([JSON.stringify(this.doc, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${this.doc.name.replace(/[^\w.-]+/g, "_") || "document"}.pdfstudio.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+
+    async onStudioJsonSelected(event: Event) {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        this.doc = normalizeDoc(JSON.parse(text) as PdfDocument);
+        this.activePageIndex = 0;
+        this.selectedIds = [];
+        history.reset(this.doc);
+        this.syncHistoryFlags();
+        this.fontOptions = allFontOptions(this.doc.customFonts);
+        this.injectCustomFontFaces();
+        this.commit(false);
+      } catch {
+        alert("Invalid .pdfstudio.json file");
+      } finally {
+        input.value = "";
+      }
     },
 
     undo() {
       const prev = history.undo(this.doc);
       if (!prev) return;
       skipHistory = true;
-      this.doc = prev;
-      this.selectedId = null;
+      this.doc = normalizeDoc(prev);
+      this.selectedIds = [];
       this.syncHistoryFlags();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
       skipHistory = false;
@@ -284,8 +590,8 @@ function pdfEditor() {
       const next = history.redo(this.doc);
       if (!next) return;
       skipHistory = true;
-      this.doc = next;
-      this.selectedId = null;
+      this.doc = normalizeDoc(next);
+      this.selectedIds = [];
       this.syncHistoryFlags();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
       skipHistory = false;
@@ -293,36 +599,34 @@ function pdfEditor() {
 
     newDocument() {
       if (!confirm("Start a blank document? Unsaved changes stay in browser history only.")) return;
-      this.doc = defaultDoc();
+      this.doc = normalizeDoc(defaultDoc());
       this.activePageIndex = 0;
-      this.selectedId = null;
+      this.selectedIds = [];
       history.reset(this.doc);
       this.syncHistoryFlags();
       this.commit(false);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
     },
 
     applyTemplate(id: string) {
-      this.doc = buildTemplate(id);
+      this.doc = normalizeDoc(buildTemplate(id));
       this.activePageIndex = 0;
-      this.selectedId = null;
+      this.selectedIds = [];
       this.showTemplates = false;
       history.reset(this.doc);
       this.syncHistoryFlags();
       this.commit(false);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.doc));
     },
 
     setActivePage(index: number) {
       this.activePageIndex = index;
-      this.selectedId = null;
+      this.selectedIds = [];
       this.editingTextId = null;
     },
 
     addPage() {
       this.doc.pages.push(blankPage());
       this.activePageIndex = this.doc.pages.length - 1;
-      this.selectedId = null;
+      this.selectedIds = [];
       this.commit();
     },
 
@@ -331,6 +635,7 @@ function pdfEditor() {
       if (!source) return;
       const copy: PdfPage = {
         id: uid(),
+        applyMaster: source.applyMaster,
         elements: source.elements.map((el) => {
           const c = structuredClone(el) as PdfElement;
           c.id = uid();
@@ -339,7 +644,7 @@ function pdfEditor() {
       };
       this.doc.pages.splice(index + 1, 0, copy);
       this.activePageIndex = index + 1;
-      this.selectedId = null;
+      this.selectedIds = [];
       this.commit();
     },
 
@@ -356,22 +661,47 @@ function pdfEditor() {
       if (this.doc.pages.length <= 1) return;
       this.doc.pages.splice(index, 1);
       this.activePageIndex = Math.min(this.activePageIndex, this.doc.pages.length - 1);
-      this.selectedId = null;
+      this.selectedIds = [];
       this.commit();
     },
 
     zoomIn() {
-      this.zoom = Math.min(1.75, Math.round((this.zoom + 0.1) * 10) / 10);
+      this.zoom = Math.min(2.5, Math.round((this.zoom + 0.1) * 10) / 10);
     },
 
     zoomOut() {
-      this.zoom = Math.max(0.4, Math.round((this.zoom - 0.1) * 10) / 10);
+      this.zoom = Math.max(0.25, Math.round((this.zoom - 0.1) * 10) / 10);
+    },
+
+    fitWidth() {
+      const pad = 160;
+      const avail = Math.max(280, window.innerWidth - 420 - pad);
+      this.zoom = Math.min(1.5, Math.max(0.3, Math.round((avail / this.pageSize.width) * 100) / 100));
+      this.panX = 0;
+      this.panY = 0;
+    },
+
+    fitPage() {
+      const padX = 160;
+      const padY = 180;
+      const availW = Math.max(280, window.innerWidth - 420 - padX);
+      const availH = Math.max(280, window.innerHeight - padY);
+      const zx = availW / this.pageSize.width;
+      const zy = availH / this.pageSize.height;
+      this.zoom = Math.min(1.5, Math.max(0.3, Math.round(Math.min(zx, zy) * 100) / 100));
+      this.panX = 0;
+      this.panY = 0;
     },
 
     fitZoom() {
-      const pad = 120;
-      const avail = Math.max(320, window.innerWidth - 420 - pad);
-      this.zoom = Math.min(1.2, Math.max(0.45, Math.round((avail / this.pageSize.width) * 100) / 100));
+      this.fitWidth();
+    },
+
+    onViewportWheel(event: WheelEvent) {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      event.preventDefault();
+      const delta = event.deltaY > 0 ? -0.08 : 0.08;
+      this.zoom = Math.min(2.5, Math.max(0.25, Math.round((this.zoom + delta) * 100) / 100));
     },
 
     pageCoords(event: MouseEvent) {
@@ -385,21 +715,64 @@ function pdfEditor() {
 
     snap(value: number) {
       if (!this.snapEnabled) return Math.round(value);
+      const guides = this.doc.guides || [];
+      for (const g of guides) {
+        if (Math.abs(g.position - value) <= 4) return g.position;
+      }
       return Math.round(value / 8) * 8;
+    },
+
+    isSelected(id: string) {
+      return this.selectedIds.includes(id);
+    },
+
+    selectElement(el: PdfElement, additive = false) {
+      const groupMembers = el.groupId
+        ? this.workingElements.filter((e) => e.groupId === el.groupId).map((e) => e.id)
+        : [el.id];
+      if (additive) {
+        const set = new Set(this.selectedIds);
+        for (const id of groupMembers) {
+          if (set.has(id)) set.delete(id);
+          else set.add(id);
+        }
+        this.selectedIds = [...set];
+      } else {
+        this.selectedIds = groupMembers;
+      }
     },
 
     onCanvasBackground(event: MouseEvent) {
       if (event.target === event.currentTarget) {
-        this.selectedId = null;
+        if (spaceDown || event.button === 1) return;
+        this.selectedIds = [];
         this.editingTextId = null;
       }
     },
 
+    onViewportMouseDown(event: MouseEvent) {
+      if (event.button === 1 || (event.button === 0 && spaceDown)) {
+        event.preventDefault();
+        this.drag = {
+          mode: "pan",
+          startX: event.clientX,
+          startY: event.clientY,
+          origPanX: this.panX,
+          origPanY: this.panY,
+        };
+      }
+    },
+
     onPageMouseDown(event: MouseEvent) {
-      if (event.button !== 0) return;
+      if (event.button !== 0 || spaceDown) return;
       const { x, y } = this.pageCoords(event);
       const sx = this.snap(x);
       const sy = this.snap(y);
+
+      if (this.tool === "comment" || this.reviewMode) {
+        this.addCommentAt(sx, sy);
+        return;
+      }
 
       if (this.tool === "place" && this.pendingLibraryKind) {
         this.insertLibraryAt(this.pendingLibraryKind, sx, sy);
@@ -407,13 +780,24 @@ function pdfEditor() {
       }
 
       if (this.tool === "select") {
-        this.selectedId = null;
-        this.editingTextId = null;
+        this.drag = {
+          mode: "marquee",
+          startX: x,
+          startY: y,
+          x,
+          y,
+          w: 0,
+          h: 0,
+        };
+        if (!event.shiftKey) {
+          this.selectedIds = [];
+          this.editingTextId = null;
+        }
         return;
       }
 
       let el: PdfElement;
-      if (this.tool === "text") el = createText(sx, sy);
+      if (this.tool === "text") el = createText(sx, sy, { fontFamily: this.brand.defaultFont || "Helvetica" });
       else if (this.tool === "rect") el = createRect(sx, sy);
       else if (this.tool === "ellipse") el = createEllipse(sx, sy);
       else el = createLine(sx, sy);
@@ -422,8 +806,13 @@ function pdfEditor() {
     },
 
     pushElement(el: PdfElement) {
-      this.activePage.elements.push(el);
-      this.selectedId = el.id;
+      if (this.editingMaster) {
+        if (!this.doc.master) this.doc.master = { header: [], footer: [] };
+        this.doc.master.header.push(el);
+      } else {
+        this.activePage.elements.push(el);
+      }
+      this.selectedIds = [el.id];
       this.justInsertedId = el.id;
       if (!this.libraryKeepPlacing) {
         this.tool = "select";
@@ -467,7 +856,7 @@ function pdfEditor() {
       this.pendingLibraryKind = item.kind;
       this.tool = "place";
       this.placeHint = true;
-      this.selectedId = null;
+      this.selectedIds = [];
     },
 
     insertLibraryQuick(item: LibraryItem) {
@@ -493,17 +882,39 @@ function pdfEditor() {
       this.pushElement(el);
     },
 
+    insertFormField(kind: "formText" | "formCheck" | "formSelect") {
+      const { width, height } = this.pageSize;
+      const x = this.snap(width / 2 - 90);
+      const y = this.snap(height / 2 - 20);
+      const el =
+        kind === "formText"
+          ? createFormText(x, y)
+          : kind === "formCheck"
+            ? createFormCheck(x, y)
+            : createFormSelect(x, y);
+      this.pushElement(el);
+    },
+
     onElementMouseDown(event: MouseEvent, el: PdfElement) {
-      if (event.button !== 0) return;
-      this.selectedId = el.id;
+      if (event.button !== 0 || spaceDown) return;
+      if (this.editingMaster) {
+        /* allow select master els */
+      }
+      this.selectElement(el, event.shiftKey);
       if (el.locked) return;
+      const ids = this.selectedIds.filter((id) => {
+        const e = this.workingElements.find((x) => x.id === id);
+        return e && !e.locked;
+      });
       this.drag = {
         mode: "move",
-        id: el.id,
+        ids,
         startX: event.clientX,
         startY: event.clientY,
-        origX: el.x,
-        origY: el.y,
+        origins: ids.map((id) => {
+          const e = this.workingElements.find((x) => x.id === id)!;
+          return { id, x: e.x, y: e.y };
+        }),
       };
     },
 
@@ -521,26 +932,114 @@ function pdfEditor() {
 
     onMouseMove(event: MouseEvent) {
       if (!this.drag) return;
-      const el = this.activePage.elements.find((e) => e.id === this.drag!.id);
-      if (!el) return;
 
-      const dx = (event.clientX - this.drag.startX) / this.zoom;
-      const dy = (event.clientY - this.drag.startY) / this.zoom;
+      if (this.drag.mode === "pan") {
+        this.panX = this.drag.origPanX + (event.clientX - this.drag.startX);
+        this.panY = this.drag.origPanY + (event.clientY - this.drag.startY);
+        return;
+      }
+
+      if (this.drag.mode === "marquee") {
+        const { x, y } = this.pageCoords(event);
+        const x0 = Math.min(this.drag.startX, x);
+        const y0 = Math.min(this.drag.startY, y);
+        const w = Math.abs(x - this.drag.startX);
+        const h = Math.abs(y - this.drag.startY);
+        this.drag = { ...this.drag, x: x0, y: y0, w, h };
+        this.marquee = { x: x0, y: y0, w, h };
+        return;
+      }
+
+      if (this.drag.mode === "guide") {
+        const guideDrag = this.drag;
+        const { x, y } = this.pageCoords(event);
+        const g = (this.doc.guides || []).find((g) => g.id === guideDrag.id);
+        if (g) {
+          g.position = guideDrag.axis === "x" ? this.snap(x) : this.snap(y);
+        }
+        return;
+      }
+
+      if (this.drag.mode === "resize") {
+        const resizeDrag = this.drag;
+        const el = this.workingElements.find((e) => e.id === resizeDrag.id);
+        if (!el) return;
+        const dx = (event.clientX - resizeDrag.startX) / this.zoom;
+        const dy = (event.clientY - resizeDrag.startY) / this.zoom;
+        el.width = Math.max(20, this.snap(resizeDrag.origW + dx));
+        el.height = Math.max(el.type === "line" ? 0 : 20, this.snap(resizeDrag.origH + dy));
+        return;
+      }
 
       if (this.drag.mode === "move") {
-        el.x = this.snap(this.drag.origX + dx);
-        el.y = this.snap(this.drag.origY + dy);
-      } else {
-        el.width = Math.max(20, this.snap(this.drag.origW + dx));
-        el.height = Math.max(el.type === "line" ? 0 : 20, this.snap(this.drag.origH + dy));
+        const dx = (event.clientX - this.drag.startX) / this.zoom;
+        const dy = (event.clientY - this.drag.startY) / this.zoom;
+        const exclude = new Set(this.drag.ids);
+        const primary = this.drag.origins[0];
+        if (!primary) return;
+        const primaryEl = this.workingElements.find((e) => e.id === primary.id);
+        if (!primaryEl) return;
+
+        let nx = this.snap(primary.x + dx);
+        let ny = this.snap(primary.y + dy);
+
+        if (this.snapEnabled) {
+          const result = computeSmartGuides(
+            { x: nx, y: ny, width: primaryEl.width, height: primaryEl.height },
+            this.workingElements,
+            this.pageSize.width,
+            this.pageSize.height,
+            exclude,
+          );
+          nx = result.x;
+          ny = result.y;
+          this.smartGuides = result.guides;
+        } else {
+          this.smartGuides = [];
+        }
+
+        const odx = nx - primary.x;
+        const ody = ny - primary.y;
+        for (const origin of this.drag.origins) {
+          const el = this.workingElements.find((e) => e.id === origin.id);
+          if (!el || el.locked) continue;
+          el.x = origin.x + odx;
+          el.y = origin.y + ody;
+        }
       }
     },
 
     onMouseUp() {
-      if (this.drag) {
+      if (!this.drag) return;
+
+      if (this.drag.mode === "marquee") {
+        const box = this.marquee;
+        if (box && box.w > 4 && box.h > 4) {
+          const hits = this.workingElements
+            .filter(
+              (el) =>
+                el.x < box.x + box.w &&
+                el.x + el.width > box.x &&
+                el.y < box.y + box.h &&
+                el.y + el.height > box.y,
+            )
+            .map((el) => el.id);
+          this.selectedIds = [...new Set([...this.selectedIds, ...hits])];
+        }
+        this.marquee = null;
         this.drag = null;
-        this.commit();
+        return;
       }
+
+      if (this.drag.mode === "move" || this.drag.mode === "resize" || this.drag.mode === "guide") {
+        this.drag = null;
+        this.smartGuides = [];
+        this.commit();
+        return;
+      }
+
+      this.drag = null;
+      this.smartGuides = [];
     },
 
     elementStyle(el: PdfElement) {
@@ -561,16 +1060,38 @@ function pdfEditor() {
       return iconSvg(el.icon, el.color, Math.min(el.width, el.height) * this.zoom);
     },
 
+    previewText(content: string) {
+      return content
+        .replace(/\{\{page\}\}/g, String(this.activePageIndex + 1))
+        .replace(/\{\{pages\}\}/g, String(this.doc.pages.length));
+    },
+
+    displayTextContent(el: TextElement) {
+      let content = this.previewText(el.content || "");
+      if (el.listStyle === "bullet") {
+        content = content
+          .split("\n")
+          .map((l) => (l.trim() ? `• ${l}` : l))
+          .join("\n");
+      } else if (el.listStyle === "number") {
+        let n = 1;
+        content = content
+          .split("\n")
+          .map((l) => (l.trim() ? `${n++}. ${l}` : l))
+          .join("\n");
+      }
+      return content;
+    },
+
     textInnerStyle(el: TextElement) {
-      const fontMap: Record<string, string> = {
-        Helvetica: "Helvetica, Arial, sans-serif",
-        "Times-Roman": '"Times New Roman", Times, serif',
-        Courier: '"Courier New", Courier, monospace',
-      };
       return {
         fontSize: `${el.fontSize * this.zoom}px`,
-        fontFamily: fontMap[el.fontFamily] ?? fontMap.Helvetica,
+        fontFamily: fontCssFamily(el.fontFamily, this.doc.customFonts),
         fontWeight: el.fontWeight,
+        fontStyle: el.fontStyle || "normal",
+        textDecoration: el.underline ? "underline" : "none",
+        letterSpacing: `${(el.letterSpacing || 0) * this.zoom}px`,
+        lineHeight: String(el.lineHeight || 1.25),
         color: el.color,
         textAlign: el.align,
       };
@@ -589,24 +1110,13 @@ function pdfEditor() {
       };
     },
 
-    lineStyle(el: PdfElement & { type: "line" }) {
-      return {
-        x1: 0,
-        y1: 0,
-        x2: el.width * this.zoom,
-        y2: el.height * this.zoom,
-        stroke: el.stroke,
-        strokeWidth: el.strokeWidth * this.zoom,
-      };
-    },
-
     thumbElementStyle(el: PdfElement) {
       return `left:${el.x}px;top:${el.y}px;width:${el.width}px;height:${Math.max(el.height, 2)}px;opacity:${el.opacity};`;
     },
 
     thumbPreview(el: PdfElement) {
       if (el.type === "text" || el.type === "sticky") {
-        return `<span style="font-size:${el.fontSize}px;color:${el.type === "sticky" ? el.color : el.color};background:${el.type === "sticky" ? el.fill : "transparent"}">${escapeHtml(el.content.slice(0, 28))}</span>`;
+        return `<span style="font-size:${el.fontSize}px;color:${el.color};background:${el.type === "sticky" ? el.fill : "transparent"}">${escapeHtml(el.content.slice(0, 28))}</span>`;
       }
       if (el.type === "image") {
         return `<img src="${el.src}" style="width:100%;height:100%;object-fit:contain" />`;
@@ -617,8 +1127,11 @@ function pdfEditor() {
       if (el.type === "badge" || el.type === "stamp") {
         return `<span style="color:${el.color};font-size:10px;font-weight:bold">${escapeHtml(el.label)}</span>`;
       }
-      if (el.type === "checkbox") {
-        return `<span style="font-size:10px">${el.checked ? "☑" : "☐"} ${escapeHtml(el.label.slice(0, 16))}</span>`;
+      if (el.type === "checkbox" || el.type === "formCheck") {
+        return `<span style="font-size:10px">${"checked" in el && el.checked ? "☑" : "☐"} ${escapeHtml(("label" in el ? el.label : "").slice(0, 16))}</span>`;
+      }
+      if (el.type === "formText" || el.type === "formSelect") {
+        return `<span style="font-size:10px;border:1px solid #94a3b8;padding:2px">${escapeHtml(el.name)}</span>`;
       }
       if (el.type === "icon") {
         return iconSvg(el.icon, el.color, 16);
@@ -635,7 +1148,7 @@ function pdfEditor() {
 
     startTextEdit(el: TextElement | StickyElement) {
       this.editingTextId = el.id;
-      this.selectedId = el.id;
+      this.selectedIds = [el.id];
     },
 
     finishTextEdit(event: FocusEvent, el: TextElement | StickyElement) {
@@ -653,82 +1166,433 @@ function pdfEditor() {
       this.persistSoft();
     },
 
+    copySelected() {
+      const els = this.selectedElements;
+      if (!els.length) return;
+      clipboard = els.map((el) => structuredClone(el) as PdfElement);
+      try {
+        void navigator.clipboard.writeText(JSON.stringify({ type: "pdf-studio-elements", elements: clipboard }));
+      } catch {
+        /* ignore */
+      }
+    },
+
+    cutSelected() {
+      this.copySelected();
+      this.deleteSelected();
+    },
+
+    pasteClipboard() {
+      if (!clipboard.length) return;
+      const copies = clipboard.map((el) => cloneElement(el, 20));
+      for (const c of copies) {
+        c.groupId = undefined;
+        if (this.editingMaster) {
+          if (!this.doc.master) this.doc.master = { header: [], footer: [] };
+          this.doc.master.header.push(c);
+        } else {
+          this.activePage.elements.push(c);
+        }
+      }
+      this.selectedIds = copies.map((c) => c.id);
+      this.commit();
+    },
+
     duplicateSelected() {
-      const el = this.selected;
-      if (!el) return;
-      const copy = cloneElement(el);
-      this.activePage.elements.push(copy);
-      this.selectedId = copy.id;
+      const els = this.selectedElements;
+      if (!els.length) return;
+      const copies = els.map((el) => cloneElement(el));
+      for (const c of copies) {
+        if (this.editingMaster) {
+          if (!this.doc.master) this.doc.master = { header: [], footer: [] };
+          this.doc.master.header.push(c);
+        } else {
+          this.activePage.elements.push(c);
+        }
+      }
+      this.selectedIds = copies.map((c) => c.id);
       this.commit();
     },
 
     deleteSelected() {
-      if (!this.selectedId) return;
-      const el = this.selected;
-      if (el?.locked) return;
-      this.activePage.elements = this.activePage.elements.filter((e) => e.id !== this.selectedId);
-      this.selectedId = null;
+      if (!this.selectedIds.length) return;
+      const locked = this.selectedElements.some((e) => e.locked);
+      if (locked && this.selectedElements.every((e) => e.locked)) return;
+      const remove = new Set(
+        this.selectedIds.filter((id) => {
+          const el = this.workingElements.find((e) => e.id === id);
+          return el && !el.locked;
+        }),
+      );
+      if (this.editingMaster && this.doc.master) {
+        this.doc.master.header = this.doc.master.header.filter((e) => !remove.has(e.id));
+        this.doc.master.footer = this.doc.master.footer.filter((e) => !remove.has(e.id));
+      } else {
+        this.activePage.elements = this.activePage.elements.filter((e) => !remove.has(e.id));
+      }
+      this.selectedIds = [];
+      this.commit();
+    },
+
+    groupSelected() {
+      if (this.selectedIds.length < 2) return;
+      const gid = uid();
+      for (const el of this.selectedElements) {
+        if (!el.locked) el.groupId = gid;
+      }
+      this.commit();
+    },
+
+    ungroupSelected() {
+      for (const el of this.selectedElements) {
+        el.groupId = undefined;
+      }
       this.commit();
     },
 
     toggleLock() {
       if (!this.selected) return;
-      this.selected.locked = !this.selected.locked;
+      const next = !this.selected.locked;
+      for (const el of this.selectedElements) el.locked = next;
       this.commit();
     },
 
     bringForward() {
       const i = this.selectedIndex;
-      if (i < 0 || i >= this.activePage.elements.length - 1) return;
-      const arr = this.activePage.elements;
+      const arr = this.workingElements;
+      if (i < 0 || i >= arr.length - 1) return;
       [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
       this.commit();
     },
 
     sendBackward() {
       const i = this.selectedIndex;
+      const arr = this.workingElements;
       if (i <= 0) return;
-      const arr = this.activePage.elements;
       [arr[i], arr[i - 1]] = [arr[i - 1], arr[i]];
       this.commit();
     },
 
     bringToFront() {
       const i = this.selectedIndex;
-      if (i < 0 || i >= this.activePage.elements.length - 1) return;
-      const [el] = this.activePage.elements.splice(i, 1);
-      this.activePage.elements.push(el);
+      const arr = this.workingElements;
+      if (i < 0 || i >= arr.length - 1) return;
+      const [el] = arr.splice(i, 1);
+      arr.push(el);
       this.commit();
     },
 
     sendToBack() {
       const i = this.selectedIndex;
+      const arr = this.workingElements;
       if (i <= 0) return;
-      const [el] = this.activePage.elements.splice(i, 1);
-      this.activePage.elements.unshift(el);
+      const [el] = arr.splice(i, 1);
+      arr.unshift(el);
       this.commit();
     },
 
     alignSelected(edge: "left" | "center" | "right" | "top" | "middle" | "bottom") {
-      const el = this.selected;
-      if (!el || el.locked) return;
+      const els = this.selectedElements.filter((e) => !e.locked);
+      if (!els.length) return;
       const { width, height } = this.pageSize;
-      if (edge === "left") el.x = 40;
-      if (edge === "center") el.x = Math.round((width - el.width) / 2);
-      if (edge === "right") el.x = Math.round(width - el.width - 40);
-      if (edge === "top") el.y = 40;
-      if (edge === "middle") el.y = Math.round((height - el.height) / 2);
-      if (edge === "bottom") el.y = Math.round(height - el.height - 40);
+      if (els.length === 1) {
+        const el = els[0];
+        if (edge === "left") el.x = 40;
+        if (edge === "center") el.x = Math.round((width - el.width) / 2);
+        if (edge === "right") el.x = Math.round(width - el.width - 40);
+        if (edge === "top") el.y = 40;
+        if (edge === "middle") el.y = Math.round((height - el.height) / 2);
+        if (edge === "bottom") el.y = Math.round(height - el.height - 40);
+      } else {
+        const minX = Math.min(...els.map((e) => e.x));
+        const maxX = Math.max(...els.map((e) => e.x + e.width));
+        const minY = Math.min(...els.map((e) => e.y));
+        const maxY = Math.max(...els.map((e) => e.y + e.height));
+        for (const el of els) {
+          if (edge === "left") el.x = minX;
+          if (edge === "right") el.x = maxX - el.width;
+          if (edge === "center") el.x = Math.round((minX + maxX - el.width) / 2);
+          if (edge === "top") el.y = minY;
+          if (edge === "bottom") el.y = maxY - el.height;
+          if (edge === "middle") el.y = Math.round((minY + maxY - el.height) / 2);
+        }
+      }
       this.commit();
     },
 
     nudge(dx: number, dy: number, fine: boolean) {
-      const el = this.selected;
-      if (!el || el.locked) return;
       const step = fine ? 1 : this.snapEnabled ? 8 : 4;
-      el.x += dx * step;
-      el.y += dy * step;
+      for (const el of this.selectedElements) {
+        if (el.locked) continue;
+        el.x += dx * step;
+        el.y += dy * step;
+      }
       this.commit();
+    },
+
+    addGuideFromRuler(axis: "x" | "y", event: MouseEvent) {
+      const { x, y } = this.pageCoords(event);
+      const guide: GuideLine = {
+        id: uid(),
+        axis,
+        position: axis === "x" ? this.snap(x) : this.snap(y),
+      };
+      if (!this.doc.guides) this.doc.guides = [];
+      this.doc.guides.push(guide);
+      this.drag = { mode: "guide", axis, id: guide.id };
+      this.commit(false);
+    },
+
+    removeGuide(id: string) {
+      this.doc.guides = (this.doc.guides || []).filter((g) => g.id !== id);
+      this.commit();
+    },
+
+    toggleEditMaster() {
+      this.editingMaster = !this.editingMaster;
+      this.selectedIds = [];
+      if (this.editingMaster && !this.doc.master) {
+        this.doc.master = { header: [], footer: [] };
+      }
+    },
+
+    addMasterPageNumber() {
+      if (!this.doc.master) this.doc.master = { header: [], footer: [] };
+      const el = createText(this.pageSize.width / 2 - 40, this.pageSize.height - 48, {
+        content: "Page {{page}} / {{pages}}",
+        fontSize: 10,
+        color: "#64748b",
+        width: 80,
+        height: 20,
+        align: "center",
+      });
+      this.doc.master.footer.push(el);
+      this.commit();
+    },
+
+    setWatermarkText(text: string) {
+      this.doc.watermark = {
+        type: "text",
+        text,
+        opacity: 0.12,
+        rotation: -30,
+        fontSize: 56,
+        color: "#94a3b8",
+      };
+      this.commit();
+    },
+
+    clearWatermark() {
+      this.doc.watermark = null;
+      this.commit();
+    },
+
+    runFind() {
+      const q = this.findQuery.trim().toLowerCase();
+      this.findMatches = [];
+      if (!q) return;
+      this.doc.pages.forEach((page, pageIndex) => {
+        for (const el of page.elements) {
+          if (el.type === "text" || el.type === "sticky") {
+            if (el.content.toLowerCase().includes(q)) {
+              this.findMatches.push({ pageIndex, elId: el.id, field: "content" });
+            }
+          } else if (el.type === "badge" || el.type === "stamp") {
+            if (el.label.toLowerCase().includes(q)) {
+              this.findMatches.push({ pageIndex, elId: el.id, field: "label" });
+            }
+          } else if (el.type === "table") {
+            if (el.cells.some((c) => c.toLowerCase().includes(q))) {
+              this.findMatches.push({ pageIndex, elId: el.id, field: "cells" });
+            }
+          } else if (el.type === "checkbox" || el.type === "formCheck") {
+            if (el.label.toLowerCase().includes(q)) {
+              this.findMatches.push({ pageIndex, elId: el.id, field: "label" });
+            }
+          }
+        }
+      });
+      this.findIndex = this.findMatches.length ? 0 : -1;
+      this.jumpToFindMatch();
+    },
+
+    jumpToFindMatch() {
+      const m = this.findMatches[this.findIndex];
+      if (!m) return;
+      this.activePageIndex = m.pageIndex;
+      this.selectedIds = [m.elId];
+    },
+
+    findNext() {
+      if (!this.findMatches.length) return;
+      this.findIndex = (this.findIndex + 1) % this.findMatches.length;
+      this.jumpToFindMatch();
+    },
+
+    replaceCurrent() {
+      const m = this.findMatches[this.findIndex];
+      if (!m) return;
+      const page = this.doc.pages[m.pageIndex];
+      const el = page?.elements.find((e) => e.id === m.elId);
+      if (!el) return;
+      const q = this.findQuery;
+      const r = this.replaceQuery;
+      if (el.type === "text" || el.type === "sticky") {
+        el.content = el.content.split(q).join(r);
+      } else if (el.type === "badge" || el.type === "stamp" || el.type === "checkbox" || el.type === "formCheck") {
+        el.label = el.label.split(q).join(r);
+      } else if (el.type === "table") {
+        el.cells = el.cells.map((c) => c.split(q).join(r));
+      }
+      this.commit();
+      this.runFind();
+    },
+
+    replaceAll() {
+      const q = this.findQuery;
+      if (!q) return;
+      const r = this.replaceQuery;
+      for (const page of this.doc.pages) {
+        for (const el of page.elements) {
+          if (el.type === "text" || el.type === "sticky") el.content = el.content.split(q).join(r);
+          else if (el.type === "badge" || el.type === "stamp" || el.type === "checkbox" || el.type === "formCheck") {
+            el.label = el.label.split(q).join(r);
+          } else if (el.type === "table") el.cells = el.cells.map((c) => c.split(q).join(r));
+        }
+      }
+      this.commit();
+      this.runFind();
+    },
+
+    addCommentAt(x: number, y: number) {
+      const body = this.commentDraft.trim() || prompt("Comment") || "";
+      if (!body.trim()) return;
+      if (!this.doc.comments) this.doc.comments = [];
+      this.doc.comments.push({
+        id: uid(),
+        pageId: this.activePage.id,
+        x,
+        y,
+        body: body.trim(),
+        author: this.authorName || "Reviewer",
+        resolved: false,
+        createdAt: new Date().toISOString(),
+      });
+      this.commentDraft = "";
+      this.tool = "select";
+      this.commit();
+    },
+
+    toggleCommentResolved(id: string) {
+      const c = (this.doc.comments || []).find((c) => c.id === id);
+      if (!c) return;
+      c.resolved = !c.resolved;
+      this.commit();
+    },
+
+    deleteComment(id: string) {
+      this.doc.comments = (this.doc.comments || []).filter((c) => c.id !== id);
+      this.commit();
+    },
+
+    saveBrand() {
+      localStorage.setItem(BRAND_KEY, JSON.stringify(this.brand));
+    },
+
+    applyBrandToSelection() {
+      for (const el of this.selectedElements) {
+        if (el.type === "text") {
+          el.fontFamily = this.brand.defaultFont || el.fontFamily;
+          if (this.brand.colors[2]) el.color = this.brand.colors[2];
+        }
+        if (el.type === "rect" && this.brand.colors[0]) el.fill = this.brand.colors[0];
+      }
+      this.commit();
+      this.saveBrand();
+    },
+
+    async onBrandLogoSelected(event: Event) {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0];
+      if (!file) return;
+      const form = new FormData();
+      form.append("image", file);
+      try {
+        const res = await fetch("/api/upload", { method: "POST", body: form });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || "Upload failed");
+        this.brand.logoUrl = payload.url;
+        this.brand.logoName = payload.name;
+        this.saveBrand();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Logo upload failed");
+      } finally {
+        input.value = "";
+      }
+    },
+
+    insertBrandLogo() {
+      if (!this.brand.logoUrl) return;
+      const el = createImage(40, 40, {
+        src: this.brand.logoUrl,
+        name: this.brand.logoName || "Logo",
+        width: 120,
+        height: 60,
+      });
+      this.pushElement(el);
+    },
+
+    async onFontSelected(event: Event) {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0];
+      if (!file) return;
+      const form = new FormData();
+      form.append("font", file);
+      try {
+        const res = await fetch("/api/fonts", { method: "POST", body: form });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || "Font upload failed");
+        if (!this.doc.customFonts) this.doc.customFonts = [];
+        this.doc.customFonts.push({ id: payload.id, name: payload.name, url: payload.url });
+        this.fontOptions = allFontOptions(this.doc.customFonts);
+        this.injectCustomFontFaces();
+        this.commit();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Font upload failed");
+      } finally {
+        input.value = "";
+      }
+    },
+
+    async onPdfImportSelected(event: Event) {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0];
+      if (!file) return;
+      const form = new FormData();
+      form.append("pdf", file);
+      try {
+        const res = await fetch("/api/import", { method: "POST", body: form });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || "Import failed");
+        this.doc = normalizeDoc(payload.document as PdfDocument);
+        this.activePageIndex = 0;
+        this.selectedIds = [];
+        history.reset(this.doc);
+        this.syncHistoryFlags();
+        this.commit(false);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Could not import PDF");
+      } finally {
+        input.value = "";
+      }
+    },
+
+    openExportModal() {
+      this.showExportModal = true;
+    },
+
+    saveExportSettings() {
+      localStorage.setItem(EXPORT_KEY, JSON.stringify(this.exportSettings));
     },
 
     onKeydown(event: KeyboardEvent) {
@@ -754,6 +1618,36 @@ function pdfEditor() {
         this.duplicateSelected();
         return;
       }
+      if (mod && event.key.toLowerCase() === "c") {
+        event.preventDefault();
+        this.copySelected();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === "x") {
+        event.preventDefault();
+        this.cutSelected();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === "v") {
+        event.preventDefault();
+        this.pasteClipboard();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === "g" && !event.shiftKey) {
+        event.preventDefault();
+        this.groupSelected();
+        return;
+      }
+      if (mod && event.shiftKey && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        this.ungroupSelected();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        this.showFindReplace = true;
+        return;
+      }
       if (mod && event.key.toLowerCase() === "s") {
         event.preventDefault();
         this.commit(false);
@@ -762,17 +1656,21 @@ function pdfEditor() {
       }
       if (mod && event.key.toLowerCase() === "e") {
         event.preventDefault();
-        void this.exportPdf();
+        this.openExportModal();
         return;
       }
 
       if (event.key === "Escape") {
-        this.selectedId = null;
+        this.selectedIds = [];
         this.editingTextId = null;
         this.tool = "select";
         this.pendingLibraryKind = null;
         this.placeHint = false;
         this.libraryKeepPlacing = false;
+        this.showExportModal = false;
+        this.showFindReplace = false;
+        this.showFileMenu = false;
+        this.showTemplates = false;
         return;
       }
 
@@ -844,7 +1742,8 @@ function pdfEditor() {
           width: payload.width as number,
           height: payload.height as number,
         });
-        this.pushElement(imageEl);      } catch (err) {
+        this.pushElement(imageEl);
+      } catch (err) {
         console.error(err);
         alert(err instanceof Error ? err.message : "Could not upload image.");
       } finally {
@@ -853,7 +1752,9 @@ function pdfEditor() {
     },
 
     async exportPdf() {
+      this.saveExportSettings();
       this.exporting = true;
+      this.showExportModal = false;
       try {
         const res = await fetch("/api/export", {
           method: "POST",
@@ -863,6 +1764,11 @@ function pdfEditor() {
             pageSize: this.doc.pageSize,
             pageBackground: this.doc.pageBackground,
             pages: this.doc.pages,
+            master: this.doc.master,
+            watermark: this.doc.watermark,
+            importedPdf: this.doc.importedPdf,
+            customFonts: this.doc.customFonts,
+            exportSettings: this.exportSettings,
           }),
         });
 

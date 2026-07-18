@@ -1,41 +1,99 @@
-<header class="relative flex h-14 shrink-0 items-center gap-2 border-b border-slate-line bg-slate-panel px-2 md:gap-3 md:px-4">
-  <a href="/" class="flex items-center gap-2 pr-1" title="Home">
-    <span class="flex h-8 w-8 items-center justify-center rounded-md bg-accent text-xs font-bold text-white">PS</span>
-    <span class="hidden text-sm font-semibold text-fg lg:inline">PDF Studio</span>
+<header class="editor-chrome relative z-30 flex h-14 shrink-0 items-center gap-2 border-b border-slate-line bg-slate-panel/95 px-2 backdrop-blur-md md:gap-3 md:px-4">
+  <a href="/" class="group flex items-center gap-2.5 pr-1" title="Home">
+    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-xs font-bold tracking-tight text-white shadow-sm transition group-hover:bg-accent-dim">PS</span>
+    <span class="hidden text-sm font-semibold tracking-tight text-fg lg:inline">PDF Studio</span>
   </a>
 
-  <div class="h-6 w-px bg-slate-line"></div>
+  <div class="h-5 w-px bg-slate-line"></div>
 
   <input
     type="text"
-    class="panel-input max-w-[8rem] border-transparent bg-transparent font-medium hover:border-slate-line sm:max-w-[12rem]"
+    class="doc-title-input max-w-[7.5rem] sm:max-w-[14rem]"
     x-model="doc.name"
     @change="persist()"
     aria-label="Document name"
+    placeholder="Untitled"
   />
 
-  <div class="flex items-center gap-0.5">
-    <button type="button" class="tool-btn h-8 w-8" :disabled="!canUndo" @click="undo()" title="Undo (⌘Z)">
-      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+  <div class="flex items-center rounded-lg border border-slate-line bg-slate-hover/40 p-0.5">
+    <button type="button" class="tool-btn h-7 w-7" :disabled="!canUndo" @click="undo()" title="Undo (⌘Z)">
+      <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 14l-4-4 4-4m-4 4h11a4 4 0 010 8h-1" />
       </svg>
     </button>
-    <button type="button" class="tool-btn h-8 w-8" :disabled="!canRedo" @click="redo()" title="Redo (⌘Y)">
-      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+    <button type="button" class="tool-btn h-7 w-7" :disabled="!canRedo" @click="redo()" title="Redo (⌘Y)">
+      <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15 14l4-4-4-4m4 4H8a4 4 0 000 8h1" />
       </svg>
     </button>
   </div>
 
-  <button type="button" class="btn-ghost hidden sm:inline-flex" @click="showTemplates = !showTemplates">Templates</button>
-  <button type="button" class="btn-ghost hidden md:inline-flex" @click="newDocument()">New</button>
+  <div class="relative hidden sm:block">
+    <button
+      type="button"
+      class="btn-ghost"
+      :class="showFileMenu && 'border-accent text-accent-soft'"
+      @click="showFileMenu = !showFileMenu; showTemplates = false; showSettings = false"
+    >
+      File
+      <svg class="ml-1 h-3 w-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
+    <div
+      x-show="showFileMenu"
+      x-cloak
+      x-transition.opacity.duration.150ms
+      @click.outside="showFileMenu = false"
+      class="menu-popover absolute left-0 top-full z-50 mt-1.5 w-52 py-1"
+    >
+      <button type="button" class="menu-item" @click="showFileMenu = false; newDocument()">New document</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; showDocLibrary = true">Open library…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; $refs.pdfInput.click()">Import PDF…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; $refs.jsonInput.click()">Open JSON…</button>
+      <div class="my-1 border-t border-slate-line"></div>
+      <button type="button" class="menu-item" @click="showFileMenu = false; downloadStudioJson()">Share as JSON</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; openExportModal()">Export PDF…</button>
+    </div>
+  </div>
+
+  <button
+    type="button"
+    class="btn-ghost hidden sm:inline-flex"
+    :class="showTemplates && 'border-accent text-accent-soft'"
+    @click="showTemplates = !showTemplates; showFileMenu = false; showSettings = false"
+  >
+    Templates
+  </button>
 
   <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
     <button
       type="button"
       class="tool-btn h-8 w-8"
+      @click="showFindReplace = true"
+      title="Find (⌘F)"
+    >
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.3-4.3M11 18a7 7 0 100-14 7 7 0 000 14z" />
+      </svg>
+    </button>
+
+    <button
+      type="button"
+      class="tool-btn h-8 w-8 hidden md:flex"
+      @click="showBrandKit = true"
+      title="Brand kit"
+    >
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.5M12 5h7a2 2 0 012 2v2" />
+      </svg>
+    </button>
+
+    <button
+      type="button"
+      class="tool-btn h-8 w-8"
       @click="toggleTheme()"
-      :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+      :title="theme === 'dark' ? 'Light mode' : 'Dark mode'"
     >
       <svg x-show="theme === 'dark'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.4 6.4l-1.4-1.4M7 7L5.6 5.6m12.8 0L17 7M7 17l-1.4 1.4M12 8a4 4 0 100 8 4 4 0 000-8z" />
@@ -45,93 +103,139 @@
       </svg>
     </button>
 
-    <button type="button" class="tool-btn h-8 w-8" @click="showSettings = !showSettings" title="More options">
+    <button
+      type="button"
+      class="tool-btn h-8 w-8"
+      :class="showSettings && 'bg-accent/15 text-accent-soft'"
+      @click="showSettings = !showSettings; showFileMenu = false; showTemplates = false"
+      title="Settings"
+    >
       <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" />
         <path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9c.2.6.7 1 1.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" />
       </svg>
     </button>
 
-    <select class="panel-select w-auto min-w-[6.5rem]" x-model="doc.pageSize" @change="persist()">
+    <div class="hidden h-5 w-px bg-slate-line sm:block"></div>
+
+    <select class="panel-select hidden w-auto min-w-[5.5rem] py-1.5 text-xs sm:block" x-model="doc.pageSize" @change="persist()" title="Page size">
       <option value="a4">A4</option>
       <option value="a5">A5</option>
-      <option value="letter">US Letter</option>
+      <option value="letter">Letter</option>
       <option value="legal">Legal</option>
       <option value="square">Square</option>
     </select>
 
-    <button type="button" class="rounded-lg border border-slate-line px-2.5 py-1.5 text-sm text-slate-muted hover:text-fg" @click="zoomOut()" title="Zoom out">−</button>
-    <button type="button" class="w-12 text-center font-mono text-xs text-slate-muted hover:text-fg" @click="fitZoom()" title="Fit width" x-text="Math.round(zoom * 100) + '%'"></button>
-    <button type="button" class="rounded-lg border border-slate-line px-2.5 py-1.5 text-sm text-slate-muted hover:text-fg" @click="zoomIn()" title="Zoom in">+</button>
+    <div class="zoom-cluster hidden items-center sm:flex">
+      <button type="button" class="zoom-btn" @click="zoomOut()" title="Zoom out">−</button>
+      <button type="button" class="zoom-label" @click="fitWidth()" title="Fit width" x-text="Math.round(zoom * 100) + '%'"></button>
+      <button type="button" class="zoom-btn" @click="zoomIn()" title="Zoom in">+</button>
+    </div>
 
     <button
       type="button"
-      class="ml-1 inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-dim disabled:opacity-50"
+      class="btn-primary ml-0.5"
       :disabled="exporting"
-      @click="exportPdf()"
+      @click="openExportModal()"
       title="Export (⌘E)"
     >
-      <span x-text="exporting ? 'Exporting…' : 'Export PDF'"></span>
+      <svg class="h-3.5 w-3.5 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4" />
+      </svg>
+      <span x-text="exporting ? '…' : 'Export'"></span>
     </button>
   </div>
 
+  {{!-- Templates popover --}}
   <div
     x-show="showTemplates"
     x-cloak
     x-transition
     @click.outside="showTemplates = false"
-    class="absolute left-1/2 top-14 z-40 w-[min(92vw,28rem)] -translate-x-1/2 rounded-xl border border-slate-line bg-slate-panel p-3 shadow-page"
+    class="absolute left-1/2 top-14 z-40 w-[min(92vw,32rem)] -translate-x-1/2 rounded-2xl border border-slate-line bg-slate-panel p-4 shadow-page"
   >
-    <p class="mb-2 text-xs font-medium uppercase tracking-wider text-slate-muted">Start from template</p>
-    <div class="grid gap-2 sm:grid-cols-2">
+    <p class="mb-3 text-xs font-medium uppercase tracking-wider text-slate-muted">Start from template</p>
+    <div class="grid max-h-[60vh] gap-2 overflow-y-auto sm:grid-cols-2">
       <template x-for="tpl in templates" :key="tpl.id">
         <button
           type="button"
-          class="rounded-lg border border-slate-line px-3 py-2.5 text-left transition hover:border-accent hover:bg-slate-hover"
+          class="template-card text-left"
           @click="applyTemplate(tpl.id)"
         >
           <span class="block text-sm font-medium text-fg" x-text="tpl.name"></span>
-          <span class="mt-0.5 block text-xs text-slate-muted" x-text="tpl.description"></span>
+          <span class="mt-0.5 block text-xs leading-snug text-slate-muted" x-text="tpl.description"></span>
         </button>
       </template>
     </div>
   </div>
 
+  {{!-- Settings drawer --}}
   <div
     x-show="showSettings"
     x-cloak
     x-transition
     @click.outside="showSettings = false"
-    class="absolute right-3 top-14 z-40 w-[min(92vw,20rem)] rounded-xl border border-slate-line bg-slate-panel p-4 shadow-page"
+    class="absolute right-3 top-14 z-40 w-[min(92vw,22rem)] rounded-2xl border border-slate-line bg-slate-panel p-4 shadow-page"
   >
-    <p class="mb-3 text-xs font-medium uppercase tracking-wider text-slate-muted">Options</p>
-    <div class="space-y-3 text-sm">
-      <label class="flex items-center justify-between gap-3 text-fg">
+    <p class="mb-3 text-xs font-medium uppercase tracking-wider text-slate-muted">Workspace</p>
+    <div class="space-y-1 text-sm">
+      <label class="settings-row">
         <span>Snap to grid</span>
         <input type="checkbox" class="accent-accent" x-model="snapEnabled" @change="saveSettings()" />
       </label>
-      <label class="flex items-center justify-between gap-3 text-fg">
-        <span>Show grid overlay</span>
+      <label class="settings-row">
+        <span>Grid overlay</span>
         <input type="checkbox" class="accent-accent" x-model="showGrid" @change="saveSettings()" />
       </label>
-      <label class="flex items-center justify-between gap-3 text-fg">
+      <label class="settings-row">
         <span>Margin guides</span>
         <input type="checkbox" class="accent-accent" x-model="showGuides" @change="saveSettings()" />
       </label>
+      <label class="settings-row">
+        <span>Rulers</span>
+        <input type="checkbox" class="accent-accent" x-model="showRulers" @change="saveSettings()" />
+      </label>
+      <label class="settings-row">
+        <span>Review mode</span>
+        <input type="checkbox" class="accent-accent" x-model="reviewMode" />
+      </label>
+    </div>
+
+    <div class="my-3 border-t border-slate-line"></div>
+    <p class="mb-2 text-xs font-medium uppercase tracking-wider text-slate-muted">Document</p>
+    <div class="space-y-3 text-sm">
       <div>
         <label class="panel-label">Page background</label>
         <div class="flex items-center gap-2">
-          <input type="color" class="h-9 w-12 cursor-pointer rounded border border-slate-line bg-transparent" x-model="doc.pageBackground" @input="persistSoft()" @change="persist()" />
+          <input type="color" class="h-9 w-12 cursor-pointer rounded-lg border border-slate-line bg-transparent" x-model="doc.pageBackground" @input="persistSoft()" @change="persist()" />
           <button type="button" class="btn-ghost" @click="doc.pageBackground = '#faf9f6'; persist()">Paper</button>
           <button type="button" class="btn-ghost" @click="doc.pageBackground = '#ffffff'; persist()">White</button>
         </div>
       </div>
       <div>
-        <label class="panel-label">Theme</label>
-        <div class="flex gap-2">
-          <button type="button" class="btn-ghost flex-1" :class="theme === 'dark' && 'border-accent text-accent-soft'" @click="applyTheme('dark')">Dark</button>
-          <button type="button" class="btn-ghost flex-1" :class="theme === 'light' && 'border-accent text-accent-soft'" @click="applyTheme('light')">Light</button>
+        <label class="panel-label">Master &amp; watermark</label>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" class="btn-ghost" @click="toggleEditMaster()" x-text="editingMaster ? 'Exit master' : 'Edit master'"></button>
+          <button type="button" class="btn-ghost" @click="addMasterPageNumber()">Page #</button>
+          <button type="button" class="btn-ghost" @click="setWatermarkText(prompt('Watermark text') || 'DRAFT')">Watermark</button>
+          <button type="button" class="btn-ghost" @click="clearWatermark()">Clear</button>
         </div>
+      </div>
+      <div>
+        <label class="panel-label">Fillable fields</label>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" class="btn-ghost" @click="insertFormField('formText')">Text field</button>
+          <button type="button" class="btn-ghost" @click="insertFormField('formCheck')">Checkbox</button>
+          <button type="button" class="btn-ghost" @click="insertFormField('formSelect')">Dropdown</button>
+        </div>
+      </div>
+      <div>
+        <label class="panel-label">Reviewer name</label>
+        <input type="text" class="panel-input" x-model="authorName" @change="localStorage.setItem('pdf-studio-author', authorName)" />
+      </div>
+      <div>
+        <label class="panel-label">Custom font</label>
+        <button type="button" class="btn-ghost w-full justify-center" @click="$refs.fontInput.click()">Upload TTF / OTF</button>
       </div>
     </div>
   </div>

@@ -4,6 +4,9 @@ import type {
   CheckboxElement,
   DividerElement,
   EllipseElement,
+  FormCheckElement,
+  FormSelectElement,
+  FormTextElement,
   IconElement,
   IconKind,
   ImageElement,
@@ -53,6 +56,11 @@ export function createText(x: number, y: number, overrides: Partial<TextElement>
     fontSize: 18,
     fontFamily: "Helvetica",
     fontWeight: "normal",
+    fontStyle: "normal",
+    underline: false,
+    lineHeight: 1.25,
+    letterSpacing: 0,
+    listStyle: "none",
     color: "#1a1a1a",
     align: "left",
     ...overrides,
@@ -310,6 +318,79 @@ export function createStamp(x: number, y: number, overrides: Partial<StampElemen
   };
 }
 
+export function createFormText(
+  x: number,
+  y: number,
+  overrides: Partial<FormTextElement> = {},
+): FormTextElement {
+  return {
+    id: uid(),
+    type: "formText",
+    x,
+    y,
+    width: 200,
+    height: 28,
+    rotation: 0,
+    opacity: 1,
+    locked: false,
+    name: `field_${uid().slice(0, 8)}`,
+    placeholder: "Enter text…",
+    multiline: false,
+    fontSize: 12,
+    color: "#1a1a1a",
+    borderColor: "#94a3b8",
+    ...overrides,
+  };
+}
+
+export function createFormCheck(
+  x: number,
+  y: number,
+  overrides: Partial<FormCheckElement> = {},
+): FormCheckElement {
+  return {
+    id: uid(),
+    type: "formCheck",
+    x,
+    y,
+    width: 180,
+    height: 24,
+    rotation: 0,
+    opacity: 1,
+    locked: false,
+    name: `check_${uid().slice(0, 8)}`,
+    label: "Option",
+    checked: false,
+    color: "#1a1a1a",
+    fontSize: 12,
+    ...overrides,
+  };
+}
+
+export function createFormSelect(
+  x: number,
+  y: number,
+  overrides: Partial<FormSelectElement> = {},
+): FormSelectElement {
+  return {
+    id: uid(),
+    type: "formSelect",
+    x,
+    y,
+    width: 180,
+    height: 28,
+    rotation: 0,
+    opacity: 1,
+    locked: false,
+    name: `select_${uid().slice(0, 8)}`,
+    options: ["Option A", "Option B", "Option C"],
+    fontSize: 12,
+    color: "#1a1a1a",
+    borderColor: "#94a3b8",
+    ...overrides,
+  };
+}
+
 export function cloneElement(el: PdfElement, offset = 16): PdfElement {
   const copy = structuredClone(el) as PdfElement;
   copy.id = uid();
@@ -345,6 +426,12 @@ export function elementLabel(el: PdfElement): string {
       return el.icon;
     case "table":
       return `Table ${el.rows}×${el.cols}`;
+    case "formText":
+      return el.name || "Form text";
+    case "formCheck":
+      return el.label || "Form check";
+    case "formSelect":
+      return el.name || "Form select";
     default:
       return el.type.charAt(0).toUpperCase() + el.type.slice(1);
   }

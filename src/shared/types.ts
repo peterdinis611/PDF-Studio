@@ -13,7 +13,10 @@ export type ElementType =
   | "divider"
   | "icon"
   | "table"
-  | "stamp";
+  | "stamp"
+  | "formText"
+  | "formCheck"
+  | "formSelect";
 
 export type IconKind =
   | "star"
@@ -27,6 +30,19 @@ export type IconKind =
   | "pin"
   | "user";
 
+export type FontFamily =
+  | "Helvetica"
+  | "Times-Roman"
+  | "Courier"
+  | "Inter"
+  | "Roboto"
+  | "OpenSans"
+  | "Lora"
+  | "Playfair"
+  | string; // custom:<id>
+
+export type ListStyle = "none" | "bullet" | "number";
+
 export interface PdfElementBase {
   id: string;
   type: ElementType;
@@ -37,14 +53,20 @@ export interface PdfElementBase {
   rotation: number;
   opacity: number;
   locked: boolean;
+  groupId?: string;
 }
 
 export interface TextElement extends PdfElementBase {
   type: "text";
   content: string;
   fontSize: number;
-  fontFamily: "Helvetica" | "Times-Roman" | "Courier";
+  fontFamily: FontFamily;
   fontWeight: "normal" | "bold";
+  fontStyle: "normal" | "italic";
+  underline: boolean;
+  lineHeight: number;
+  letterSpacing: number;
+  listStyle: ListStyle;
   color: string;
   align: "left" | "center" | "right";
 }
@@ -140,6 +162,34 @@ export interface StampElement extends PdfElementBase {
   fontSize: number;
 }
 
+export interface FormTextElement extends PdfElementBase {
+  type: "formText";
+  name: string;
+  placeholder: string;
+  multiline: boolean;
+  fontSize: number;
+  color: string;
+  borderColor: string;
+}
+
+export interface FormCheckElement extends PdfElementBase {
+  type: "formCheck";
+  name: string;
+  label: string;
+  checked: boolean;
+  color: string;
+  fontSize: number;
+}
+
+export interface FormSelectElement extends PdfElementBase {
+  type: "formSelect";
+  name: string;
+  options: string[];
+  fontSize: number;
+  color: string;
+  borderColor: string;
+}
+
 export type PdfElement =
   | TextElement
   | RectElement
@@ -153,11 +203,53 @@ export type PdfElement =
   | DividerElement
   | IconElement
   | TableElement
-  | StampElement;
+  | StampElement
+  | FormTextElement
+  | FormCheckElement
+  | FormSelectElement;
 
 export interface PdfPage {
   id: string;
   elements: PdfElement[];
+  applyMaster?: boolean;
+  sourcePageIndex?: number;
+}
+
+export interface GuideLine {
+  id: string;
+  axis: "x" | "y";
+  position: number;
+}
+
+export interface DocComment {
+  id: string;
+  pageId: string;
+  x: number;
+  y: number;
+  body: string;
+  author: string;
+  resolved: boolean;
+  createdAt: string;
+}
+
+export interface DocWatermark {
+  type: "text" | "image";
+  text?: string;
+  src?: string;
+  opacity: number;
+  rotation: number;
+  fontSize?: number;
+  color?: string;
+}
+
+export interface DocMaster {
+  header: PdfElement[];
+  footer: PdfElement[];
+}
+
+export interface ImportedPdfRef {
+  url: string;
+  pageCount: number;
 }
 
 export interface PdfDocument {
@@ -168,6 +260,12 @@ export interface PdfDocument {
   showGrid?: boolean;
   pages: PdfPage[];
   updatedAt: string;
+  guides?: GuideLine[];
+  master?: DocMaster;
+  watermark?: DocWatermark | null;
+  comments?: DocComment[];
+  customFonts?: { id: string; name: string; url: string }[];
+  importedPdf?: ImportedPdfRef | null;
 }
 
 export interface PageDimensions {
@@ -185,9 +283,29 @@ export const PAGE_SIZES: Record<PageSize, PageDimensions> = {
   square: { width: 600, height: 600, label: "Square" },
 };
 
+export const GOOGLE_FONTS = [
+  { id: "Inter", label: "Inter", css: "Inter, sans-serif" },
+  { id: "Roboto", label: "Roboto", css: "Roboto, sans-serif" },
+  { id: "OpenSans", label: "Open Sans", css: '"Open Sans", sans-serif' },
+  { id: "Lora", label: "Lora", css: "Lora, serif" },
+  { id: "Playfair", label: "Playfair Display", css: '"Playfair Display", serif' },
+] as const;
+
+export interface ExportSettings {
+  margin: number;
+  imageQuality: number;
+  flatten: boolean;
+  pdfaLite: boolean;
+}
+
 export interface ExportPayload {
   name: string;
   pageSize: PageSize;
   pageBackground?: string;
   pages: PdfPage[];
+  master?: DocMaster;
+  watermark?: DocWatermark | null;
+  importedPdf?: ImportedPdfRef | null;
+  customFonts?: { id: string; name: string; url: string }[];
+  exportSettings?: ExportSettings;
 }

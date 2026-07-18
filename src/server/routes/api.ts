@@ -6,16 +6,22 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { imageSize } from "image-size";
 import { exportPdf } from "../services/pdfExport.js";
+import { importPdfFromPath } from "../services/pdfImport.js";
 import type { ExportPayload } from "../../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.resolve(__dirname, "../../../uploads");
+const fontsDir = path.resolve(uploadsDir, "fonts");
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+if (!fs.existsSync(fontsDir)) {
+  fs.mkdirSync(fontsDir, { recursive: true });
+}
 
 const ALLOWED_EXT = new Set([".png", ".jpg", ".jpeg"]);
+const FONT_EXT = new Set([".ttf", ".otf"]);
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
@@ -34,6 +40,44 @@ const upload = multer({
       cb(null, true);
     } else {
       cb(new Error("Only PNG and JPEG images are allowed"));
+    }
+  },
+});
+
+const pdfUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase() === ".pdf" ? ".pdf" : ".pdf";
+      cb(null, `${randomUUID()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === "application/pdf" || file.originalname.toLowerCase().endsWith(".pdf")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF files are allowed"));
+    }
+  },
+});
+
+const fontUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, fontsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const safe = FONT_EXT.has(ext) ? ext : ".ttf";
+      cb(null, `${randomUUID()}${safe}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (FONT_EXT.has(ext) || /font|ttf|otf/.test(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only TTF/OTF fonts are allowed"));
     }
   },
 });
@@ -95,6 +139,46 @@ apiRouter.post("/upload", (req, res) => {
       name: req.file.originalname,
       width,
       height,
+    });
+  });
+});
+
+apiRouter.post("/import", (req, res) => {
+  pdfUpload.single("pdf")(req, res, async (err) => {
+    if (err) {
+      res.status(400).json({ error: err.message || "Import failed" });
+      return;
+    }
+    if (!req.file) {
+      res.status(400).json({ error: "No PDF uploaded" });
+      return;
+    }
+    try {
+      const url = `/uploads/${req.file.filename}`;
+      const doc = await importPdfFromPath(req.file.path, url, req.file.originalname);
+      res.json({ document: doc });
+    } catch (e) {
+      console.error("Import failed:", e);
+      res.status(500).json({ error: "Failed to import PDF" });
+    }
+  });
+});
+
+apiRouter.post("/fonts", (req, res) => {
+  fontUpload.single("font")(req, res, (err) => {
+    if (err) {
+      res.status(400).json({ error: err.message || "Font upload failed" });
+      return;
+    }
+    if (!req.file) {
+      res.status(400).json({ error: "No font uploaded" });
+      return;
+    }
+    const name = path.basename(req.file.originalname, path.extname(req.file.originalname));
+    res.json({
+      id: path.basename(req.file.filename, path.extname(req.file.filename)),
+      name,
+      url: `/uploads/fonts/${req.file.filename}`,
     });
   });
 });
