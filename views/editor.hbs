@@ -37,13 +37,6 @@
   <input type="file" accept="image/png,image/jpeg" class="hidden" x-ref="imageInput" @change="onImageSelected($event)" />
   <input type="file" accept="image/png,image/jpeg" class="hidden" x-ref="signatureFileInput" @change="onSignatureFileSelected($event)" />
   <input type="file" accept="application/pdf,.pdf" class="hidden" x-ref="pdfInput" @change="onPdfImportSelected($event)" />
-  <input
-    type="file"
-    accept=".ttf,.otf,font/ttf,font/otf,application/font-sfnt,application/x-font-ttf,application/x-font-otf"
-    class="hidden"
-    x-ref="fontInput"
-    @change="onFontSelected($event)"
-  />
   <input type="file" accept="application/json,.json,.pdfstudio.json" class="hidden" x-ref="jsonInput" @change="onStudioJsonSelected($event)" />
   <input type="file" accept="image/png,image/jpeg" class="hidden" x-ref="brandLogoInput" @change="onBrandLogoSelected($event)" />
 

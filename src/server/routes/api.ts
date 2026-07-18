@@ -14,7 +14,6 @@ import {
 } from "../session.js";
 
 const ALLOWED_EXT = new Set([".png", ".jpg", ".jpeg"]);
-const FONT_EXT = new Set([".ttf", ".otf"]);
 
 function imageStorage() {
   return multer.diskStorage({
@@ -43,20 +42,6 @@ function pdfStorage() {
   });
 }
 
-function fontStorage() {
-  return multer.diskStorage({
-    destination: (req, _file, cb) => {
-      const { fonts } = ensureSessionDirs(req.sessionId);
-      cb(null, fonts);
-    },
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      const safe = FONT_EXT.has(ext) ? ext : ".ttf";
-      cb(null, `${randomUUID()}${safe}`);
-    },
-  });
-}
-
 const upload = multer({
   storage: imageStorage(),
   limits: { fileSize: 8 * 1024 * 1024 },
@@ -77,19 +62,6 @@ const pdfUpload = multer({
       cb(null, true);
     } else {
       cb(new Error("Only PDF files are allowed"));
-    }
-  },
-});
-
-const fontUpload = multer({
-  storage: fontStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (FONT_EXT.has(ext) || /font|ttf|otf/.test(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only TTF/OTF fonts are allowed"));
     }
   },
 });
@@ -173,24 +145,5 @@ apiRouter.post("/import", (req, res) => {
       console.error("Import failed:", e);
       res.status(500).json({ error: "Failed to import PDF" });
     }
-  });
-});
-
-apiRouter.post("/fonts", (req, res) => {
-  fontUpload.single("font")(req, res, (err) => {
-    if (err) {
-      res.status(400).json({ error: err.message || "Font upload failed" });
-      return;
-    }
-    if (!req.file) {
-      res.status(400).json({ error: "No font uploaded" });
-      return;
-    }
-    const name = path.basename(req.file.originalname, path.extname(req.file.originalname));
-    res.json({
-      id: path.basename(req.file.filename, path.extname(req.file.filename)),
-      name,
-      url: sessionPublicUrl(req.sessionId, req.file.filename, "font"),
-    });
   });
 });

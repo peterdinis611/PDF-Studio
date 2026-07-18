@@ -3878,23 +3878,17 @@ var STANDARD_FONTS = [
   { id: "Times-Roman", label: "Times", css: '"Times New Roman", Times, serif' },
   { id: "Courier", label: "Courier", css: '"Courier New", Courier, monospace' }
 ];
-function fontCssFamily(family, customFonts = []) {
+function fontCssFamily(family) {
   const std = STANDARD_FONTS.find((f) => f.id === family);
   if (std) return std.css;
   const google = GOOGLE_FONTS.find((f) => f.id === family);
   if (google) return google.css;
-  if (typeof family === "string" && family.startsWith("custom:")) {
-    const id = family.slice(7);
-    const custom = customFonts.find((f) => f.id === id);
-    if (custom) return `"${custom.name}", sans-serif`;
-  }
   return STANDARD_FONTS[0].css;
 }
-function allFontOptions(customFonts = []) {
+function allFontOptions() {
   return [
     ...STANDARD_FONTS.map((f) => ({ id: f.id, label: f.label })),
-    ...GOOGLE_FONTS.map((f) => ({ id: f.id, label: f.label })),
-    ...customFonts.map((f) => ({ id: `custom:${f.id}`, label: `${f.name} (custom)` }))
+    ...GOOGLE_FONTS.map((f) => ({ id: f.id, label: f.label }))
   ];
 }
 
@@ -5579,8 +5573,13 @@ var docKey = (id) => `doc:${id}`;
 function normalizeTextElement(el) {
   if (el.type !== "text") return el;
   const t = el;
+  let fontFamily = t.fontFamily || "Helvetica";
+  if (typeof fontFamily === "string" && fontFamily.startsWith("custom:")) {
+    fontFamily = "Helvetica";
+  }
   return {
     ...t,
+    fontFamily,
     fontStyle: t.fontStyle ?? "normal",
     underline: t.underline ?? false,
     lineHeight: t.lineHeight ?? 1.25,
@@ -5860,8 +5859,7 @@ function pdfEditor() {
         }
       }
       if (typeof this.doc.showGrid === "boolean") this.showGrid = this.doc.showGrid;
-      this.fontOptions = allFontOptions(this.doc.customFonts);
-      this.injectCustomFontFaces();
+      this.fontOptions = allFontOptions();
       history.reset(this.doc);
       this.syncHistoryFlags();
       window.addEventListener("mousemove", (e) => this.onMouseMove(e));
@@ -5888,18 +5886,6 @@ function pdfEditor() {
           { passive: false }
         );
       });
-    },
-    injectCustomFontFaces() {
-      const id = "pdf-studio-custom-fonts";
-      let style = document.getElementById(id);
-      if (!style) {
-        style = document.createElement("style");
-        style.id = id;
-        document.head.appendChild(style);
-      }
-      style.textContent = (this.doc.customFonts || []).map(
-        (f) => `@font-face{font-family:"${f.name}";src:url("${f.url}");font-display:swap;}`
-      ).join("\n");
     },
     applyTheme(theme) {
       this.theme = theme;
@@ -5983,8 +5969,7 @@ function pdfEditor() {
         history.reset(this.doc);
         this.syncHistoryFlags();
         this.showDocLibrary = false;
-        this.fontOptions = allFontOptions(this.doc.customFonts);
-        this.injectCustomFontFaces();
+        this.fontOptions = allFontOptions();
         storeSet(STORAGE_KEY, JSON.stringify(this.doc));
       } catch {
         alert("Could not open document.");
@@ -6020,8 +6005,7 @@ function pdfEditor() {
         this.selectedIds = [];
         history.reset(this.doc);
         this.syncHistoryFlags();
-        this.fontOptions = allFontOptions(this.doc.customFonts);
-        this.injectCustomFontFaces();
+        this.fontOptions = allFontOptions();
         this.commit(false);
       } catch {
         alert("Invalid .pdfstudio.json file");
@@ -6475,7 +6459,7 @@ function pdfEditor() {
     textInnerStyle(el) {
       return {
         fontSize: `${el.fontSize * this.zoom}px`,
-        fontFamily: fontCssFamily(el.fontFamily, this.doc.customFonts),
+        fontFamily: fontCssFamily(el.fontFamily),
         fontWeight: el.fontWeight,
         fontStyle: el.fontStyle || "normal",
         textDecoration: el.underline ? "underline" : "none",
@@ -6891,63 +6875,6 @@ function pdfEditor() {
       });
       this.pushElement(el);
     },
-    async onFontSelected(event) {
-      const input = event.target;
-      const file = input.files?.[0];
-      if (!file) return;
-      const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-      if (ext !== ".ttf" && ext !== ".otf") {
-        alert("Please upload a .ttf or .otf font file.");
-        input.value = "";
-        return;
-      }
-      const form = new FormData();
-      form.append("font", file);
-      try {
-        const res = await apiFetch("/api/fonts", { method: "POST", body: form });
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(payload.error || "Font upload failed");
-        if (!this.doc.customFonts) this.doc.customFonts = [];
-        const entry = {
-          id: payload.id,
-          name: payload.name || file.name.replace(/\.(ttf|otf)$/i, ""),
-          url: payload.url
-        };
-        this.doc.customFonts.push(entry);
-        this.fontOptions = allFontOptions(this.doc.customFonts);
-        this.injectCustomFontFaces();
-        const fontId = `custom:${entry.id}`;
-        if (this.selected?.type === "text") {
-          this.selected.fontFamily = fontId;
-        } else if (this.brand) {
-          this.brand.defaultFont = fontId;
-          this.saveBrand();
-        }
-        this.commit();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "Font upload failed");
-      } finally {
-        input.value = "";
-      }
-    },
-    removeCustomFont(id) {
-      const fontKey = `custom:${id}`;
-      this.doc.customFonts = (this.doc.customFonts || []).filter((f) => f.id !== id);
-      for (const page of this.doc.pages) {
-        for (const el of page.elements) {
-          if (el.type === "text" && el.fontFamily === fontKey) {
-            el.fontFamily = "Helvetica";
-          }
-        }
-      }
-      if (this.brand?.defaultFont === fontKey) {
-        this.brand.defaultFont = "Helvetica";
-        this.saveBrand();
-      }
-      this.fontOptions = allFontOptions(this.doc.customFonts);
-      this.injectCustomFontFaces();
-      this.commit();
-    },
     async onPdfImportSelected(event) {
       const input = event.target;
       const file = input.files?.[0];
@@ -7324,7 +7251,6 @@ function pdfEditor() {
             master: this.doc.master,
             watermark: this.doc.watermark,
             importedPdf: this.doc.importedPdf,
-            customFonts: this.doc.customFonts,
             exportSettings: this.exportSettings
           })
         });

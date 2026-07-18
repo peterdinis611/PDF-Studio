@@ -51,7 +51,6 @@
       <button type="button" class="menu-item" @click="showFileMenu = false; showDocLibrary = true">Open library…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; $refs.pdfInput.click()">Import PDF…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; $refs.jsonInput.click()">Open JSON…</button>
-      <button type="button" class="menu-item" @click="showFileMenu = false; $refs.fontInput.click()">Upload font…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; openSignatureModal()">Sign PDF…</button>
       <div class="my-1 border-t border-slate-line"></div>
       <button type="button" class="menu-item" @click="showFileMenu = false; downloadStudioJson()">Share as JSON</button>
@@ -311,21 +310,6 @@
       <div>
         <label class="panel-label">Reviewer name</label>
         <input type="text" class="panel-input" x-model="authorName" @change="saveAuthorName()" />
-      </div>
-      <div>
-        <label class="panel-label">Custom fonts</label>
-        <button type="button" class="btn-ghost mb-2 w-full justify-center" @click="$refs.fontInput.click()">
-          Upload TTF / OTF
-        </button>
-        <ul class="max-h-28 space-y-1 overflow-y-auto" x-show="(doc.customFonts || []).length">
-          <template x-for="f in (doc.customFonts || [])" :key="f.id">
-            <li class="flex items-center justify-between gap-2 rounded-lg border border-slate-line px-2 py-1.5 text-xs">
-              <span class="truncate text-fg" :style="`font-family: '${f.name}', sans-serif`" x-text="f.name"></span>
-              <button type="button" class="text-slate-muted hover:text-warn" @click="removeCustomFont(f.id)" title="Remove">×</button>
-            </li>
-          </template>
-        </ul>
-        <p class="mt-1.5 text-[10px] text-slate-muted" x-show="!(doc.customFonts || []).length">No custom fonts yet.</p>
       </div>
     </div>
   </div>

@@ -26,10 +26,10 @@ import {
   type DocWatermark,
 } from "../../shared/types.js";
 import { resolveUploadPath } from "./pdfImport.js";
+import { embedGoogleFonts, pickGoogleFont, type FontNeed } from "./fontEmbed.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "../../..");
-const fontsRoot = path.resolve(root, "uploads/fonts"); // legacy shared fonts fallback
 
 type Fonts = {
   helvetica: PDFFont;
@@ -44,7 +44,7 @@ type Fonts = {
   courierBold: PDFFont;
   courierOblique: PDFFont;
   courierBoldOblique: PDFFont;
-  custom: Map<string, PDFFont>;
+  google: Map<string, PDFFont>;
 };
 
 function hexToRgb(hex: string) {
@@ -81,8 +81,9 @@ function roundedRectPath(x: number, y: number, w: number, h: number, r: number) 
   ].join(" ");
 }
 
-async function loadFonts(doc: PDFDocument, customFonts: ExportPayload["customFonts"] = []): Promise<Fonts> {
-  const fonts: Fonts = {
+async function loadFonts(doc: PDFDocument, needs: FontNeed[] = []): Promise<Fonts> {
+  const google = await embedGoogleFonts(doc, needs);
+  return {
     helvetica: await doc.embedFont(StandardFonts.Helvetica),
     helveticaBold: await doc.embedFont(StandardFonts.HelveticaBold),
     helveticaOblique: await doc.embedFont(StandardFonts.HelveticaOblique),
@@ -95,22 +96,8 @@ async function loadFonts(doc: PDFDocument, customFonts: ExportPayload["customFon
     courierBold: await doc.embedFont(StandardFonts.CourierBold),
     courierOblique: await doc.embedFont(StandardFonts.CourierOblique),
     courierBoldOblique: await doc.embedFont(StandardFonts.CourierBoldOblique),
-    custom: new Map(),
+    google,
   };
-
-  for (const cf of customFonts || []) {
-    const filePath = resolveUploadPath(cf.url) || path.resolve(fontsRoot, path.basename(cf.url));
-    try {
-      const bytes = await fs.readFile(filePath);
-      const embedded = await doc.embedFont(bytes);
-      fonts.custom.set(cf.id, embedded);
-      fonts.custom.set(`custom:${cf.id}`, embedded);
-    } catch {
-      /* skip missing custom font */
-    }
-  }
-
-  return fonts;
 }
 
 function pickFont(
@@ -119,23 +106,24 @@ function pickFont(
   bold: boolean,
   italic: boolean,
 ): PDFFont {
+  const google = pickGoogleFont(fonts.google, family, bold, italic);
+  if (google) return google;
+
+  // Legacy custom uploads → fall back to Helvetica
   if (family.startsWith("custom:")) {
-    const custom = fonts.custom.get(family) || fonts.custom.get(family.slice(7));
-    if (custom) return custom;
+    if (bold && italic) return fonts.helveticaBoldOblique;
+    if (bold) return fonts.helveticaBold;
+    if (italic) return fonts.helveticaOblique;
+    return fonts.helvetica;
   }
-  const customDirect = fonts.custom.get(family);
-  if (customDirect) return customDirect;
 
-  const serif = family === "Times-Roman" || family === "Lora" || family === "Playfair";
-  const mono = family === "Courier";
-
-  if (serif) {
+  if (family === "Times-Roman") {
     if (bold && italic) return fonts.timesBoldItalic;
     if (bold) return fonts.timesBold;
     if (italic) return fonts.timesItalic;
     return fonts.times;
   }
-  if (mono) {
+  if (family === "Courier") {
     if (bold && italic) return fonts.courierBoldOblique;
     if (bold) return fonts.courierBold;
     if (italic) return fonts.courierOblique;
@@ -145,6 +133,32 @@ function pickFont(
   if (bold) return fonts.helveticaBold;
   if (italic) return fonts.helveticaOblique;
   return fonts.helvetica;
+}
+
+function collectFontNeeds(payload: ExportPayload): FontNeed[] {
+  const needs: FontNeed[] = [];
+  const seen = new Set<string>();
+  const push = (family: string, bold: boolean, italic: boolean) => {
+    const key = `${family}:${bold}:${italic}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    needs.push({ family, bold, italic });
+  };
+
+  const walk = (els: { type: string; fontFamily?: string; fontWeight?: string; fontStyle?: string }[]) => {
+    for (const el of els) {
+      if (el.type === "text" && el.fontFamily) {
+        push(el.fontFamily, el.fontWeight === "bold", el.fontStyle === "italic");
+      }
+    }
+  };
+
+  for (const page of payload.pages) walk(page.elements);
+  if (payload.master) {
+    walk(payload.master.header || []);
+    walk(payload.master.footer || []);
+  }
+  return needs;
 }
 
 function substituteTokens(text: string, pageIndex: number, pageCount: number) {
@@ -733,7 +747,7 @@ async function drawElement(
 
 export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  const fonts = await loadFonts(doc, payload.customFonts);
+  const fonts = await loadFonts(doc, collectFontNeeds(payload));
   const size = PAGE_SIZES[payload.pageSize] ?? PAGE_SIZES.a4;
   const settings = payload.exportSettings || {
     margin: 0,

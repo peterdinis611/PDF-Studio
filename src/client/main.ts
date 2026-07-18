@@ -112,8 +112,13 @@ interface DocIndexEntry {
 function normalizeTextElement(el: PdfElement): PdfElement {
   if (el.type !== "text") return el;
   const t = el as TextElement;
+  let fontFamily = t.fontFamily || "Helvetica";
+  if (typeof fontFamily === "string" && fontFamily.startsWith("custom:")) {
+    fontFamily = "Helvetica";
+  }
   return {
     ...t,
+    fontFamily,
     fontStyle: t.fontStyle ?? "normal",
     underline: t.underline ?? false,
     lineHeight: t.lineHeight ?? 1.25,
@@ -436,8 +441,7 @@ function pdfEditor() {
       }
 
       if (typeof this.doc.showGrid === "boolean") this.showGrid = this.doc.showGrid;
-      this.fontOptions = allFontOptions(this.doc.customFonts);
-      this.injectCustomFontFaces();
+      this.fontOptions = allFontOptions();
 
       history.reset(this.doc);
       this.syncHistoryFlags();
@@ -468,21 +472,6 @@ function pdfEditor() {
       });
     },
 
-    injectCustomFontFaces() {
-      const id = "pdf-studio-custom-fonts";
-      let style = document.getElementById(id) as HTMLStyleElement | null;
-      if (!style) {
-        style = document.createElement("style");
-        style.id = id;
-        document.head.appendChild(style);
-      }
-      style.textContent = (this.doc.customFonts || [])
-        .map(
-          (f) =>
-            `@font-face{font-family:"${f.name}";src:url("${f.url}");font-display:swap;}`,
-        )
-        .join("\n");
-    },
 
     applyTheme(theme: "dark" | "light") {
       this.theme = theme;
@@ -575,8 +564,7 @@ function pdfEditor() {
         history.reset(this.doc);
         this.syncHistoryFlags();
         this.showDocLibrary = false;
-        this.fontOptions = allFontOptions(this.doc.customFonts);
-        this.injectCustomFontFaces();
+        this.fontOptions = allFontOptions();
         storeSet(STORAGE_KEY, JSON.stringify(this.doc));
       } catch {
         alert("Could not open document.");
@@ -615,8 +603,7 @@ function pdfEditor() {
         this.selectedIds = [];
         history.reset(this.doc);
         this.syncHistoryFlags();
-        this.fontOptions = allFontOptions(this.doc.customFonts);
-        this.injectCustomFontFaces();
+        this.fontOptions = allFontOptions();
         this.commit(false);
       } catch {
         alert("Invalid .pdfstudio.json file");
@@ -1148,7 +1135,7 @@ function pdfEditor() {
     textInnerStyle(el: TextElement) {
       return {
         fontSize: `${el.fontSize * this.zoom}px`,
-        fontFamily: fontCssFamily(el.fontFamily, this.doc.customFonts),
+        fontFamily: fontCssFamily(el.fontFamily),
         fontWeight: el.fontWeight,
         fontStyle: el.fontStyle || "normal",
         textDecoration: el.underline ? "underline" : "none",
@@ -1608,69 +1595,6 @@ function pdfEditor() {
       this.pushElement(el);
     },
 
-    async onFontSelected(event: Event) {
-      const input = event.target as HTMLInputElement;
-      const file = input.files?.[0];
-      if (!file) return;
-
-      const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-      if (ext !== ".ttf" && ext !== ".otf") {
-        alert("Please upload a .ttf or .otf font file.");
-        input.value = "";
-        return;
-      }
-
-      const form = new FormData();
-      form.append("font", file);
-      try {
-        const res = await apiFetch("/api/fonts", { method: "POST", body: form });
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(payload.error || "Font upload failed");
-
-        if (!this.doc.customFonts) this.doc.customFonts = [];
-        const entry = {
-          id: payload.id as string,
-          name: (payload.name as string) || file.name.replace(/\.(ttf|otf)$/i, ""),
-          url: payload.url as string,
-        };
-        this.doc.customFonts.push(entry);
-        this.fontOptions = allFontOptions(this.doc.customFonts);
-        this.injectCustomFontFaces();
-
-        const fontId = `custom:${entry.id}`;
-        if (this.selected?.type === "text") {
-          this.selected.fontFamily = fontId;
-        } else if (this.brand) {
-          this.brand.defaultFont = fontId;
-          this.saveBrand();
-        }
-
-        this.commit();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "Font upload failed");
-      } finally {
-        input.value = "";
-      }
-    },
-
-    removeCustomFont(id: string) {
-      const fontKey = `custom:${id}`;
-      this.doc.customFonts = (this.doc.customFonts || []).filter((f) => f.id !== id);
-      for (const page of this.doc.pages) {
-        for (const el of page.elements) {
-          if (el.type === "text" && el.fontFamily === fontKey) {
-            el.fontFamily = "Helvetica";
-          }
-        }
-      }
-      if (this.brand?.defaultFont === fontKey) {
-        this.brand.defaultFont = "Helvetica";
-        this.saveBrand();
-      }
-      this.fontOptions = allFontOptions(this.doc.customFonts);
-      this.injectCustomFontFaces();
-      this.commit();
-    },
 
     async onPdfImportSelected(event: Event) {
       const input = event.target as HTMLInputElement;
@@ -2081,7 +2005,6 @@ function pdfEditor() {
             master: this.doc.master,
             watermark: this.doc.watermark,
             importedPdf: this.doc.importedPdf,
-            customFonts: this.doc.customFonts,
             exportSettings: this.exportSettings,
           }),
         });
