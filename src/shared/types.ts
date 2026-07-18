@@ -338,7 +338,7 @@ export const PAGE_SIZES = {
   businessCard: { width: 252, height: 144, label: "Business card", group: "photo" },
   // Other
   square: { width: 600, height: 600, label: "Square", group: "other" },
-  squareSmall: { width: 432, height: 432, label: "Square (6\")", group: "other" },
+  squareSmall: { width: 432, height: 432, label: 'Square (6")', group: "other" },
   widescreen: { width: 792, height: 445.5, label: "Widescreen 16:9", group: "other" },
   presentation: { width: 720, height: 540, label: "Presentation 4:3", group: "other" },
 } as const satisfies Record<string, PageDimensions>;

@@ -58,10 +58,7 @@
 
 @layer components {
   .tool-btn {
-    @apply flex h-9 w-9 items-center justify-center rounded-lg text-slate-muted transition
-      duration-150 hover:bg-slate-hover hover:text-fg
-      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
-      disabled:pointer-events-none disabled:opacity-30 active:scale-95;
+    @apply flex h-9 w-9 items-center justify-center rounded-lg text-slate-muted transition duration-150 hover:bg-slate-hover hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-30 active:scale-95;
   }
 
   .tool-btn[aria-pressed="true"] {
@@ -89,8 +86,7 @@
   }
 
   .rail-tab {
-    @apply relative flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-slate-muted transition
-      hover:bg-slate-hover hover:text-fg;
+    @apply relative flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-slate-muted transition hover:bg-slate-hover hover:text-fg;
   }
 
   .rail-tab.is-active {
@@ -111,8 +107,7 @@
   }
 
   .rail-cat {
-    @apply mx-1 rounded-md px-2 py-1.5 text-left text-[10px] font-medium uppercase tracking-wide text-slate-muted transition
-      hover:bg-slate-hover hover:text-fg;
+    @apply mx-1 rounded-md px-2 py-1.5 text-left text-[10px] font-medium uppercase tracking-wide text-slate-muted transition hover:bg-slate-hover hover:text-fg;
   }
 
   .rail-cat.is-active {
@@ -128,8 +123,7 @@
   }
 
   .search-input {
-    @apply w-full rounded-xl border border-slate-line bg-slate-panel py-2 pl-8 pr-9 text-xs text-fg
-      placeholder:text-slate-muted/70 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent;
+    @apply w-full rounded-xl border border-slate-line bg-slate-panel py-2 pl-8 pr-9 text-xs text-fg placeholder:text-slate-muted/70 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent;
   }
 
   .search-kbd {
@@ -137,8 +131,7 @@
   }
 
   .view-toggle {
-    @apply flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-xl border border-slate-line text-slate-muted transition
-      hover:border-slate-muted hover:text-fg;
+    @apply flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-xl border border-slate-line text-slate-muted transition hover:border-slate-muted hover:text-fg;
   }
 
   .view-toggle.is-active {
@@ -146,8 +139,7 @@
   }
 
   .quick-filter {
-    @apply rounded-lg px-2 py-1 text-[11px] font-medium text-slate-muted transition
-      hover:bg-slate-hover hover:text-fg;
+    @apply rounded-lg px-2 py-1 text-[11px] font-medium text-slate-muted transition hover:bg-slate-hover hover:text-fg;
   }
 
   .quick-filter.is-active {
@@ -155,8 +147,7 @@
   }
 
   .lib-item {
-    @apply relative w-full rounded-xl border border-transparent bg-transparent text-left transition
-      hover:border-slate-line hover:bg-slate-hover/80;
+    @apply relative w-full rounded-xl border border-transparent bg-transparent text-left transition hover:border-slate-line hover:bg-slate-hover/80;
   }
 
   .lib-item.is-pending {
@@ -172,8 +163,7 @@
   }
 
   .lib-preview {
-    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-line/80
-      bg-gradient-to-b from-slate-hover to-slate-panel text-sm text-accent-soft;
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-line/80 bg-gradient-to-b from-slate-hover to-slate-panel text-sm text-accent-soft;
   }
 
   .lib-hint {
@@ -181,8 +171,7 @@
   }
 
   .fav-btn {
-    @apply absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg text-xs text-slate-muted
-      opacity-0 transition hover:bg-slate-panel hover:text-accent-soft group-hover:opacity-100;
+    @apply absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg text-xs text-slate-muted opacity-0 transition hover:bg-slate-panel hover:text-accent-soft group-hover:opacity-100;
   }
 
   .fav-btn.is-on {
@@ -203,10 +192,7 @@
   }
 
   .dock-btn {
-    @apply flex h-9 w-9 items-center justify-center rounded-xl text-slate-muted transition
-      hover:bg-slate-hover hover:text-fg
-      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
-      disabled:pointer-events-none disabled:opacity-30;
+    @apply flex h-9 w-9 items-center justify-center rounded-xl text-slate-muted transition hover:bg-slate-hover hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-30;
   }
 
   .dock-btn[aria-pressed="true"] {
@@ -254,9 +240,7 @@
   }
 
   .panel-input {
-    @apply w-full rounded-lg border border-slate-line bg-slate-panel px-2.5 py-1.5 text-sm text-fg
-      transition focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent
-      placeholder:text-slate-muted/60;
+    @apply w-full rounded-lg border border-slate-line bg-slate-panel px-2.5 py-1.5 text-sm text-fg transition focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent placeholder:text-slate-muted/60;
   }
 
   .panel-select {
@@ -265,13 +249,11 @@
   }
 
   .doc-title-input {
-    @apply rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm font-medium text-fg
-      transition hover:border-slate-line focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent;
+    @apply rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm font-medium text-fg transition hover:border-slate-line focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent;
   }
 
   .page-thumb {
-    @apply relative aspect-[210/297] w-full cursor-pointer overflow-hidden rounded-lg border-2 border-transparent bg-paper transition
-      duration-200 hover:-translate-y-0.5 hover:border-slate-muted/40 hover:shadow-md;
+    @apply relative aspect-[210/297] w-full cursor-pointer overflow-hidden rounded-lg border-2 border-transparent bg-paper transition duration-200 hover:-translate-y-0.5 hover:border-slate-muted/40 hover:shadow-md;
   }
 
   .page-thumb[aria-current="true"] {
@@ -292,8 +274,7 @@
   }
 
   .resize-handle {
-    @apply absolute h-2.5 w-2.5 rounded-sm border border-white bg-accent shadow transition
-      hover:scale-125;
+    @apply absolute h-2.5 w-2.5 rounded-sm border border-white bg-accent shadow transition hover:scale-125;
   }
 
   .library-card {
@@ -309,13 +290,11 @@
   }
 
   .btn-ghost {
-    @apply inline-flex items-center rounded-lg border border-slate-line px-2.5 py-1.5 text-xs text-slate-muted transition
-      hover:border-slate-muted hover:text-fg disabled:opacity-40;
+    @apply inline-flex items-center rounded-lg border border-slate-line px-2.5 py-1.5 text-xs text-slate-muted transition hover:border-slate-muted hover:text-fg disabled:opacity-40;
   }
 
   .btn-primary {
-    @apply inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-sm font-semibold text-white transition
-      hover:bg-accent-dim disabled:opacity-50;
+    @apply inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-sm font-semibold text-white transition hover:bg-accent-dim disabled:opacity-50;
   }
 
   .zoom-cluster {
@@ -364,8 +343,11 @@
 
   .canvas-workspace {
     background-color: rgb(var(--color-canvas));
-    background-image:
-      radial-gradient(ellipse 55% 45% at 50% 40%, rgb(var(--color-accent) / 0.07), transparent 70%);
+    background-image: radial-gradient(
+      ellipse 55% 45% at 50% 40%,
+      rgb(var(--color-accent) / 0.07),
+      transparent 70%
+    );
   }
 
   .inspector-section {
@@ -413,8 +395,7 @@
   }
 
   .home-template {
-    @apply flex items-center gap-3 rounded-2xl border border-slate-line p-3 transition
-      hover:-translate-y-0.5 hover:border-accent hover:shadow-md;
+    @apply flex items-center gap-3 rounded-2xl border border-slate-line p-3 transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md;
   }
 
   .home-template-swatch {
@@ -432,7 +413,12 @@
       radial-gradient(ellipse 80% 50% at 18% 0%, rgb(var(--color-accent) / 0.28), transparent 55%),
       radial-gradient(ellipse 55% 40% at 88% 12%, rgb(var(--color-accent) / 0.14), transparent 50%),
       radial-gradient(ellipse 70% 45% at 50% 100%, rgb(var(--color-accent) / 0.08), transparent 55%),
-      linear-gradient(165deg, rgb(var(--color-panel)) 0%, rgb(var(--color-rail)) 55%, rgb(var(--color-panel)) 100%);
+      linear-gradient(
+        165deg,
+        rgb(var(--color-panel)) 0%,
+        rgb(var(--color-rail)) 55%,
+        rgb(var(--color-panel)) 100%
+      );
   }
 
   .nf-grain {
@@ -606,48 +592,98 @@
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes nf-copy-in {
-  from { opacity: 0; transform: translateY(18px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes nf-sheet-rise {
-  from { opacity: 0; transform: translateY(48px) rotate(-1.5deg); }
-  to { opacity: 1; transform: translateY(0) rotate(-1.5deg); }
+  from {
+    opacity: 0;
+    transform: translateY(48px) rotate(-1.5deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(-1.5deg);
+  }
 }
 
 @keyframes nf-sheet-drift {
-  0%, 100% { translate: 0 0; }
-  50% { translate: 0 -10px; }
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -10px;
+  }
 }
 
 @keyframes nf-pulse {
-  0%, 100% { opacity: 0.45; }
-  50% { opacity: 0.85; }
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
 }
 
 @keyframes modal-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes dock-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slide-down {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes page-in {
-  from { opacity: 0; transform: translateY(16px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes element-pop {
@@ -662,29 +698,63 @@
 }
 
 @keyframes select-pulse {
-  0% { outline-color: rgba(13, 148, 136, 0.2); outline-offset: 4px; }
-  100% { outline-color: #0d9488; outline-offset: 1px; }
+  0% {
+    outline-color: rgba(13, 148, 136, 0.2);
+    outline-offset: 4px;
+  }
+  100% {
+    outline-color: #0d9488;
+    outline-offset: 1px;
+  }
 }
 
 @keyframes library-in {
-  from { opacity: 0; transform: translateX(-6px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes banner-in {
-  from { opacity: 0; transform: translate(-50%, -6px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 @keyframes preload-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.06); opacity: 0.85; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.85;
+  }
 }
 
 @keyframes preload-bar {
-  0% { width: 12%; transform: translateX(0); }
-  50% { width: 70%; transform: translateX(30%); }
-  100% { width: 12%; transform: translateX(280%); }
+  0% {
+    width: 12%;
+    transform: translateX(0);
+  }
+  50% {
+    width: 70%;
+    transform: translateX(30%);
+  }
+  100% {
+    width: 12%;
+    transform: translateX(280%);
+  }
 }
 
 @keyframes preload-out {
@@ -716,4 +786,3 @@
     transform: none !important;
   }
 }
-

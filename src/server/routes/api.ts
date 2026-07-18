@@ -8,10 +8,7 @@ import { exportPdf } from "../services/pdfExport.js";
 import { importPdfFromPath } from "../services/pdfImport.js";
 import type { ExportPayload } from "../../shared/types.js";
 import { PAGE_SIZES } from "../../shared/types.js";
-import {
-  ensureSessionDirs,
-  sessionPublicUrl,
-} from "../session.js";
+import { ensureSessionDirs, sessionPublicUrl } from "../session.js";
 
 const ALLOWED_EXT = new Set([".png", ".jpg", ".jpeg"]);
 

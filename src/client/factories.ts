@@ -42,7 +42,11 @@ export function defaultDoc(): PdfDocument {
   };
 }
 
-export function createText(x: number, y: number, overrides: Partial<TextElement> = {}): TextElement {
+export function createText(
+  x: number,
+  y: number,
+  overrides: Partial<TextElement> = {},
+): TextElement {
   return {
     id: uid(),
     type: "text",
@@ -68,7 +72,11 @@ export function createText(x: number, y: number, overrides: Partial<TextElement>
   };
 }
 
-export function createRect(x: number, y: number, overrides: Partial<RectElement> = {}): RectElement {
+export function createRect(
+  x: number,
+  y: number,
+  overrides: Partial<RectElement> = {},
+): RectElement {
   return {
     id: uid(),
     type: "rect",
@@ -109,7 +117,11 @@ export function createEllipse(
   };
 }
 
-export function createLine(x: number, y: number, overrides: Partial<LineElement> = {}): LineElement {
+export function createLine(
+  x: number,
+  y: number,
+  overrides: Partial<LineElement> = {},
+): LineElement {
   return {
     id: uid(),
     type: "line",
@@ -166,7 +178,11 @@ export function createSignature(
   };
 }
 
-export function createArrow(x: number, y: number, overrides: Partial<ArrowElement> = {}): ArrowElement {
+export function createArrow(
+  x: number,
+  y: number,
+  overrides: Partial<ArrowElement> = {},
+): ArrowElement {
   return {
     id: uid(),
     type: "arrow",
@@ -184,7 +200,11 @@ export function createArrow(x: number, y: number, overrides: Partial<ArrowElemen
   };
 }
 
-export function createSticky(x: number, y: number, overrides: Partial<StickyElement> = {}): StickyElement {
+export function createSticky(
+  x: number,
+  y: number,
+  overrides: Partial<StickyElement> = {},
+): StickyElement {
   return {
     id: uid(),
     type: "sticky",
@@ -203,7 +223,11 @@ export function createSticky(x: number, y: number, overrides: Partial<StickyElem
   };
 }
 
-export function createBadge(x: number, y: number, overrides: Partial<BadgeElement> = {}): BadgeElement {
+export function createBadge(
+  x: number,
+  y: number,
+  overrides: Partial<BadgeElement> = {},
+): BadgeElement {
   return {
     id: uid(),
     type: "badge",
@@ -289,7 +313,11 @@ export function createIcon(
   };
 }
 
-export function createTable(x: number, y: number, overrides: Partial<TableElement> = {}): TableElement {
+export function createTable(
+  x: number,
+  y: number,
+  overrides: Partial<TableElement> = {},
+): TableElement {
   const rows = overrides.rows ?? 3;
   const cols = overrides.cols ?? 3;
   const cells =
@@ -321,7 +349,11 @@ export function createTable(x: number, y: number, overrides: Partial<TableElemen
   };
 }
 
-export function createStamp(x: number, y: number, overrides: Partial<StampElement> = {}): StampElement {
+export function createStamp(
+  x: number,
+  y: number,
+  overrides: Partial<StampElement> = {},
+): StampElement {
   return {
     id: uid(),
     type: "stamp",

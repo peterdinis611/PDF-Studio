@@ -100,12 +100,7 @@ async function loadFonts(doc: PDFDocument, needs: FontNeed[] = []): Promise<Font
   };
 }
 
-function pickFont(
-  fonts: Fonts,
-  family: string,
-  bold: boolean,
-  italic: boolean,
-): PDFFont {
+function pickFont(fonts: Fonts, family: string, bold: boolean, italic: boolean): PDFFont {
   const google = pickGoogleFont(fonts.google, family, bold, italic);
   if (google) return google;
 
@@ -145,7 +140,9 @@ function collectFontNeeds(payload: ExportPayload): FontNeed[] {
     needs.push({ family, bold, italic });
   };
 
-  const walk = (els: { type: string; fontFamily?: string; fontWeight?: string; fontStyle?: string }[]) => {
+  const walk = (
+    els: { type: string; fontFamily?: string; fontWeight?: string; fontStyle?: string }[],
+  ) => {
     for (const el of els) {
       if (el.type === "text" && el.fontFamily) {
         push(el.fontFamily, el.fontWeight === "bold", el.fontStyle === "italic");
@@ -194,7 +191,9 @@ async function drawText(
   let cursorY = toPdfY(pageHeight, el.y, el.fontSize);
 
   for (const line of lines) {
-    const textWidth = font.widthOfTextAtSize(line, el.fontSize) + (el.letterSpacing || 0) * Math.max(0, line.length - 1);
+    const textWidth =
+      font.widthOfTextAtSize(line, el.fontSize) +
+      (el.letterSpacing || 0) * Math.max(0, line.length - 1);
     let x = el.x;
     if (el.align === "center") x = el.x + (el.width - textWidth) / 2;
     if (el.align === "right") x = el.x + el.width - textWidth;
@@ -817,7 +816,16 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
       if (cloned.type === "text") {
         cloned.content = substituteTokens(cloned.content, pageIndex, pageCount);
       }
-      await drawElement(doc, page, cloned, size.height, fonts, pageIndex, pageCount, settings.imageQuality);
+      await drawElement(
+        doc,
+        page,
+        cloned,
+        size.height,
+        fonts,
+        pageIndex,
+        pageCount,
+        settings.imageQuality,
+      );
     }
 
     for (const el of pdfPage.elements) {
@@ -825,7 +833,16 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
       if (settings.margin && offsetEl.type !== "image") {
         /* margin already applied to imported page; elements stay in page coords */
       }
-      await drawElement(doc, page, offsetEl, size.height, fonts, pageIndex, pageCount, settings.imageQuality);
+      await drawElement(
+        doc,
+        page,
+        offsetEl,
+        size.height,
+        fonts,
+        pageIndex,
+        pageCount,
+        settings.imageQuality,
+      );
     }
   }
 

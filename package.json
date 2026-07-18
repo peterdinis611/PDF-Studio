@@ -9,7 +9,11 @@
     "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/css/app.css --minify",
     "build:client": "esbuild src/client/main.ts --bundle --outfile=public/js/app.js --format=esm --target=es2020",
     "start": "node dist/server/index.js",
-    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json --noEmit"
+    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json --noEmit",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "check": "biome check ."
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
@@ -26,6 +30,7 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.4",
     "@types/alpinejs": "^3.13.11",
     "@types/express": "^5.0.3",
     "@types/image-size": "^0.7.0",

@@ -368,7 +368,7 @@ function pdfEditor() {
       this.theme =
         savedTheme === "light" || savedTheme === "dark"
           ? savedTheme
-          : ((document.documentElement.getAttribute("data-theme") as "dark" | "light") || "dark");
+          : (document.documentElement.getAttribute("data-theme") as "dark" | "light") || "dark";
       this.applyTheme(this.theme);
 
       try {
@@ -456,7 +456,9 @@ function pdfEditor() {
         if (e.code === "Space") spaceDown = false;
       });
       queueMicrotask(() => {
-        const viewport = (this as unknown as { $el: HTMLElement }).$el?.querySelector(".canvas-workspace");
+        const viewport = (this as unknown as { $el: HTMLElement }).$el?.querySelector(
+          ".canvas-workspace",
+        );
         viewport?.addEventListener(
           "wheel",
           (e) => {
@@ -470,7 +472,6 @@ function pdfEditor() {
         );
       });
     },
-
 
     applyTheme(theme: "dark" | "light") {
       this.theme = theme;
@@ -712,7 +713,10 @@ function pdfEditor() {
     fitWidth() {
       const pad = 160;
       const avail = Math.max(280, window.innerWidth - 420 - pad);
-      this.zoom = Math.min(1.5, Math.max(0.3, Math.round((avail / this.pageSize.width) * 100) / 100));
+      this.zoom = Math.min(
+        1.5,
+        Math.max(0.3, Math.round((avail / this.pageSize.width) * 100) / 100),
+      );
       this.panX = 0;
       this.panY = 0;
     },
@@ -833,7 +837,8 @@ function pdfEditor() {
       }
 
       let el: PdfElement;
-      if (this.tool === "text") el = createText(sx, sy, { fontFamily: this.brand.defaultFont || "Helvetica" });
+      if (this.tool === "text")
+        el = createText(sx, sy, { fontFamily: this.brand.defaultFont || "Helvetica" });
       else if (this.tool === "rect") el = createRect(sx, sy);
       else if (this.tool === "ellipse") el = createEllipse(sx, sy);
       else el = createLine(sx, sy);
@@ -1147,9 +1152,7 @@ function pdfEditor() {
 
     shapeStyle(el: RectElement | EllipseElement) {
       const radius =
-        el.type === "ellipse"
-          ? "50%"
-          : `${((el as RectElement).cornerRadius || 0) * this.zoom}px`;
+        el.type === "ellipse" ? "50%" : `${((el as RectElement).cornerRadius || 0) * this.zoom}px`;
       return {
         backgroundColor: el.fill,
         border: el.strokeWidth > 0 ? `${el.strokeWidth * this.zoom}px solid ${el.stroke}` : "none",
@@ -1219,7 +1222,9 @@ function pdfEditor() {
       if (!els.length) return;
       clipboard = els.map((el) => structuredClone(el) as PdfElement);
       try {
-        void navigator.clipboard.writeText(JSON.stringify({ type: "pdf-studio-elements", elements: clipboard }));
+        void navigator.clipboard.writeText(
+          JSON.stringify({ type: "pdf-studio-elements", elements: clipboard }),
+        );
       } catch {
         /* ignore */
       }
@@ -1487,7 +1492,12 @@ function pdfEditor() {
       const r = this.replaceQuery;
       if (el.type === "text" || el.type === "sticky") {
         el.content = el.content.split(q).join(r);
-      } else if (el.type === "badge" || el.type === "stamp" || el.type === "checkbox" || el.type === "formCheck") {
+      } else if (
+        el.type === "badge" ||
+        el.type === "stamp" ||
+        el.type === "checkbox" ||
+        el.type === "formCheck"
+      ) {
         el.label = el.label.split(q).join(r);
       } else if (el.type === "table") {
         el.cells = el.cells.map((c) => c.split(q).join(r));
@@ -1503,7 +1513,12 @@ function pdfEditor() {
       for (const page of this.doc.pages) {
         for (const el of page.elements) {
           if (el.type === "text" || el.type === "sticky") el.content = el.content.split(q).join(r);
-          else if (el.type === "badge" || el.type === "stamp" || el.type === "checkbox" || el.type === "formCheck") {
+          else if (
+            el.type === "badge" ||
+            el.type === "stamp" ||
+            el.type === "checkbox" ||
+            el.type === "formCheck"
+          ) {
             el.label = el.label.split(q).join(r);
           } else if (el.type === "table") el.cells = el.cells.map((c) => c.split(q).join(r));
         }
@@ -1594,7 +1609,6 @@ function pdfEditor() {
       this.pushElement(el);
     },
 
-
     async onPdfImportSelected(event: Event) {
       const input = event.target as HTMLInputElement;
       const file = input.files?.[0];
@@ -1628,7 +1642,11 @@ function pdfEditor() {
 
     onKeydown(event: KeyboardEvent) {
       const tag = (event.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || (event.target as HTMLElement)?.isContentEditable) {
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        (event.target as HTMLElement)?.isContentEditable
+      ) {
         return;
       }
 
@@ -1639,7 +1657,10 @@ function pdfEditor() {
         this.undo();
         return;
       }
-      if ((mod && event.key.toLowerCase() === "y") || (mod && event.shiftKey && event.key.toLowerCase() === "z")) {
+      if (
+        (mod && event.key.toLowerCase() === "y") ||
+        (mod && event.shiftKey && event.key.toLowerCase() === "z")
+      ) {
         event.preventDefault();
         this.redo();
         return;
@@ -1784,9 +1805,12 @@ function pdfEditor() {
       }
     },
 
-    openSignatureModal(x: number | null = null, y: number | null = null, replaceId: string | null = null) {
-      this.signaturePlace =
-        x != null && y != null ? { x, y } : null;
+    openSignatureModal(
+      x: number | null = null,
+      y: number | null = null,
+      replaceId: string | null = null,
+    ) {
+      this.signaturePlace = x != null && y != null ? { x, y } : null;
       this.signatureReplaceId = replaceId;
       this.signatureTab = "draw";
       this.signatureTyped = "";
@@ -1807,7 +1831,10 @@ function pdfEditor() {
     },
 
     signaturePad(): HTMLCanvasElement | null {
-      return (this as unknown as { $refs: { signaturePad?: HTMLCanvasElement } }).$refs.signaturePad ?? null;
+      return (
+        (this as unknown as { $refs: { signaturePad?: HTMLCanvasElement } }).$refs.signaturePad ??
+        null
+      );
     },
 
     resetSignaturePad() {
@@ -1909,7 +1936,12 @@ function pdfEditor() {
       return payload as { url: string; name: string; width: number; height: number };
     },
 
-    async placeSignatureFromPayload(payload: { url: string; name: string; width: number; height: number }) {
+    async placeSignatureFromPayload(payload: {
+      url: string;
+      name: string;
+      width: number;
+      height: number;
+    }) {
       const maxW = 280;
       const scale = Math.min(1, maxW / Math.max(payload.width, 1));
       const width = Math.max(120, Math.round(payload.width * scale));
@@ -1949,7 +1981,9 @@ function pdfEditor() {
           this.renderTypedSignature();
         }
         if (this.signatureTab === "upload") {
-          (this as unknown as { $refs: { signatureFileInput: HTMLInputElement } }).$refs.signatureFileInput.click();
+          (
+            this as unknown as { $refs: { signatureFileInput: HTMLInputElement } }
+          ).$refs.signatureFileInput.click();
           return;
         }
         const canvas = this.signaturePad();
@@ -1958,7 +1992,9 @@ function pdfEditor() {
           return;
         }
         const trimmed = trimSignatureCanvas(canvas);
-        const blob = await new Promise<Blob | null>((resolve) => trimmed.toBlob(resolve, "image/png"));
+        const blob = await new Promise<Blob | null>((resolve) =>
+          trimmed.toBlob(resolve, "image/png"),
+        );
         if (!blob) throw new Error("Could not capture signature");
         const payload = await this.uploadSignatureBlob(blob, "signature.png");
         await this.placeSignatureFromPayload({

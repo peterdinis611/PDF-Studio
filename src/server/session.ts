@@ -44,7 +44,11 @@ export function ensureSessionDirs(sessionId: string): { uploads: string; fonts: 
   return { uploads, fonts };
 }
 
-export function sessionPublicUrl(sessionId: string, filename: string, kind: "file" | "font" = "file"): string {
+export function sessionPublicUrl(
+  sessionId: string,
+  filename: string,
+  kind: "file" | "font" = "file",
+): string {
   if (kind === "font") return `/uploads/sessions/${sessionId}/fonts/${filename}`;
   return `/uploads/sessions/${sessionId}/${filename}`;
 }
@@ -60,10 +64,7 @@ export function sessionMiddleware(req: Request, res: Response, next: NextFunctio
   if (isValidSessionId(header)) {
     sessionId = header;
     if (cookie !== sessionId) {
-      res.setHeader(
-        "Set-Cookie",
-        `${SESSION_COOKIE}=${sessionId}; Path=/; SameSite=Lax; HttpOnly`,
-      );
+      res.setHeader("Set-Cookie", `${SESSION_COOKIE}=${sessionId}; Path=/; SameSite=Lax; HttpOnly`);
     }
   } else if (isValidSessionId(cookie)) {
     sessionId = cookie;

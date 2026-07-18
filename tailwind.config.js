@@ -23,8 +23,8 @@ export default {
         warn: "rgb(var(--color-warn) / <alpha-value>)",
       },
       fontFamily: {
-        display: ["\"Sora\"", "\"DM Sans\"", "system-ui", "sans-serif"],
-        mono: ["\"JetBrains Mono\"", "ui-monospace", "monospace"],
+        display: ['"Sora"', '"DM Sans"', "system-ui", "sans-serif"],
+        mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
       },
       boxShadow: {
         page: "var(--shadow-page)",

@@ -12,7 +12,10 @@ const uploadsRoot = path.resolve(root, "uploads");
 function closestPageSize(width: number, height: number): PageSize {
   let best: PageSize = "a4";
   let bestScore = Infinity;
-  for (const [key, size] of Object.entries(PAGE_SIZES) as [PageSize, (typeof PAGE_SIZES)[PageSize]][]) {
+  for (const [key, size] of Object.entries(PAGE_SIZES) as [
+    PageSize,
+    (typeof PAGE_SIZES)[PageSize],
+  ][]) {
     const score = Math.abs(size.width - width) + Math.abs(size.height - height);
     if (score < bestScore) {
       bestScore = score;

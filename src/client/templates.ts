@@ -103,7 +103,8 @@ function invoiceTemplate(): PdfDocument {
     }),
     createLine(40, 255, { width: 515, height: 0, stroke: "#94a3b8", strokeWidth: 1 }),
     createText(40, 270, {
-      content: "Design services                       1    €1,200\nHosting (annual)                      1      €240",
+      content:
+        "Design services                       1    €1,200\nHosting (annual)                      1      €240",
       fontSize: 12,
       width: 515,
       height: 50,
@@ -346,7 +347,8 @@ function cvTemplate(): PdfDocument {
       height: 18,
     }),
     createText(230, 270, {
-      content: "Led redesign of client portals and established a shared component library used across three products.",
+      content:
+        "Led redesign of client portals and established a shared component library used across three products.",
       fontSize: 12,
       color: "#334155",
       width: 320,
@@ -367,7 +369,8 @@ function cvTemplate(): PdfDocument {
       height: 18,
     }),
     createText(230, 385, {
-      content: "Designed marketing sites and onboarding flows. Partnered with engineers on accessible UI patterns.",
+      content:
+        "Designed marketing sites and onboarding flows. Partnered with engineers on accessible UI patterns.",
       fontSize: 12,
       color: "#334155",
       width: 320,
@@ -569,8 +572,7 @@ function certificateTemplate(): PdfDocument {
       align: "center",
     }),
     createText(80, 320, {
-      content:
-        "has successfully completed the program\nPDF Design Fundamentals",
+      content: "has successfully completed the program\nPDF Design Fundamentals",
       fontSize: 15,
       color: "#334155",
       width: 435,
