@@ -67,7 +67,14 @@ Then open [http://localhost:3847](http://localhost:3847).
 
 No extra env vars are required (`PORT` is injected by Railway). Optional: set `NODE_ENV=production` (already the default in the Docker image).
 
-## Shortcuts
+## Tests
+
+```bash
+npm test
+npm run test:coverage
+```
+
+Jest covers session validation, fonts, factories, smart guides, in-browser PDF import, and Google-font helpers.
 
 | Key | Action |
 |-----|--------|
