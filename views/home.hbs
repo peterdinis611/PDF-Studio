@@ -1,4 +1,4 @@
-<div class="relative min-h-full overflow-y-auto bg-slate-panel" x-data="themeToggle">
+<div class="relative h-full overflow-y-auto bg-slate-panel" x-data="themeToggle">
   <div class="home-atmosphere pointer-events-none absolute inset-0"></div>
 
   <header class="relative z-10 flex items-center justify-between px-6 py-5 md:px-10">
@@ -20,6 +20,10 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
         </svg>
       </button>
+      <a
+        href="/audit-logs"
+        class="hidden rounded-xl border border-slate-line px-3 py-2 text-sm text-slate-muted transition hover:border-slate-muted hover:text-fg sm:inline-flex"
+      >Audit logs</a>
       <a href="/editor" class="btn-primary">Open editor</a>
     </div>
   </header>

@@ -17,7 +17,9 @@ async function makePdfFile(
   const height = opts.height ?? 600;
   for (let i = 0; i < pages; i++) doc.addPage([width, height]);
   const bytes = await doc.save();
-  return new File([bytes], name, { type: "application/pdf" });
+  return new File([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer], name, {
+    type: "application/pdf",
+  });
 }
 
 describe("session imported PDF bytes", () => {

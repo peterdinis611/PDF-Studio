@@ -45,8 +45,13 @@ Environment variables (optional — see `.env.example`):
 | `PORT` | `3847` | HTTP port |
 | `HOST` | `0.0.0.0` | Bind address |
 | `NODE_ENV` | set by `npm start` | Use `production` in deploy |
+| `LOG_LEVEL` | `info` (prod) / `debug` (dev) | Pino log level |
+| `AUDIT_LOGS_TOKEN` | unset | Protects `/audit-logs` (required in production if you want the page) |
+| `AUDIT_LOG_CAPACITY` | `500` | In-memory audit ring buffer size |
 
 Health check: `GET /health` → `{ "ok": true }`
+
+Audit logs (ops): `GET /audit-logs` — in-memory Pino-backed event stream (exports, uploads, errors). Cleared on process restart. In production, set `AUDIT_LOGS_TOKEN` or the page returns 404.
 
 ### Docker
 

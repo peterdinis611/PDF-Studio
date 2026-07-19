@@ -2,7 +2,11 @@ import express, { type Request, type Response, type NextFunction } from "express
 import { engine } from "express-handlebars";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { pinoHttp } from "pino-http";
 import { getAssetUrls, publicCacheControl } from "./assets.js";
+import { audit, requestContext } from "./audit.js";
+import { auditTokenConfigured, requireAuditAccess } from "./auditAccess.js";
+import { logger } from "./logger.js";
 import { apiRouter } from "./routes/api.js";
 import { pruneExpiredUploads, sessionMiddleware, uploadsRoot } from "./session.js";
 
@@ -33,6 +37,27 @@ app.engine(
 );
 app.set("view engine", "hbs");
 app.set("views", path.join(root, "views"));
+
+app.use(
+  pinoHttp({
+    logger,
+    autoLogging: {
+      ignore: (req) => {
+        const url = req.url ?? "";
+        return (
+          url.startsWith("/public") ||
+          url.startsWith("/uploads") ||
+          url.startsWith("/health")
+        );
+      },
+    },
+    customLogLevel: (_req, res, err) => {
+      if (err || res.statusCode >= 500) return "error";
+      if (res.statusCode >= 400) return "warn";
+      return "info";
+    },
+  }),
+);
 
 app.use(express.json({ limit: "40mb" }));
 app.use(express.urlencoded({ extended: true, limit: "40mb" }));
@@ -79,18 +104,40 @@ app.get("/editor", noStoreHtml, (_req, res) => {
   });
 });
 
+app.get("/audit-logs", noStoreHtml, requireAuditAccess, (req, res) => {
+  audit("info", "audit.view", "Opened audit logs page", {
+    sessionId: req.sessionId,
+    req: requestContext(req, 200),
+  });
+  res.render("audit-logs", {
+    title: "Audit logs — PDF Studio",
+    locked: false,
+    tokenRequired: auditTokenConfigured(),
+  });
+});
+
 app.use("/api", apiRouter);
 
-app.use("/api", (_req, res) => {
+app.use("/api", (req, res) => {
+  audit("warn", "http.error", `API route not found: ${req.method} ${req.originalUrl}`, {
+    sessionId: req.sessionId,
+    req: requestContext(req, 404),
+  });
   res.status(404).json({ error: "Not found" });
 });
 
-app.use(noStoreHtml, (_req, res) => {
+app.use(noStoreHtml, (req, res) => {
+  audit("warn", "http.error", `Page not found: ${req.method} ${req.originalUrl}`, {
+    sessionId: req.sessionId,
+    req: requestContext(req, 404),
+  });
   res.status(404).render("not-found", {
     title: "Page not found — PDF Studio",
   });
 });
 
 app.listen(PORT, HOST, () => {
-  console.log(`PDF Studio listening on http://${HOST}:${PORT} (${isProd ? "production" : "development"})`);
+  audit("info", "server.start", `Listening on http://${HOST}:${PORT}`, {
+    meta: { env: isProd ? "production" : "development", port: PORT },
+  });
 });

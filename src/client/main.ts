@@ -2096,9 +2096,254 @@ function pdfEditor() {
   };
 }
 
+const AUDIT_TOKEN_KEY = "pdf-studio-audit-token";
+
+type AuditLogRow = {
+  id: string;
+  ts: string;
+  level: string;
+  action: string;
+  message: string;
+  sessionId?: string;
+  req?: {
+    method?: string;
+    path?: string;
+    status?: number;
+    ip?: string;
+    userAgent?: string;
+    requestId?: string;
+  };
+  meta?: Record<string, unknown>;
+};
+
+function auditLogsPage(opts: { locked: boolean; tokenRequired: boolean }) {
+  return {
+    theme: (document.documentElement.getAttribute("data-theme") as "dark" | "light") || "dark",
+    locked: opts.locked,
+    tokenRequired: opts.tokenRequired,
+    token: "",
+    q: "",
+    level: "",
+    action: "",
+    events: [] as AuditLogRow[],
+    total: 0,
+    capacity: 0,
+    counts: { info: 0, warn: 0, error: 0, all: 0 },
+    loading: false,
+    error: "",
+    autoRefresh: true,
+    selectedId: "" as string,
+    showRaw: false,
+    copied: "",
+    _timer: 0 as number | ReturnType<typeof setInterval>,
+    _copyTimer: 0 as number | ReturnType<typeof setTimeout>,
+
+    get selected(): AuditLogRow | null {
+      return this.events.find((e) => e.id === this.selectedId) ?? null;
+    },
+
+    init() {
+      const savedTheme = localStorage.getItem(THEME_KEY);
+      if (savedTheme === "light" || savedTheme === "dark") {
+        this.theme = savedTheme;
+        document.documentElement.setAttribute("data-theme", savedTheme);
+      }
+      this.token = sessionStorage.getItem(AUDIT_TOKEN_KEY) || "";
+      if (!this.locked) {
+        void this.load();
+        this.startAutoRefresh();
+      } else if (this.token) {
+        void this.unlock();
+      }
+    },
+
+    toggleTheme() {
+      this.theme = this.theme === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", this.theme);
+      localStorage.setItem(THEME_KEY, this.theme);
+    },
+
+    startAutoRefresh() {
+      this.stopAutoRefresh();
+      this._timer = setInterval(() => {
+        if (this.autoRefresh && !this.locked) void this.load(true);
+      }, 4000);
+    },
+
+    stopAutoRefresh() {
+      if (this._timer) clearInterval(this._timer);
+    },
+
+    headers(): HeadersInit {
+      const headers: Record<string, string> = {};
+      if (this.token) headers["X-Audit-Token"] = this.token;
+      return headers;
+    },
+
+    select(id: string) {
+      this.selectedId = this.selectedId === id ? "" : id;
+      this.showRaw = false;
+    },
+
+    setLevel(next: string) {
+      this.level = this.level === next ? "" : next;
+      void this.load();
+    },
+
+    async unlock() {
+      this.error = "";
+      if (this.tokenRequired && !this.token.trim()) {
+        this.error = "Enter the audit token.";
+        return;
+      }
+      sessionStorage.setItem(AUDIT_TOKEN_KEY, this.token.trim());
+      this.token = this.token.trim();
+      const ok = await this.load();
+      if (ok) {
+        this.locked = false;
+        this.startAutoRefresh();
+        if (new URLSearchParams(location.search).has("token")) {
+          history.replaceState({}, "", "/audit-logs");
+        }
+      }
+    },
+
+    async load(silent = false): Promise<boolean> {
+      if (!silent) this.loading = true;
+      this.error = "";
+      try {
+        const params = new URLSearchParams();
+        if (this.q.trim()) params.set("q", this.q.trim());
+        if (this.level) params.set("level", this.level);
+        if (this.action) params.set("action", this.action);
+        params.set("limit", "150");
+
+        const res = await fetch(`/api/audit-logs?${params}`, {
+          headers: this.headers(),
+          credentials: "same-origin",
+        });
+        if (res.status === 401) {
+          this.locked = true;
+          this.error = "Invalid or missing audit token.";
+          return false;
+        }
+        if (!res.ok) {
+          this.error = "Failed to load audit logs.";
+          return false;
+        }
+        const data = (await res.json()) as {
+          events: AuditLogRow[];
+          total: number;
+          capacity: number;
+          counts?: { info: number; warn: number; error: number; all: number };
+        };
+        this.events = data.events;
+        this.total = data.total;
+        this.capacity = data.capacity;
+        this.counts = data.counts ?? { info: 0, warn: 0, error: 0, all: data.total };
+        if (this.selectedId && !this.events.some((e) => e.id === this.selectedId)) {
+          this.selectedId = "";
+        }
+        if (
+          !silent &&
+          !this.selectedId &&
+          this.events.length &&
+          window.matchMedia("(min-width: 1024px)").matches
+        ) {
+          this.selectedId = this.events[0].id;
+        }
+        return true;
+      } catch {
+        this.error = "Network error loading audit logs.";
+        return false;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    formatTs(ts: string) {
+      try {
+        return new Date(ts).toLocaleString(undefined, {
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      } catch {
+        return ts;
+      }
+    },
+
+    shortSession(sessionId: string | undefined) {
+      if (!sessionId) return "—";
+      return sessionId.length > 8 ? `${sessionId.slice(0, 8)}…` : sessionId;
+    },
+
+    reqLine(event: AuditLogRow) {
+      const r = event.req;
+      if (!r?.method) return "";
+      const status = r.status != null ? ` ${r.status}` : "";
+      const path = r.path ? ` ${r.path}` : "";
+      return `${r.method}${status}${path}`;
+    },
+
+    highlightMeta(event: AuditLogRow) {
+      const m = event.meta;
+      if (!m || !Object.keys(m).length) return "";
+      const keys = ["pages", "elements", "bytes", "pageSize", "filename", "name", "error", "env", "port"];
+      const parts: string[] = [];
+      for (const k of keys) {
+        if (m[k] != null && m[k] !== "") parts.push(`${k}=${String(m[k])}`);
+      }
+      return parts.slice(0, 3).join(" · ");
+    },
+
+    metaEntries(event: AuditLogRow): [string, string][] {
+      const m = event.meta;
+      if (!m) return [];
+      return Object.entries(m).map(([k, v]) => [
+        k,
+        typeof v === "object" ? JSON.stringify(v) : String(v),
+      ]);
+    },
+
+    prettyJson(event: AuditLogRow) {
+      return JSON.stringify(
+        {
+          id: event.id,
+          ts: event.ts,
+          level: event.level,
+          action: event.action,
+          message: event.message,
+          sessionId: event.sessionId ?? null,
+          req: event.req ?? null,
+          meta: event.meta ?? null,
+        },
+        null,
+        2,
+      );
+    },
+
+    async copyEvent(event: AuditLogRow) {
+      try {
+        await navigator.clipboard.writeText(this.prettyJson(event));
+        this.copied = "Copied";
+        if (this._copyTimer) clearTimeout(this._copyTimer);
+        this._copyTimer = setTimeout(() => {
+          this.copied = "";
+        }, 2000);
+      } catch {
+        this.copied = "Copy failed";
+      }
+    },
+  };
+}
+
 document.addEventListener("alpine:init", () => {
   const Alpine = window.Alpine;
   Alpine.data("pdfEditor", pdfEditor);
+  Alpine.data("auditLogsPage", auditLogsPage);
   Alpine.data("themeToggle", () => ({
     theme: (document.documentElement.getAttribute("data-theme") as "dark" | "light") || "dark",
     init() {

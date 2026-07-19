@@ -17,6 +17,7 @@ const config = {
     ],
   },
   clearMocks: true,
+  setupFiles: ["<rootDir>/jest.setup.js"],
   collectCoverageFrom: [
     "src/shared/**/*.ts",
     "src/client/fonts.ts",
@@ -25,6 +26,8 @@ const config = {
     "src/client/pdfImport.ts",
     "src/server/services/fontEmbed.ts",
     "src/server/services/pdfImport.ts",
+    "src/server/audit.ts",
+    "src/server/auditAccess.ts",
     "!src/**/*.d.ts",
   ],
 };
