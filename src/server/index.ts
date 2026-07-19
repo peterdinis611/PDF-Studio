@@ -1,7 +1,8 @@
-import express from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 import { engine } from "express-handlebars";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { getAssetUrls, publicCacheControl } from "./assets.js";
 import { apiRouter } from "./routes/api.js";
 import { pruneExpiredUploads, sessionMiddleware, uploadsRoot } from "./session.js";
 
@@ -37,25 +38,41 @@ app.use(express.json({ limit: "40mb" }));
 app.use(express.urlencoded({ extended: true, limit: "40mb" }));
 app.use(sessionMiddleware);
 
+app.use((_req, res, next) => {
+  res.locals.assets = getAssetUrls(root, isProd);
+  next();
+});
+
 const staticOpts = isProd
-  ? { maxAge: "7d", etag: true, lastModified: true }
+  ? {
+      etag: true,
+      lastModified: true,
+      setHeaders(res: Response, filePath: string) {
+        res.setHeader("Cache-Control", publicCacheControl(filePath));
+      },
+    }
   : { maxAge: 0 };
 
 app.use("/public", express.static(path.join(root, "public"), staticOpts));
 app.use("/uploads", express.static(uploadsRoot, { maxAge: 0 }));
 
+function noStoreHtml(_req: Request, res: Response, next: NextFunction): void {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+}
+
 app.get("/health", (_req, res) => {
   res.status(200).json({ ok: true, service: "pdf-studio" });
 });
 
-app.get("/", (_req, res) => {
+app.get("/", noStoreHtml, (_req, res) => {
   res.render("home", {
     title: "PDF Studio",
     tagline: "Design and customize PDFs in the browser",
   });
 });
 
-app.get("/editor", (_req, res) => {
+app.get("/editor", noStoreHtml, (_req, res) => {
   res.render("editor", {
     title: "Editor — PDF Studio",
     layout: "editor",
@@ -68,7 +85,7 @@ app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-app.use((_req, res) => {
+app.use(noStoreHtml, (_req, res) => {
   res.status(404).render("not-found", {
     title: "Page not found — PDF Studio",
   });

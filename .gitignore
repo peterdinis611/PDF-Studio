@@ -6,3 +6,8 @@ uploads/
 *.log
 .env
 .env.local
+public/asset-manifest.json
+public/js/app.*.js
+!public/js/app.js
+public/css/app.*.css
+!public/css/app.css

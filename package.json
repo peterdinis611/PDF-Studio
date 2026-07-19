@@ -8,9 +8,10 @@
   },
   "scripts": {
     "dev": "concurrently -k -n server,css,client -c blue,magenta,green \"tsx watch src/server/index.ts\" \"npm run build:css -- --watch\" \"npm run build:client -- --watch\"",
-    "build": "npm run build:css && npm run build:client && tsc -p tsconfig.server.json",
+    "build": "npm run build:css && npm run build:client && npm run build:assets && tsc -p tsconfig.server.json",
     "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/css/app.css --minify",
     "build:client": "esbuild src/client/main.ts --bundle --outfile=public/js/app.js --format=esm --target=es2020 --minify",
+    "build:assets": "node scripts/hash-assets.mjs",
     "start": "NODE_ENV=production node dist/server/index.js",
     "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     "format": "biome format --write .",
