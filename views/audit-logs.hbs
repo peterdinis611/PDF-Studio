@@ -1,21 +1,28 @@
 <div
   class="audit-page relative flex h-full flex-col bg-slate-panel"
   x-data="auditLogsPage({ locked: {{#if locked}}true{{else}}false{{/if}}, tokenRequired: {{#if tokenRequired}}true{{else}}false{{/if}} })"
+  @keydown.window="onKey($event)"
 >
-  <div class="home-atmosphere pointer-events-none absolute inset-0"></div>
+  <div class="audit-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
 
-  <header class="relative z-20 flex shrink-0 items-center justify-between border-b border-slate-line/70 px-5 py-3.5 md:px-8">
-    <a href="/" class="flex items-center gap-2.5">
-      <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-xs font-bold text-white">PS</span>
-      <span class="text-base font-semibold tracking-tight text-fg">PDF Studio</span>
-    </a>
-    <div class="flex items-center gap-2">
-      <button
-        type="button"
-        class="tool-btn h-9 w-9"
-        @click="toggleTheme()"
-        :title="theme === 'dark' ? 'Light mode' : 'Dark mode'"
-      >
+  <header class="relative z-20 flex shrink-0 items-center justify-between gap-4 border-b border-slate-line/60 px-4 py-3 md:px-6">
+    <div class="flex items-center gap-3">
+      <a href="/" class="flex items-center gap-2.5">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-xs font-bold text-white shadow-sm">PS</span>
+        <span class="hidden text-sm font-semibold tracking-tight text-fg sm:inline">PDF Studio</span>
+      </a>
+      <span class="hidden h-4 w-px bg-slate-line sm:block"></span>
+      <div class="min-w-0">
+        <h1 class="text-sm font-semibold tracking-tight text-fg md:text-base">Audit logs</h1>
+        <p class="truncate font-mono text-[10px] text-slate-muted">pino · memory · <span x-text="capacity"></span> cap</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <span class="audit-live" x-show="autoRefresh && !locked" x-cloak>
+        <span class="audit-live-dot"></span>
+        live
+      </span>
+      <button type="button" class="tool-btn h-9 w-9" @click="toggleTheme()" :title="theme === 'dark' ? 'Light mode' : 'Dark mode'">
         <svg x-show="theme === 'dark'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.4 6.4l-1.4-1.4M7 7L5.6 5.6m12.8 0L17 7M7 17l-1.4 1.4M12 8a4 4 0 100 8 4 4 0 000-8z" />
         </svg>
@@ -23,267 +30,221 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
         </svg>
       </button>
-      <a href="/editor" class="btn-primary">Open editor</a>
+      <a href="/editor" class="btn-primary hidden sm:inline-flex">Editor</a>
     </div>
   </header>
 
-  <template x-if="locked">
-    <div class="relative z-10 flex flex-1 items-center justify-center overflow-y-auto p-6">
-      <form class="audit-unlock w-full max-w-md" @submit.prevent="unlock()">
-        <p class="font-mono text-[11px] uppercase tracking-[0.22em] text-accent-soft">Ops</p>
-        <h1 class="mt-2 text-2xl font-semibold tracking-tight text-fg">Audit logs</h1>
-        <p class="mt-2 text-sm text-slate-muted">This environment requires an audit token.</p>
-        <label class="mt-6 block text-xs font-medium uppercase tracking-wide text-slate-muted" for="audit-token">Token</label>
-        <input
-          id="audit-token"
-          type="password"
-          autocomplete="off"
-          class="audit-input mt-2 w-full"
-          x-model="token"
-          placeholder="AUDIT_LOGS_TOKEN"
-        />
-        <p class="mt-2 text-sm text-rose-500" x-show="error" x-text="error"></p>
-        <button type="submit" class="btn-primary mt-5">Unlock</button>
-      </form>
-    </div>
-  </template>
+  {{!-- Unlock --}}
+  <div class="relative z-10 flex flex-1 items-center justify-center overflow-y-auto p-6" x-show="locked" x-cloak>
+    <form class="audit-unlock w-full max-w-sm" @submit.prevent="unlock()">
+      <p class="font-mono text-[11px] uppercase tracking-[0.2em] text-accent-soft">Restricted</p>
+      <h2 class="mt-2 text-xl font-semibold text-fg">Enter audit token</h2>
+      <p class="mt-2 text-sm text-slate-muted">Required by <span class="font-mono text-fg/80">AUDIT_LOGS_TOKEN</span>.</p>
+      <input type="password" autocomplete="off" class="audit-input mt-5 w-full" x-model="token" placeholder="Token" />
+      <p class="mt-2 text-sm text-rose-500" x-show="error" x-text="error"></p>
+      <button type="submit" class="btn-primary mt-4 w-full justify-center">Unlock</button>
+    </form>
+  </div>
 
-  <template x-if="!locked">
-    <div class="relative z-10 flex min-h-0 flex-1 flex-col">
-      <div class="shrink-0 border-b border-slate-line/70 px-5 py-5 md:px-8">
-        <div class="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div class="flex flex-wrap items-center gap-3">
-              <h1 class="text-2xl font-semibold tracking-tight text-fg md:text-3xl">Audit logs</h1>
-              <span class="audit-live" x-show="autoRefresh">
-                <span class="audit-live-dot"></span>
-                live
-              </span>
-            </div>
-            <p class="mt-1.5 max-w-xl text-sm text-slate-muted">
-              Pino event stream · in memory · capacity
-              <span class="tabular-nums text-fg/80" x-text="capacity"></span>
-            </p>
-          </div>
-          <div class="flex flex-wrap items-center gap-1.5">
-            <button type="button" class="audit-stat" :class="level === '' && 'is-active'" @click="setLevel('')">
-              <span>All</span>
-              <strong x-text="counts.all"></strong>
-            </button>
-            <button type="button" class="audit-stat audit-stat--info" :class="level === 'info' && 'is-active'" @click="setLevel('info')">
-              <span>Info</span>
-              <strong x-text="counts.info"></strong>
-            </button>
-            <button type="button" class="audit-stat audit-stat--warn" :class="level === 'warn' && 'is-active'" @click="setLevel('warn')">
-              <span>Warn</span>
-              <strong x-text="counts.warn"></strong>
-            </button>
-            <button type="button" class="audit-stat audit-stat--error" :class="level === 'error' && 'is-active'" @click="setLevel('error')">
-              <span>Error</span>
-              <strong x-text="counts.error"></strong>
-            </button>
-          </div>
-        </div>
-
-        <div class="mt-4 flex flex-wrap items-center gap-2">
-          <div class="relative min-w-[14rem] flex-1">
-            <svg class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.3-4.3m1.3-5.2a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
-            </svg>
-            <input
-              type="search"
-              class="audit-input w-full pl-9"
-              placeholder="Search message, action, session, IP…"
-              x-model="q"
-              @input="load()"
-            />
-          </div>
-          <select class="audit-input" x-model="action" @change="load()">
-            <option value="">All actions</option>
-            <option value="pdf.export">pdf.export</option>
-            <option value="image.upload">image.upload</option>
-            <option value="server.start">server.start</option>
-            <option value="audit.view">audit.view</option>
-            <option value="http.error">http.error</option>
-          </select>
-          <label class="audit-toggle">
+  {{!-- Main console --}}
+  <div class="relative z-10 flex min-h-0 flex-1 flex-col" x-show="!locked" x-cloak>
+    <div class="shrink-0 space-y-3 border-b border-slate-line/60 px-4 py-3 md:px-6">
+      <div class="flex flex-wrap items-center gap-1.5">
+        <button type="button" class="audit-pill" :class="level === '' && 'is-on'" @click="setLevel('')">
+          All <em x-text="counts.all"></em>
+        </button>
+        <button type="button" class="audit-pill audit-pill--info" :class="level === 'info' && 'is-on'" @click="setLevel('info')">
+          Info <em x-text="counts.info"></em>
+        </button>
+        <button type="button" class="audit-pill audit-pill--warn" :class="level === 'warn' && 'is-on'" @click="setLevel('warn')">
+          Warn <em x-text="counts.warn"></em>
+        </button>
+        <button type="button" class="audit-pill audit-pill--error" :class="level === 'error' && 'is-on'" @click="setLevel('error')">
+          Error <em x-text="counts.error"></em>
+        </button>
+        <div class="ml-auto flex items-center gap-2">
+          <label class="audit-check">
             <input type="checkbox" x-model="autoRefresh" />
             Auto
           </label>
-          <button type="button" class="tool-btn px-3 text-sm" @click="load()" title="Refresh">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M5 19a9 9 0 0014-7 9 9 0 00-3-6.7M19 5a9 9 0 00-14 7 9 9 0 003 6.7" />
+          <button type="button" class="tool-btn h-8 w-8" @click="load()" title="Refresh now">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M5 19a9 9 0 0014.1-6.1M19 5A9 9 0 004.9 11" />
             </svg>
           </button>
         </div>
-        <p class="mt-2 text-sm text-rose-500" x-show="error" x-text="error"></p>
       </div>
 
-      <div class="audit-split flex min-h-0 flex-1">
-        {{!-- Event stream --}}
-        <section class="flex min-h-0 min-w-0 flex-1 flex-col border-r border-slate-line/70">
-          <div class="flex shrink-0 items-center justify-between px-5 py-2.5 md:px-6">
-            <p class="font-mono text-[10px] uppercase tracking-wider text-slate-muted">
-              Stream · <span class="tabular-nums text-fg/70" x-text="total"></span> shown
-            </p>
-            <p class="text-[11px] text-slate-muted" x-show="copied" x-text="copied"></p>
-          </div>
-          <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-6 md:px-4">
-            <div class="py-8 text-center text-sm text-slate-muted" x-show="!loading && events.length === 0">
-              No events yet. Export a PDF or upload an image.
-            </div>
-            <ul class="space-y-1">
-              <template x-for="event in events" :key="event.id">
-                <li>
-                  <button
-                    type="button"
-                    class="audit-row"
-                    :class="selectedId === event.id && 'is-selected'"
-                    @click="select(event.id)"
-                  >
-                    <span class="audit-row-rail" :data-level="event.level"></span>
-                    <span class="min-w-0 flex-1 text-left">
-                      <span class="flex flex-wrap items-center gap-2">
-                        <span class="audit-badge" :data-level="event.level" x-text="event.level"></span>
-                        <span class="font-mono text-[11px] text-accent-soft" x-text="event.action"></span>
-                        <span class="ml-auto font-mono text-[10px] text-slate-muted" x-text="formatTs(event.ts)"></span>
-                      </span>
-                      <span class="mt-1 block truncate text-sm text-fg" x-text="event.message"></span>
-                      <span class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[10px] text-slate-muted">
-                        <span x-show="event.req?.method" x-text="reqLine(event)"></span>
-                        <span x-show="event.sessionId" x-text="shortSession(event.sessionId)"></span>
-                        <span class="truncate" x-show="highlightMeta(event)" x-text="highlightMeta(event)"></span>
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              </template>
-            </ul>
-          </div>
-        </section>
-
-        {{!-- Detail inspector --}}
-        <aside class="audit-detail hidden min-h-0 w-full max-w-md shrink-0 flex-col lg:flex xl:max-w-lg">
-          <template x-if="!selected">
-            <div class="flex flex-1 flex-col items-center justify-center px-8 text-center">
-              <div class="audit-empty-icon">
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </div>
-              <p class="mt-3 text-sm font-medium text-fg">Select an event</p>
-              <p class="mt-1 text-xs text-slate-muted">Details, request context, and payload appear here.</p>
-            </div>
-          </template>
-
-          <template x-if="selected">
-            <div class="flex min-h-0 flex-1 flex-col" x-show="selected">
-              <div class="shrink-0 border-b border-slate-line/70 px-5 py-4">
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <div class="flex flex-wrap items-center gap-2">
-                      <span class="audit-badge" :data-level="selected.level" x-text="selected.level"></span>
-                      <span class="font-mono text-xs text-accent-soft" x-text="selected.action"></span>
-                    </div>
-                    <p class="mt-2 text-base font-medium leading-snug text-fg" x-text="selected.message"></p>
-                    <p class="mt-1 font-mono text-[11px] text-slate-muted" x-text="formatTs(selected.ts)"></p>
-                  </div>
-                  <button type="button" class="tool-btn shrink-0 px-2.5 text-[11px]" @click="copyEvent(selected)">Copy</button>
-                </div>
-              </div>
-
-              <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-                <p class="audit-section-label">Request</p>
-                <div class="audit-kv mt-2">
-                  <div><span>Method</span><strong x-text="selected.req?.method || '—'"></strong></div>
-                  <div><span>Status</span><strong x-text="selected.req?.status ?? '—'"></strong></div>
-                  <div class="audit-kv-wide"><span>Path</span><strong class="break-all" x-text="selected.req?.path || '—'"></strong></div>
-                  <div><span>IP</span><strong x-text="selected.req?.ip || '—'"></strong></div>
-                  <div><span>Req ID</span><strong x-text="selected.req?.requestId || '—'"></strong></div>
-                  <div class="audit-kv-wide"><span>Session</span><strong class="break-all" x-text="selected.sessionId || '—'"></strong></div>
-                  <div class="audit-kv-wide"><span>User-Agent</span><strong class="break-all text-[11px] font-normal leading-relaxed" x-text="selected.req?.userAgent || '—'"></strong></div>
-                </div>
-
-                <template x-if="metaEntries(selected).length">
-                  <div class="mt-6">
-                    <p class="audit-section-label">Meta</p>
-                    <div class="mt-2 flex flex-wrap gap-1.5">
-                      <template x-for="pair in metaEntries(selected)" :key="pair[0]">
-                        <span class="audit-chip">
-                          <span x-text="pair[0]"></span>
-                          <strong x-text="pair[1]"></strong>
-                        </span>
-                      </template>
-                    </div>
-                  </div>
-                </template>
-
-                <div class="mt-6">
-                  <button type="button" class="audit-section-label flex w-full items-center justify-between" @click="showRaw = !showRaw">
-                    <span>Raw JSON</span>
-                    <svg class="h-3.5 w-3.5 transition" :class="showRaw && 'rotate-180'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  <pre class="audit-json mt-2" x-show="showRaw" x-cloak x-text="prettyJson(selected)"></pre>
-                </div>
-
-                <p class="mt-6 break-all font-mono text-[10px] text-slate-muted">
-                  id <span class="text-fg/70" x-text="selected.id"></span>
-                </p>
-              </div>
-            </div>
-          </template>
-        </aside>
-      </div>
-
-      {{!-- Mobile detail sheet --}}
-      <div
-        class="fixed inset-0 z-40 lg:hidden"
-        x-show="selectedId"
-        x-cloak
-        x-transition.opacity
-      >
-        <div class="absolute inset-0 bg-black/50" @click="selectedId = ''"></div>
-        <div
-          class="audit-sheet absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto"
-          x-show="selectedId"
-          x-transition:enter="transition ease-out duration-200"
-          x-transition:enter-start="translate-y-full"
-          x-transition:enter-end="translate-y-0"
-          x-transition:leave="transition ease-in duration-150"
-          x-transition:leave-start="translate-y-0"
-          x-transition:leave-end="translate-y-full"
-        >
-          <template x-if="selected">
-            <div class="p-5">
-              <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-line"></div>
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span class="audit-badge" :data-level="selected.level" x-text="selected.level"></span>
-                    <span class="font-mono text-xs text-accent-soft" x-text="selected.action"></span>
-                  </div>
-                  <p class="mt-2 text-base font-medium text-fg" x-text="selected.message"></p>
-                </div>
-                <button type="button" class="tool-btn h-8 w-8" @click="selectedId = ''">×</button>
-              </div>
-              <div class="audit-kv mt-4">
-                <div><span>Method</span><strong x-text="selected.req?.method || '—'"></strong></div>
-                <div><span>Status</span><strong x-text="selected.req?.status ?? '—'"></strong></div>
-                <div class="audit-kv-wide"><span>Path</span><strong class="break-all" x-text="selected.req?.path || '—'"></strong></div>
-                <div><span>IP</span><strong x-text="selected.req?.ip || '—'"></strong></div>
-                <div class="audit-kv-wide"><span>Session</span><strong class="break-all" x-text="selected.sessionId || '—'"></strong></div>
-              </div>
-              <div class="mt-4 flex gap-2">
-                <button type="button" class="btn-primary flex-1" @click="copyEvent(selected)">Copy JSON</button>
-                <button type="button" class="tool-btn flex-1 px-3 text-sm" @click="showRaw = !showRaw" x-text="showRaw ? 'Hide JSON' : 'Show JSON'"></button>
-              </div>
-              <pre class="audit-json mt-3" x-show="showRaw" x-cloak x-text="prettyJson(selected)"></pre>
-            </div>
-          </template>
+      <div class="flex flex-wrap gap-2">
+        <div class="relative min-w-[12rem] flex-1">
+          <svg class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.3-4.3m1.3-5.2a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
+          </svg>
+          <input type="search" class="audit-input w-full py-1.5 pl-8 text-xs" placeholder="Filter message, action, IP, session…" x-model="q" @input="load()" />
         </div>
+        <select class="audit-input py-1.5 text-xs" x-model="action" @change="load()">
+          <option value="">All actions</option>
+          <option value="pdf.export">pdf.export</option>
+          <option value="image.upload">image.upload</option>
+          <option value="server.start">server.start</option>
+          <option value="audit.view">audit.view</option>
+          <option value="http.error">http.error</option>
+        </select>
       </div>
+      <p class="text-xs text-rose-500" x-show="error" x-text="error"></p>
     </div>
-  </template>
+
+    <div class="flex min-h-0 flex-1">
+      {{!-- Stream --}}
+      <section class="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div class="flex shrink-0 items-center justify-between px-4 py-2 md:px-5">
+          <p class="font-mono text-[10px] uppercase tracking-wider text-slate-muted">
+            <span class="text-fg/70" x-text="total"></span> events
+            <span class="text-slate-muted/60"> · ↑↓ navigate · enter open</span>
+          </p>
+          <p class="text-[11px] text-accent-soft" x-show="copied" x-text="copied"></p>
+        </div>
+
+        <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-4 md:px-3" id="audit-stream">
+          <div class="audit-empty" x-show="!loading && events.length === 0" x-cloak>
+            <p class="text-sm font-medium text-fg">Quiet so far</p>
+            <p class="mt-1 text-xs text-slate-muted">Export a PDF or upload an image to generate audit events.</p>
+          </div>
+
+          <ul class="space-y-0.5">
+            <template x-for="(event, index) in events" :key="event.id">
+              <li>
+                <button
+                  type="button"
+                  class="audit-row"
+                  :class="selectedId === event.id && 'is-selected'"
+                  :data-index="index"
+                  @click="select(event.id)"
+                >
+                  <span class="audit-row-rail" :data-level="event.level"></span>
+                  <span class="min-w-0 flex-1">
+                    <span class="flex items-center gap-2">
+                      <span class="audit-badge" :data-level="event.level" x-text="event.level"></span>
+                      <span class="truncate font-mono text-[11px] text-accent-soft" x-text="event.action"></span>
+                      <span class="ml-auto shrink-0 font-mono text-[10px] text-slate-muted" x-text="relativeTs(event.ts)" :title="formatTs(event.ts)"></span>
+                    </span>
+                    <span class="mt-0.5 block truncate text-[13px] leading-snug text-fg" x-text="event.message"></span>
+                    <span class="mt-0.5 flex gap-2 truncate font-mono text-[10px] text-slate-muted">
+                      <span x-show="event.req?.method" x-text="reqLine(event)"></span>
+                      <span x-show="event.sessionId" x-text="shortSession(event.sessionId)"></span>
+                    </span>
+                  </span>
+                </button>
+              </li>
+            </template>
+          </ul>
+        </div>
+      </section>
+
+      {{!-- Desktop inspector --}}
+      <aside class="audit-detail hidden w-[min(100%,22rem)] shrink-0 flex-col border-l border-slate-line/60 xl:w-[26rem] lg:flex">
+        <div class="flex flex-1 flex-col items-center justify-center px-6 text-center" x-show="!selectedId" x-cloak>
+          <div class="audit-empty-icon">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 3a9 9 0 100 18 9 9 0 000-18z" />
+            </svg>
+          </div>
+          <p class="mt-3 text-sm font-medium text-fg">Pick an event</p>
+          <p class="mt-1 max-w-[14rem] text-xs text-slate-muted">Request context and meta show up here.</p>
+        </div>
+
+        <div class="flex min-h-0 flex-1 flex-col" x-show="selectedId && selected" x-cloak>
+          <div class="shrink-0 border-b border-slate-line/60 px-4 py-3.5">
+            <div class="flex items-start gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="audit-badge" :data-level="selected?.level" x-text="selected?.level"></span>
+                  <span class="font-mono text-[11px] text-accent-soft" x-text="selected?.action"></span>
+                </div>
+                <p class="mt-1.5 text-sm font-medium leading-snug text-fg" x-text="selected?.message"></p>
+                <p class="mt-1 font-mono text-[10px] text-slate-muted" x-text="selected ? formatTs(selected.ts) : ''"></p>
+              </div>
+              <button type="button" class="tool-btn h-8 shrink-0 px-2 text-[11px]" @click="selected && copyEvent(selected)">Copy</button>
+            </div>
+          </div>
+
+          <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
+            <div>
+              <p class="audit-section-label">Request</p>
+              <div class="audit-kv mt-2">
+                <div><span>Method</span><strong x-text="selected?.req?.method || '—'"></strong></div>
+                <div><span>Status</span><strong x-text="selected?.req?.status ?? '—'"></strong></div>
+                <div class="audit-kv-wide"><span>Path</span><strong class="break-all" x-text="selected?.req?.path || '—'"></strong></div>
+                <div><span>IP</span><strong x-text="selected?.req?.ip || '—'"></strong></div>
+                <div><span>Req</span><strong x-text="selected?.req?.requestId || '—'"></strong></div>
+                <div class="audit-kv-wide"><span>Session</span><strong class="break-all" x-text="selected?.sessionId || '—'"></strong></div>
+              </div>
+            </div>
+
+            <div x-show="selected && metaEntries(selected).length" x-cloak>
+              <p class="audit-section-label">Meta</p>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <template x-for="pair in (selected ? metaEntries(selected) : [])" :key="pair[0]">
+                  <span class="audit-chip"><span x-text="pair[0]"></span><strong x-text="pair[1]"></strong></span>
+                </template>
+              </div>
+            </div>
+
+            <div x-show="selected?.req?.userAgent" x-cloak>
+              <p class="audit-section-label">User-Agent</p>
+              <p class="mt-1.5 break-all font-mono text-[10px] leading-relaxed text-slate-muted" x-text="selected?.req?.userAgent"></p>
+            </div>
+
+            <div>
+              <button type="button" class="audit-section-label flex w-full items-center justify-between py-0.5" @click="showRaw = !showRaw">
+                <span>Raw JSON</span>
+                <svg class="h-3.5 w-3.5 transition" :class="showRaw && 'rotate-180'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <pre class="audit-json mt-2" x-show="showRaw && selected" x-cloak x-text="selected ? prettyJson(selected) : ''"></pre>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="status-bar relative z-10">
+      <div class="flex items-center gap-2 overflow-hidden">
+        <span class="status-chip" x-text="`${total} shown`"></span>
+        <span class="status-chip" x-text="`cap ${capacity}`"></span>
+        <span class="truncate text-[11px] text-slate-muted" x-text="selected ? selected.action : 'No selection'"></span>
+      </div>
+      <span class="font-mono text-[10px] text-slate-muted">localhost audit</span>
+    </footer>
+  </div>
+
+  {{!-- Mobile sheet --}}
+  <div class="fixed inset-0 z-40 lg:hidden" x-show="!locked && selectedId" x-cloak x-transition.opacity>
+    <div class="absolute inset-0 bg-black/55" @click="selectedId = ''"></div>
+    <div class="audit-sheet absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto p-4" x-show="selected">
+      <div class="mx-auto mb-3 h-1 w-9 rounded-full bg-slate-line"></div>
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="audit-badge" :data-level="selected?.level" x-text="selected?.level"></span>
+            <span class="font-mono text-[11px] text-accent-soft" x-text="selected?.action"></span>
+          </div>
+          <p class="mt-1.5 text-sm font-medium text-fg" x-text="selected?.message"></p>
+        </div>
+        <button type="button" class="tool-btn h-8 w-8" @click="selectedId = ''">×</button>
+      </div>
+      <div class="audit-kv mt-3">
+        <div><span>Method</span><strong x-text="selected?.req?.method || '—'"></strong></div>
+        <div><span>Status</span><strong x-text="selected?.req?.status ?? '—'"></strong></div>
+        <div class="audit-kv-wide"><span>Path</span><strong class="break-all" x-text="selected?.req?.path || '—'"></strong></div>
+        <div class="audit-kv-wide"><span>Session</span><strong class="break-all" x-text="selected?.sessionId || '—'"></strong></div>
+      </div>
+      <div class="mt-3 flex gap-2">
+        <button type="button" class="btn-primary flex-1 justify-center" @click="selected && copyEvent(selected)">Copy JSON</button>
+        <button type="button" class="tool-btn flex-1 px-3 text-xs" @click="showRaw = !showRaw" x-text="showRaw ? 'Hide JSON' : 'JSON'"></button>
+      </div>
+      <pre class="audit-json mt-3" x-show="showRaw && selected" x-cloak x-text="selected ? prettyJson(selected) : ''"></pre>
+    </div>
+  </div>
 </div>

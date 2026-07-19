@@ -2190,6 +2190,38 @@ function auditLogsPage(opts: { locked: boolean; tokenRequired: boolean }) {
       void this.load();
     },
 
+    onKey(e: KeyboardEvent) {
+      if (this.locked) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (!this.events.length) return;
+
+      const idx = this.events.findIndex((ev) => ev.id === this.selectedId);
+      if (e.key === "ArrowDown" || e.key === "j") {
+        e.preventDefault();
+        const next = Math.min(this.events.length - 1, Math.max(0, idx + 1));
+        this.selectedId = this.events[next].id;
+        this.showRaw = false;
+        this.scrollSelectedIntoView();
+      } else if (e.key === "ArrowUp" || e.key === "k") {
+        e.preventDefault();
+        const next = Math.max(0, (idx < 0 ? 0 : idx) - 1);
+        this.selectedId = this.events[next].id;
+        this.showRaw = false;
+        this.scrollSelectedIntoView();
+      } else if (e.key === "Escape") {
+        this.selectedId = "";
+      }
+    },
+
+    scrollSelectedIntoView() {
+      queueMicrotask(() => {
+        document
+          .querySelector<HTMLElement>(`#audit-stream .audit-row.is-selected`)
+          ?.scrollIntoView({ block: "nearest" });
+      });
+    },
+
     async unlock() {
       this.error = "";
       if (this.tokenRequired && !this.token.trim()) {
@@ -2270,6 +2302,21 @@ function auditLogsPage(opts: { locked: boolean; tokenRequired: boolean }) {
           minute: "2-digit",
           second: "2-digit",
         });
+      } catch {
+        return ts;
+      }
+    },
+
+    relativeTs(ts: string) {
+      try {
+        const diff = Date.now() - new Date(ts).getTime();
+        const sec = Math.max(0, Math.floor(diff / 1000));
+        if (sec < 60) return `${sec}s`;
+        const min = Math.floor(sec / 60);
+        if (min < 60) return `${min}m`;
+        const hr = Math.floor(min / 60);
+        if (hr < 24) return `${hr}h`;
+        return `${Math.floor(hr / 24)}d`;
       } catch {
         return ts;
       }

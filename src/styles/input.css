@@ -770,12 +770,18 @@
     animation: fade-in 0.35s ease-out;
   }
 
+  .audit-glow {
+    background:
+      radial-gradient(ellipse 80% 50% at 10% -10%, rgb(var(--color-accent) / 0.12), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 90% 0%, rgb(var(--color-accent-soft) / 0.06), transparent 50%);
+  }
+
   .audit-input {
-    @apply rounded-xl border border-slate-line bg-transparent px-3 py-2 text-sm text-fg outline-none transition focus:border-accent;
+    @apply rounded-lg border border-slate-line bg-transparent px-3 text-sm text-fg outline-none transition focus:border-accent;
   }
 
   .audit-unlock {
-    @apply rounded-2xl border border-slate-line bg-slate-panel/80 p-6;
+    @apply rounded-2xl border border-slate-line bg-slate-panel/90 p-6 shadow-page;
   }
 
   .audit-live {
@@ -786,48 +792,44 @@
     @apply h-1.5 w-1.5 animate-pulse rounded-full bg-accent;
   }
 
-  .audit-stat {
-    @apply inline-flex items-center gap-2 rounded-xl border border-slate-line bg-slate-panel/40 px-3 py-2 text-left transition hover:border-slate-muted/60 hover:bg-slate-panel/70;
+  .audit-pill {
+    @apply inline-flex items-center gap-1.5 rounded-lg border border-slate-line bg-transparent px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wide text-slate-muted transition hover:border-slate-muted hover:text-fg;
   }
 
-  .audit-stat span {
-    @apply font-mono text-[10px] uppercase tracking-wider text-slate-muted;
+  .audit-pill em {
+    @apply not-italic text-[12px] font-semibold tabular-nums text-fg;
   }
 
-  .audit-stat strong {
-    @apply text-base font-semibold tabular-nums text-fg;
+  .audit-pill.is-on {
+    @apply border-accent/40 bg-accent/10 text-accent-soft;
   }
 
-  .audit-stat.is-active {
-    @apply border-accent/40 bg-accent/10;
+  .audit-pill--info.is-on {
+    @apply border-emerald-500/35 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400;
   }
 
-  .audit-stat--info.is-active span {
-    @apply text-emerald-600 dark:text-emerald-400;
+  .audit-pill--warn.is-on {
+    @apply border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-400;
   }
 
-  .audit-stat--warn.is-active span {
-    @apply text-amber-700 dark:text-amber-400;
+  .audit-pill--error.is-on {
+    @apply border-rose-500/35 bg-rose-500/10 text-rose-600 dark:text-rose-400;
   }
 
-  .audit-stat--error.is-active span {
-    @apply text-rose-600 dark:text-rose-400;
-  }
-
-  .audit-toggle {
-    @apply inline-flex items-center gap-2 rounded-xl border border-slate-line px-3 py-2 text-sm text-slate-muted;
+  .audit-check {
+    @apply inline-flex items-center gap-1.5 rounded-lg border border-slate-line px-2 py-1.5 text-[11px] text-slate-muted;
   }
 
   .audit-row {
-    @apply relative flex w-full gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-panel/60;
+    @apply relative flex w-full gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-slate-hover/70;
   }
 
   .audit-row.is-selected {
-    @apply bg-slate-panel/80 ring-1 ring-accent/35;
+    @apply bg-slate-hover ring-1 ring-accent/40;
   }
 
   .audit-row-rail {
-    @apply mt-1 h-10 w-0.5 shrink-0 rounded-full bg-slate-line;
+    @apply mt-1 h-9 w-0.5 shrink-0 rounded-full bg-slate-line;
   }
 
   .audit-row-rail[data-level="info"] {
@@ -843,7 +845,7 @@
   }
 
   .audit-badge {
-    @apply rounded-md px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide;
+    @apply rounded px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide;
   }
 
   .audit-badge[data-level="info"] {
@@ -859,11 +861,15 @@
   }
 
   .audit-detail {
-    @apply bg-rail/40;
+    @apply bg-rail/50;
+  }
+
+  .audit-empty {
+    @apply mx-2 mt-8 rounded-xl border border-dashed border-slate-line px-6 py-10 text-center;
   }
 
   .audit-empty-icon {
-    @apply flex h-11 w-11 items-center justify-center rounded-xl border border-slate-line text-slate-muted;
+    @apply flex h-10 w-10 items-center justify-center rounded-xl border border-slate-line text-slate-muted;
   }
 
   .audit-section-label {
@@ -871,19 +877,19 @@
   }
 
   .audit-kv {
-    @apply grid grid-cols-2 gap-2;
+    @apply grid grid-cols-2 gap-1.5;
   }
 
   .audit-kv > div {
-    @apply rounded-lg border border-slate-line/80 bg-slate-panel/40 px-3 py-2;
+    @apply rounded-lg border border-slate-line/70 bg-slate-panel/50 px-2.5 py-2;
   }
 
   .audit-kv > div > span {
-    @apply block font-mono text-[10px] uppercase tracking-wide text-slate-muted;
+    @apply block font-mono text-[9px] uppercase tracking-wide text-slate-muted;
   }
 
   .audit-kv > div > strong {
-    @apply mt-0.5 block text-sm font-medium text-fg;
+    @apply mt-0.5 block text-[13px] font-medium text-fg;
   }
 
   .audit-kv-wide {
@@ -891,7 +897,7 @@
   }
 
   .audit-chip {
-    @apply inline-flex max-w-full items-baseline gap-1.5 rounded-lg border border-slate-line bg-slate-panel/50 px-2 py-1 font-mono text-[10px] text-slate-muted;
+    @apply inline-flex max-w-full items-baseline gap-1.5 rounded-md border border-slate-line bg-slate-panel/60 px-2 py-1 font-mono text-[10px] text-slate-muted;
   }
 
   .audit-chip strong {
@@ -899,7 +905,7 @@
   }
 
   .audit-json {
-    @apply max-h-52 overflow-auto rounded-xl border border-slate-line bg-slate-panel/90 p-3 font-mono text-[11px] leading-relaxed text-fg;
+    @apply max-h-48 overflow-auto rounded-lg border border-slate-line bg-slate-panel p-2.5 font-mono text-[10px] leading-relaxed text-fg;
   }
 
   .audit-sheet {
