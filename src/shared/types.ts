@@ -52,6 +52,8 @@ export interface PdfElementBase {
   rotation: number;
   opacity: number;
   locked: boolean;
+  /** When false, element is hidden on canvas and skipped on export. Default true. */
+  visible?: boolean;
   groupId?: string;
 }
 
@@ -91,10 +93,20 @@ export interface LineElement extends PdfElementBase {
   strokeWidth: number;
 }
 
+export interface ImageCrop {
+  /** Percent inset from each edge (0–40). */
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
 export interface ImageElement extends PdfElementBase {
   type: "image";
   src: string;
   name: string;
+  objectFit?: "contain" | "cover" | "fill";
+  crop?: ImageCrop;
 }
 
 export interface ArrowElement extends PdfElementBase {
@@ -225,6 +237,7 @@ export interface GuideLine {
   id: string;
   axis: "x" | "y";
   position: number;
+  name?: string;
 }
 
 export interface DocComment {
@@ -268,6 +281,8 @@ export interface PdfDocument {
   pageSize: PageSize;
   pageBackground: string;
   showGrid?: boolean;
+  /** Dashed margin overlay inset in points (also used by margin presets). */
+  marginGuide?: number;
   pages: PdfPage[];
   updatedAt: string;
   guides?: GuideLine[];
@@ -394,6 +409,9 @@ export interface ExportSettings {
   imageQuality: number;
   flatten: boolean;
   pdfaLite: boolean;
+  /** Screen = smaller files; print = higher quality / margins. */
+  intent?: "screen" | "print";
+  compressImages?: boolean;
 }
 
 export interface ExportPayload {

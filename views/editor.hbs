@@ -18,8 +18,10 @@
       <span class="status-chip" x-text="'Page ' + (activePageIndex + 1) + ' / ' + doc.pages.length"></span>
       <span class="status-chip accent" x-show="doc.importedPdf && hasSessionPdf()" x-text="'PDF in memory · ' + (doc.importedPdf.name || 'imported')"></span>
       <span class="status-chip" x-show="selectedIds.length" x-text="selectedIds.length + ' selected'"></span>
-      <span class="status-chip accent" x-show="editingMaster">Master</span>
+      <span class="status-chip accent" x-show="editingMaster" x-text="'Master · ' + masterZone"></span>
       <span class="status-chip accent" x-show="reviewMode">Review</span>
+      <span class="status-chip" x-show="saveState === 'saving'">Saving…</span>
+      <span class="status-chip accent" x-show="saveState === 'saved'">Saved</span>
     </div>
     <p class="hidden text-[11px] text-slate-muted md:block">
       <span class="opacity-70">Space</span> pan
@@ -27,6 +29,8 @@
       <span class="opacity-70">⌘ scroll</span> zoom
       <span class="mx-2 opacity-30">·</span>
       <span class="opacity-70">/</span> search
+      <span class="mx-2 opacity-30">·</span>
+      <button type="button" class="opacity-70 hover:text-fg hover:opacity-100" @click="showShortcuts = true">? shortcuts</button>
     </p>
     <div class="flex items-center gap-1.5">
       <button type="button" class="status-action" @click="fitWidth()">Fit width</button>
@@ -34,6 +38,14 @@
       <span class="ml-1 font-mono text-[11px] tabular-nums text-slate-muted" x-text="Math.round(zoom * 100) + '%'"></span>
     </div>
   </footer>
+
+  <div
+    x-show="toast"
+    x-cloak
+    x-transition.opacity.duration.200ms
+    class="pointer-events-none fixed bottom-16 left-1/2 z-[80] -translate-x-1/2 rounded-full border border-slate-line bg-rail/95 px-4 py-2 text-xs font-medium text-fg shadow-lg backdrop-blur"
+    x-text="toast"
+  ></div>
 
   <input type="file" accept="image/png,image/jpeg" class="hidden" x-ref="imageInput" @change="onImageSelected($event)" />
   <input type="file" accept="image/png,image/jpeg" class="hidden" x-ref="signatureFileInput" @change="onSignatureFileSelected($event)" />

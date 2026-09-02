@@ -153,8 +153,10 @@ export function createImage(
     rotation: 0,
     opacity: 1,
     locked: false,
+    visible: true,
     src: data.src,
     name: data.name,
+    objectFit: "contain",
   };
 }
 

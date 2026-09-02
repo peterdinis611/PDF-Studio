@@ -269,6 +269,39 @@
         <span>Margin guides</span>
         <input type="checkbox" class="accent-accent" x-model="showGuides" @change="saveSettings()" />
       </label>
+      <div class="px-1">
+        <label class="panel-label">Margin size</label>
+        <div class="mt-1 flex flex-wrap gap-1.5">
+          <button type="button" class="btn-ghost text-xs" @click="applyMarginPreset('none')">None</button>
+          <button type="button" class="btn-ghost text-xs" @click="applyMarginPreset('narrow')">Narrow</button>
+          <button type="button" class="btn-ghost text-xs" @click="applyMarginPreset('normal')">Normal</button>
+          <button type="button" class="btn-ghost text-xs" @click="applyMarginPreset('wide')">Wide</button>
+          <button type="button" class="btn-ghost text-xs" @click="applyMarginGuidesAsNamed()">Pin as guides</button>
+        </div>
+      </div>
+      <div class="px-1">
+        <label class="panel-label">Named guides</label>
+        <ul class="mt-1 max-h-28 space-y-1 overflow-y-auto" x-show="(doc.guides || []).length">
+          <template x-for="g in (doc.guides || [])" :key="g.id">
+            <li class="flex items-center gap-1.5 text-xs">
+              <span class="w-4 shrink-0 font-mono text-[10px] text-slate-muted" x-text="g.axis"></span>
+              <input
+                type="text"
+                class="panel-input min-w-0 flex-1 py-1 text-xs"
+                :placeholder="Math.round(g.position) + 'pt'"
+                :value="g.name || ''"
+                @change="renameGuide(g.id, $event.target.value)"
+              />
+              <button type="button" class="btn-ghost shrink-0 px-1.5 text-[10px]" @click="removeGuide(g.id)" title="Remove">×</button>
+            </li>
+          </template>
+        </ul>
+        <p class="mt-1 text-[10px] text-slate-muted" x-show="!(doc.guides || []).length">Drag from rulers, or add:</p>
+        <div class="mt-1.5 flex flex-wrap gap-1">
+          <button type="button" class="btn-ghost text-[10px]" @click="addNamedGuide('x', pageSize.width / 2, 'Center V')">+ Center V</button>
+          <button type="button" class="btn-ghost text-[10px]" @click="addNamedGuide('y', pageSize.height / 2, 'Center H')">+ Center H</button>
+        </div>
+      </div>
       <label class="settings-row">
         <span>Rulers</span>
         <input type="checkbox" class="accent-accent" x-model="showRulers" @change="saveSettings()" />
@@ -294,7 +327,10 @@
         <label class="panel-label">Master &amp; watermark</label>
         <div class="flex flex-wrap gap-1.5">
           <button type="button" class="btn-ghost" @click="toggleEditMaster()" x-text="editingMaster ? 'Exit master' : 'Edit master'"></button>
+          <button type="button" class="btn-ghost" :class="editingMaster && masterZone === 'header' && 'bg-accent/15 text-accent-soft'" @click="setMasterZone('header')">Header</button>
+          <button type="button" class="btn-ghost" :class="editingMaster && masterZone === 'footer' && 'bg-accent/15 text-accent-soft'" @click="setMasterZone('footer')">Footer</button>
           <button type="button" class="btn-ghost" @click="addMasterPageNumber()">Page #</button>
+          <button type="button" class="btn-ghost" @click="togglePageApplyMaster()" x-text="activePage.applyMaster === false ? 'Apply master: off' : 'Apply master: on'"></button>
           <button type="button" class="btn-ghost" @click="setWatermarkText(prompt('Watermark text') || 'DRAFT')">Watermark</button>
           <button type="button" class="btn-ghost" @click="clearWatermark()">Clear</button>
         </div>

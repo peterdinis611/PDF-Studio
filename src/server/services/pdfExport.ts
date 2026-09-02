@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, degrees, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, degrees, pushGraphicsState, popGraphicsState, rectangle, clip, endPath, type PDFFont, type PDFPage } from "pdf-lib";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -528,9 +528,41 @@ async function drawImage(
   if (!isJpg && !isPng) return;
   const image = isJpg ? await doc.embedJpg(bytes) : await doc.embedPng(bytes);
   void quality;
+
+  const pdfY = toPdfY(pageHeight, el.y, el.height);
+  const crop = el.type === "image" ? el.crop : undefined;
+  const top = Math.min(40, Math.max(0, crop?.top ?? 0)) / 100;
+  const right = Math.min(40, Math.max(0, crop?.right ?? 0)) / 100;
+  const bottom = Math.min(40, Math.max(0, crop?.bottom ?? 0)) / 100;
+  const left = Math.min(40, Math.max(0, crop?.left ?? 0)) / 100;
+  const hasCrop = top + right + bottom + left > 0;
+  const visW = Math.max(0.2, 1 - left - right);
+  const visH = Math.max(0.2, 1 - top - bottom);
+
+  if (hasCrop) {
+    page.pushOperators(
+      pushGraphicsState(),
+      rectangle(el.x, pdfY, el.width, el.height),
+      clip(),
+      endPath(),
+    );
+    const drawW = el.width / visW;
+    const drawH = el.height / visH;
+    page.drawImage(image, {
+      x: el.x - left * drawW,
+      y: pdfY - bottom * drawH,
+      width: drawW,
+      height: drawH,
+      opacity: el.opacity,
+      rotate: degrees(el.rotation || 0),
+    });
+    page.pushOperators(popGraphicsState());
+    return;
+  }
+
   page.drawImage(image, {
     x: el.x,
-    y: toPdfY(pageHeight, el.y, el.height),
+    y: pdfY,
     width: el.width,
     height: el.height,
     opacity: el.opacity,
@@ -820,6 +852,7 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
       : [];
 
     for (const el of masterEls) {
+      if (el.visible === false) continue;
       const cloned = structuredClone(el) as PdfElement;
       if (cloned.type === "text") {
         cloned.content = substituteTokens(cloned.content, pageIndex, pageCount);
@@ -837,6 +870,7 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
     }
 
     for (const el of pdfPage.elements) {
+      if (el.visible === false) continue;
       const offsetEl = structuredClone(el) as PdfElement;
       if (settings.margin && offsetEl.type !== "image") {
         /* margin already applied to imported page; elements stay in page coords */

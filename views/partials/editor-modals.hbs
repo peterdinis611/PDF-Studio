@@ -1,43 +1,65 @@
 {{!-- Shared modals --}}
-<div
-  x-show="showExportModal"
-  x-cloak
-  class="modal-backdrop"
-  @keydown.escape.window="showExportModal = false"
->
-  <div class="modal-panel" @click.outside="showExportModal = false">
-    <h3 class="modal-title">Export PDF</h3>
-    <p class="mt-1 text-xs text-slate-muted">Choose quality options, then download.</p>
-    <div class="mt-5 space-y-4 text-sm">
-      <div>
-        <label class="panel-label">Margin (pt)</label>
-        <input type="number" min="0" max="72" class="panel-input" x-model.number="exportSettings.margin" />
+  <div
+    x-show="showExportModal"
+    x-cloak
+    class="modal-backdrop"
+    @keydown.escape.window="showExportModal = false"
+  >
+    <div class="modal-panel" @click.outside="showExportModal = false">
+      <h3 class="modal-title">Export PDF</h3>
+      <p class="mt-1 text-xs text-slate-muted">Choose quality options, then download.</p>
+      <div class="mt-5 space-y-4 text-sm">
+        <div>
+          <label class="panel-label">Preset</label>
+          <div class="mt-1.5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="btn-ghost"
+              :class="exportSettings.intent === 'screen' && 'bg-accent/15 text-accent-soft'"
+              @click="setExportPreset('screen')"
+            >Screen</button>
+            <button
+              type="button"
+              class="btn-ghost"
+              :class="exportSettings.intent === 'print' && 'bg-accent/15 text-accent-soft'"
+              @click="setExportPreset('print')"
+            >Print</button>
+          </div>
+          <p class="mt-1 text-[11px] text-slate-muted">Screen = lighter file · Print = higher quality + PDF/A-friendly</p>
+        </div>
+        <div>
+          <label class="panel-label">Margin (pt)</label>
+          <input type="number" min="0" max="72" class="panel-input" x-model.number="exportSettings.margin" @change="saveExportSettings()" />
+        </div>
+        <div>
+          <label class="panel-label">Image quality</label>
+          <input type="range" min="0.4" max="1" step="0.05" class="w-full accent-accent" x-model.number="exportSettings.imageQuality" @change="saveExportSettings()" />
+          <p class="mt-1 text-xs text-slate-muted" x-text="Math.round(exportSettings.imageQuality * 100) + '%'"></p>
+        </div>
+        <label class="settings-row">
+          <span>Compress images when possible</span>
+          <input type="checkbox" class="accent-accent" x-model="exportSettings.compressImages" @change="saveExportSettings()" />
+        </label>
+        <label class="settings-row">
+          <span>Flatten form fields</span>
+          <input type="checkbox" class="accent-accent" x-model="exportSettings.flatten" @change="saveExportSettings()" />
+        </label>
+        <label class="settings-row">
+          <span>PDF/A-friendly metadata</span>
+          <input type="checkbox" class="accent-accent" x-model="exportSettings.pdfaLite" @change="saveExportSettings()" />
+        </label>
       </div>
-      <div>
-        <label class="panel-label">Image quality</label>
-        <input type="range" min="0.4" max="1" step="0.05" class="w-full accent-accent" x-model.number="exportSettings.imageQuality" />
-        <p class="mt-1 text-xs text-slate-muted" x-text="Math.round(exportSettings.imageQuality * 100) + '%'"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" @click="showExportModal = false">Cancel</button>
+        <button type="button" class="btn-primary" :disabled="exporting" @click="saveExportSettings(); exportPdf()">
+          <span x-text="exporting ? 'Exporting…' : 'Download PDF'"></span>
+        </button>
       </div>
-      <label class="settings-row">
-        <span>Flatten form fields</span>
-        <input type="checkbox" class="accent-accent" x-model="exportSettings.flatten" />
-      </label>
-      <label class="settings-row">
-        <span>PDF/A-friendly metadata</span>
-        <input type="checkbox" class="accent-accent" x-model="exportSettings.pdfaLite" />
-      </label>
-    </div>
-    <div class="modal-actions">
-      <button type="button" class="btn-ghost" @click="showExportModal = false">Cancel</button>
-      <button type="button" class="btn-primary" :disabled="exporting" @click="exportPdf()">
-        <span x-text="exporting ? 'Exporting…' : 'Download PDF'"></span>
-      </button>
     </div>
   </div>
-</div>
 
-<div x-show="showFindReplace" x-cloak class="modal-backdrop items-start pt-24">
-  <div class="modal-panel max-w-lg" @click.outside="showFindReplace = false">
+<div x-show="showFindReplace" x-cloak class="modal-backdrop items-start pt-24" @keydown.escape.window="showFindReplace = false; findHighlightId = null">
+  <div class="modal-panel max-w-lg" @click.outside="showFindReplace = false; findHighlightId = null">
     <h3 class="modal-title">Find &amp; replace</h3>
     <div class="mt-4 grid gap-3 sm:grid-cols-2">
       <div>
@@ -58,7 +80,7 @@
       <button type="button" class="btn-ghost" @click="findNext()">Next</button>
       <button type="button" class="btn-ghost" @click="replaceCurrent()">Replace</button>
       <button type="button" class="btn-ghost" @click="replaceAll()">Replace all</button>
-      <button type="button" class="btn-ghost ml-auto" @click="showFindReplace = false">Close</button>
+      <button type="button" class="btn-ghost ml-auto" @click="showFindReplace = false; findHighlightId = null">Close</button>
     </div>
   </div>
 </div>
@@ -199,6 +221,38 @@
       >
         <span x-text="signatureBusy ? 'Adding…' : (signatureTab === 'upload' ? 'Choose file' : 'Add signature')"></span>
       </button>
+    </div>
+  </div>
+</div>
+
+<div
+  x-show="showShortcuts"
+  x-cloak
+  class="modal-backdrop"
+  @keydown.escape.window="showShortcuts = false"
+>
+  <div class="modal-panel max-w-2xl" @click.outside="showShortcuts = false">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h3 class="modal-title">Keyboard shortcuts</h3>
+        <p class="mt-1 text-xs text-slate-muted">Press <kbd class="rounded border border-slate-line px-1 font-mono text-[10px]">?</kbd> anytime.</p>
+      </div>
+      <button type="button" class="btn-ghost" @click="showShortcuts = false">Close</button>
+    </div>
+    <div class="mt-5 grid gap-5 sm:grid-cols-2">
+      <template x-for="group in shortcutGroups" :key="group.title">
+        <div>
+          <p class="panel-label mb-2" x-text="group.title"></p>
+          <ul class="space-y-1.5">
+            <template x-for="item in group.items" :key="item.keys">
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-slate-muted" x-text="item.action"></span>
+                <kbd class="shrink-0 rounded-md border border-slate-line bg-slate-hover px-1.5 py-0.5 font-mono text-[10px] text-fg" x-text="item.keys"></kbd>
+              </li>
+            </template>
+          </ul>
+        </div>
+      </template>
     </div>
   </div>
 </div>

@@ -299,19 +299,25 @@
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="panel-label">Rows</label>
-              <input type="number" class="panel-input" min="1" max="12" x-model.number="selected.rows" @change="selected.cells = Array.from({length: selected.rows * selected.cols}, (_, i) => selected.cells[i] || ''); persist()" />
+              <input type="number" class="panel-input" min="1" max="24" :value="selected.rows" @change="resizeSelectedTable(Number($event.target.value), selected.cols)" />
             </div>
             <div>
               <label class="panel-label">Cols</label>
-              <input type="number" class="panel-input" min="1" max="8" x-model.number="selected.cols" @change="selected.cells = Array.from({length: selected.rows * selected.cols}, (_, i) => selected.cells[i] || ''); persist()" />
+              <input type="number" class="panel-input" min="1" max="12" :value="selected.cols" @change="resizeSelectedTable(selected.rows, Number($event.target.value))" />
             </div>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" class="btn-ghost text-xs" @click="tableInsertRow()">+ Row</button>
+            <button type="button" class="btn-ghost text-xs" @click="tableInsertCol()">+ Col</button>
+            <button type="button" class="btn-ghost text-xs" @click="tableDeleteRow()">− Row</button>
+            <button type="button" class="btn-ghost text-xs" @click="tableDeleteCol()">− Col</button>
           </div>
           <label class="flex items-center gap-2 text-sm text-slate-muted">
             <input type="checkbox" class="accent-accent" x-model="selected.header" @change="persist()" />
             Header row
           </label>
           <div>
-            <label class="panel-label">Cells (comma / newline)</label>
+            <label class="panel-label">Cells (one per line)</label>
             <textarea
               class="panel-input min-h-[6rem] resize-y font-mono text-xs"
               :value="selected.cells.join('\n')"
@@ -327,6 +333,18 @@
               <label class="panel-label">Cell fill</label>
               <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.fill" @change="persist()" />
             </div>
+            <div>
+              <label class="panel-label">Text</label>
+              <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.color" @change="persist()" />
+            </div>
+            <div>
+              <label class="panel-label">Border</label>
+              <input type="color" class="h-9 w-full cursor-pointer rounded border border-slate-line bg-transparent" x-model="selected.stroke" @change="persist()" />
+            </div>
+          </div>
+          <div>
+            <label class="panel-label">Font size</label>
+            <input type="number" class="panel-input" min="6" max="48" x-model.number="selected.fontSize" @change="persist()" />
           </div>
         </div>
       </template>
@@ -381,6 +399,42 @@
             <label class="panel-label" x-text="selected.type === 'signature' ? 'Signature' : 'File'"></label>
             <p class="truncate text-sm text-slate-muted" x-text="selected.name"></p>
           </div>
+          <div x-show="selected.type === 'image'">
+            <label class="panel-label">Fit</label>
+            <div class="mt-1 flex flex-wrap gap-1.5">
+              <button type="button" class="btn-ghost text-xs" :class="(selected.objectFit || 'contain') === 'contain' && 'bg-accent/15 text-accent-soft'" @click="setImageObjectFit('contain')">Contain</button>
+              <button type="button" class="btn-ghost text-xs" :class="selected.objectFit === 'cover' && 'bg-accent/15 text-accent-soft'" @click="setImageObjectFit('cover')">Cover</button>
+              <button type="button" class="btn-ghost text-xs" :class="selected.objectFit === 'fill' && 'bg-accent/15 text-accent-soft'" @click="setImageObjectFit('fill')">Fill</button>
+            </div>
+            <label class="panel-label mt-3">Crop (%)</label>
+            <div class="mt-1 grid grid-cols-2 gap-2">
+              <div>
+                <span class="text-[10px] text-slate-muted">Top</span>
+                <input type="number" min="0" max="40" class="panel-input" :value="(selected.crop && selected.crop.top) || 0" @change="setImageCrop('top', Number($event.target.value))" />
+              </div>
+              <div>
+                <span class="text-[10px] text-slate-muted">Bottom</span>
+                <input type="number" min="0" max="40" class="panel-input" :value="(selected.crop && selected.crop.bottom) || 0" @change="setImageCrop('bottom', Number($event.target.value))" />
+              </div>
+              <div>
+                <span class="text-[10px] text-slate-muted">Left</span>
+                <input type="number" min="0" max="40" class="panel-input" :value="(selected.crop && selected.crop.left) || 0" @change="setImageCrop('left', Number($event.target.value))" />
+              </div>
+              <div>
+                <span class="text-[10px] text-slate-muted">Right</span>
+                <input type="number" min="0" max="40" class="panel-input" :value="(selected.crop && selected.crop.right) || 0" @change="setImageCrop('right', Number($event.target.value))" />
+              </div>
+            </div>
+            <button type="button" class="btn-ghost mt-1.5 w-full justify-center text-xs" @click="resetImageCrop()">Reset crop</button>
+          </div>
+          <button
+            type="button"
+            class="btn-ghost w-full justify-center"
+            x-show="selected.type === 'image'"
+            @click="startReplaceImage()"
+          >
+            Replace image
+          </button>
           <button
             type="button"
             class="btn-ghost w-full justify-center"
@@ -421,22 +475,38 @@
       <label class="panel-label">Layers</label>
       <ul class="max-h-48 space-y-1 overflow-y-auto">
         <template x-for="layer in layers" :key="layer.id">
-          <li>
-            <button
-              type="button"
-              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition hover:bg-slate-hover"
+          <li
+            draggable="true"
+            @dragstart="onLayerDragStart(layer.id)"
+            @dragover.prevent
+            @drop.prevent="onLayerDrop(layer.id)"
+          >
+            <div
+              class="flex w-full items-center gap-1 rounded-md px-1 py-1 text-left text-xs transition hover:bg-slate-hover"
               :class="isSelected(layer.id) ? 'bg-accent/15 text-accent-soft' : 'text-slate-muted'"
-              @click="selectedIds = [layer.id]"
             >
-              <span class="truncate font-medium" x-text="layer.label"></span>
+              <button type="button" class="min-w-0 flex-1 truncate px-1 py-0.5 text-left font-medium" @click="selectedIds = [layer.id]" x-text="layer.label"></button>
               <span x-show="layer.groupId" class="text-[9px] text-accent-soft">G</span>
-              <span class="ml-auto font-mono text-[10px] uppercase opacity-60" x-text="layer.type"></span>
-              <span x-show="layer.locked" title="Locked">🔒</span>
-            </button>
+              <span class="font-mono text-[10px] uppercase opacity-60" x-text="layer.type"></span>
+              <button
+                type="button"
+                class="rounded px-1 opacity-70 hover:opacity-100"
+                :title="layer.visible ? 'Hide' : 'Show'"
+                @click.stop="toggleVisibility(layer.id)"
+                x-text="layer.visible ? '👁' : '⊘'"
+              ></button>
+              <button type="button" class="rounded px-1 opacity-70 hover:opacity-100" @click.stop="selectedIds = [layer.id]; toggleLock()" x-text="layer.locked ? '🔒' : '🔓'"></button>
+            </div>
           </li>
         </template>
         <li x-show="layers.length === 0" class="px-2 py-2 text-xs text-slate-muted">No elements on this page.</li>
       </ul>
+      <div class="mt-2 flex flex-wrap gap-1" x-show="selected">
+        <button type="button" class="btn-ghost text-[10px]" @click="bringToFront()">Front</button>
+        <button type="button" class="btn-ghost text-[10px]" @click="bringForward()">↑</button>
+        <button type="button" class="btn-ghost text-[10px]" @click="sendBackward()">↓</button>
+        <button type="button" class="btn-ghost text-[10px]" @click="sendToBack()">Back</button>
+      </div>
     </div>
 
     <div class="border-t border-slate-line pt-4" x-show="pageComments.length">

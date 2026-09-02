@@ -10,6 +10,8 @@ import {
   type RectElement,
   type EllipseElement,
   type StickyElement,
+  type TableElement,
+  type ImageElement,
 } from "../shared/types.js";
 import {
   blankPage,
@@ -49,6 +51,18 @@ import {
 import { computeSmartGuides, type SmartGuide } from "./smartGuides.js";
 import { TEMPLATE_LIST, buildTemplate } from "./templates.js";
 import { initHomePreview } from "./homePreview.js";
+import {
+  MARGIN_PRESETS,
+  SHORTCUT_GROUPS,
+  deleteTableCol,
+  deleteTableRow,
+  distributeElements,
+  insertTableCol,
+  insertTableRow,
+  marginGuideLines,
+  resizeTable,
+  type MarginPreset,
+} from "./editorExtras.js";
 
 const STORAGE_KEY = "doc";
 const DOCS_INDEX_KEY = "docs";
@@ -117,8 +131,14 @@ interface DocIndexEntry {
 }
 
 function normalizeTextElement(el: PdfElement): PdfElement {
-  if (el.type !== "text") return el;
-  const t = el as TextElement;
+  const withVisible = { ...el, visible: el.visible !== false };
+  if (withVisible.type !== "text") {
+    if (withVisible.type === "image" && !withVisible.objectFit) {
+      return { ...withVisible, objectFit: "contain" };
+    }
+    return withVisible;
+  }
+  const t = withVisible as TextElement;
   let fontFamily = t.fontFamily || "Helvetica";
   if (typeof fontFamily === "string" && fontFamily.startsWith("custom:")) {
     fontFamily = "Helvetica";
@@ -138,6 +158,7 @@ function normalizeDoc(doc: PdfDocument): PdfDocument {
   const normalized: PdfDocument = {
     ...doc,
     pageBackground: doc.pageBackground || "#faf9f6",
+    marginGuide: typeof doc.marginGuide === "number" ? doc.marginGuide : 40,
     guides: doc.guides || [],
     comments: doc.comments || [],
     customFonts: doc.customFonts || [],
@@ -149,6 +170,13 @@ function normalizeDoc(doc: PdfDocument): PdfDocument {
       elements: p.elements.map(normalizeTextElement),
     })),
   };
+
+  if (normalized.master) {
+    normalized.master = {
+      header: (normalized.master.header || []).map(normalizeTextElement),
+      footer: (normalized.master.footer || []).map(normalizeTextElement),
+    };
+  }
 
   // Ephemeral imports live only in the open tab — drop stale refs after reload.
   if (normalized.importedPdf?.ephemeral && !getSessionImportedPdfBytes()) {
@@ -256,6 +284,16 @@ function pdfEditor() {
     showGuides: false,
     showGrid: false,
     showRulers: true,
+    showShortcuts: false,
+    saveState: "idle" as "idle" | "saving" | "saved",
+    toast: "" as string,
+    toastTimer: 0 as number,
+    masterZone: "header" as "header" | "footer",
+    findHighlightId: null as string | null,
+    replaceImageId: null as string | null,
+    layerDragId: null as string | null,
+    shortcutGroups: SHORTCUT_GROUPS,
+    marginPresets: MARGIN_PRESETS,
     fontOptions: allFontOptions(),
     findQuery: "",
     replaceQuery: "",
@@ -273,6 +311,8 @@ function pdfEditor() {
       imageQuality: 0.85,
       flatten: false,
       pdfaLite: false,
+      intent: "screen",
+      compressImages: true,
     } as ExportSettings,
     authorName: "Reviewer",
     docLibrary: [] as DocIndexEntry[],
@@ -319,6 +359,7 @@ function pdfEditor() {
         type: el.type,
         locked: el.locked,
         groupId: el.groupId,
+        visible: el.visible !== false,
       }));
     },
 
@@ -368,13 +409,27 @@ function pdfEditor() {
 
     get workingElements(): PdfElement[] {
       if (this.editingMaster) {
-        return this.doc.master?.header || [];
+        if (!this.doc.master) this.doc.master = { header: [], footer: [] };
+        return this.masterZone === "footer" ? this.doc.master.footer : this.doc.master.header;
       }
       return this.activePage.elements;
     },
 
     get displayElements(): PdfElement[] {
       return this.workingElements;
+    },
+
+    get marginGuidePt(): number {
+      return typeof this.doc.marginGuide === "number" ? this.doc.marginGuide : 40;
+    },
+
+    showToast(message: string, ms = 2800) {
+      this.toast = message;
+      if (this.toastTimer) window.clearTimeout(this.toastTimer);
+      this.toastTimer = window.setTimeout(() => {
+        this.toast = "";
+        this.toastTimer = 0;
+      }, ms) as unknown as number;
     },
 
     get masterPreviewElements(): PdfElement[] {
@@ -448,6 +503,7 @@ function pdfEditor() {
         if (saved) {
           try {
             this.doc = normalizeDoc(JSON.parse(saved) as PdfDocument);
+            queueMicrotask(() => this.showToast("Document restored"));
           } catch {
             this.doc = normalizeDoc(defaultDoc());
           }
@@ -457,6 +513,7 @@ function pdfEditor() {
         if (saved) {
           try {
             this.doc = normalizeDoc(JSON.parse(saved) as PdfDocument);
+            queueMicrotask(() => this.showToast("Document restored"));
           } catch {
             this.doc = normalizeDoc(defaultDoc());
           }
@@ -534,6 +591,7 @@ function pdfEditor() {
         history.push(this.doc, JSON.stringify(this.doc));
         this.syncHistoryFlags();
       }
+      this.saveState = "saving";
       if (persistTimer) clearTimeout(persistTimer);
       persistTimer = setTimeout(() => {
         try {
@@ -541,8 +599,13 @@ function pdfEditor() {
           storeSet(STORAGE_KEY, snapshot);
           storeSet(docKey(this.doc.id), snapshot);
           this.upsertDocLibrary();
+          this.saveState = "saved";
+          window.setTimeout(() => {
+            if (this.saveState === "saved") this.saveState = "idle";
+          }, 1600);
         } catch (err) {
           console.warn("Could not persist document", err);
+          this.saveState = "idle";
         }
       }, 220);
     },
@@ -553,6 +616,7 @@ function pdfEditor() {
 
     persistSoft() {
       this.doc.updatedAt = new Date().toISOString();
+      this.saveState = "saving";
       if (persistTimer) clearTimeout(persistTimer);
       persistTimer = setTimeout(() => {
         try {
@@ -560,8 +624,13 @@ function pdfEditor() {
           storeSet(STORAGE_KEY, snapshot);
           storeSet(docKey(this.doc.id), snapshot);
           this.upsertDocLibrary();
+          this.saveState = "saved";
+          window.setTimeout(() => {
+            if (this.saveState === "saved") this.saveState = "idle";
+          }, 1600);
         } catch (err) {
           console.warn("Could not persist document", err);
+          this.saveState = "idle";
         }
       }, 160);
     },
@@ -884,7 +953,8 @@ function pdfEditor() {
     pushElement(el: PdfElement) {
       if (this.editingMaster) {
         if (!this.doc.master) this.doc.master = { header: [], footer: [] };
-        this.doc.master.header.push(el);
+        const zone = this.masterZone === "footer" ? this.doc.master.footer : this.doc.master.header;
+        zone.push(el);
       } else {
         this.activePage.elements.push(el);
       }
@@ -1167,13 +1237,17 @@ function pdfEditor() {
 
     elementStyle(el: PdfElement) {
       const rotating = el.rotation ? `rotate(${el.rotation}deg)` : "";
+      const hidden = el.visible === false;
       return {
         left: `${el.x * this.zoom}px`,
         top: `${el.y * this.zoom}px`,
         width: `${Math.max(el.width, 1) * this.zoom}px`,
         height: `${Math.max(el.height, el.type === "line" || el.type === "divider" || el.type === "arrow" ? 8 : 1) * this.zoom}px`,
-        opacity: String(el.opacity),
+        opacity: hidden ? "0.28" : String(el.opacity),
         transform: rotating || undefined,
+        outline: this.findHighlightId === el.id ? "2px solid rgb(var(--color-accent))" : undefined,
+        outlineOffset: this.findHighlightId === el.id ? "2px" : undefined,
+        filter: hidden ? "grayscale(0.4)" : undefined,
         cursor: el.locked ? "not-allowed" : this.tool === "place" ? "crosshair" : "move",
       };
     },
@@ -1311,20 +1385,25 @@ function pdfEditor() {
       this.deleteSelected();
     },
 
-    pasteClipboard() {
+    pasteClipboard(offset = 20) {
       if (!clipboard.length) return;
-      const copies = clipboard.map((el) => cloneElement(el, 20));
+      const copies = clipboard.map((el) => cloneElement(el, offset));
       for (const c of copies) {
         c.groupId = undefined;
         if (this.editingMaster) {
           if (!this.doc.master) this.doc.master = { header: [], footer: [] };
-          this.doc.master.header.push(c);
+          const zone = this.masterZone === "footer" ? this.doc.master.footer : this.doc.master.header;
+          zone.push(c);
         } else {
           this.activePage.elements.push(c);
         }
       }
       this.selectedIds = copies.map((c) => c.id);
       this.commit();
+    },
+
+    pasteInPlace() {
+      this.pasteClipboard(0);
     },
 
     duplicateSelected() {
@@ -1334,7 +1413,8 @@ function pdfEditor() {
       for (const c of copies) {
         if (this.editingMaster) {
           if (!this.doc.master) this.doc.master = { header: [], footer: [] };
-          this.doc.master.header.push(c);
+          const zone = this.masterZone === "footer" ? this.doc.master.footer : this.doc.master.header;
+          zone.push(c);
         } else {
           this.activePage.elements.push(c);
         }
@@ -1424,14 +1504,15 @@ function pdfEditor() {
       const els = this.selectedElements.filter((e) => !e.locked);
       if (!els.length) return;
       const { width, height } = this.pageSize;
+      const margin = this.marginGuidePt;
       if (els.length === 1) {
         const el = els[0];
-        if (edge === "left") el.x = 40;
+        if (edge === "left") el.x = margin;
         if (edge === "center") el.x = Math.round((width - el.width) / 2);
-        if (edge === "right") el.x = Math.round(width - el.width - 40);
-        if (edge === "top") el.y = 40;
+        if (edge === "right") el.x = Math.round(width - el.width - margin);
+        if (edge === "top") el.y = margin;
         if (edge === "middle") el.y = Math.round((height - el.height) / 2);
-        if (edge === "bottom") el.y = Math.round(height - el.height - 40);
+        if (edge === "bottom") el.y = Math.round(height - el.height - margin);
       } else {
         const minX = Math.min(...els.map((e) => e.x));
         const maxX = Math.max(...els.map((e) => e.x + e.width));
@@ -1447,6 +1528,51 @@ function pdfEditor() {
         }
       }
       this.commit();
+    },
+
+    distributeSelected(axis: "horizontal" | "vertical") {
+      const els = this.selectedElements.filter((e) => !e.locked);
+      if (els.length < 3) {
+        this.showToast("Select 3+ elements to distribute");
+        return;
+      }
+      distributeElements(els, axis);
+      this.commit();
+    },
+
+    toggleVisibility(id?: string) {
+      const targets = id
+        ? this.workingElements.filter((e) => e.id === id)
+        : this.selectedElements;
+      if (!targets.length) return;
+      const next = targets[0].visible === false;
+      for (const el of targets) el.visible = next;
+      this.commit();
+    },
+
+    isVisible(el: PdfElement) {
+      return el.visible !== false;
+    },
+
+    reorderLayer(fromId: string, toId: string) {
+      if (fromId === toId) return;
+      const arr = this.workingElements;
+      const from = arr.findIndex((e) => e.id === fromId);
+      const to = arr.findIndex((e) => e.id === toId);
+      if (from < 0 || to < 0) return;
+      const [item] = arr.splice(from, 1);
+      arr.splice(to, 0, item);
+      this.commit();
+    },
+
+    onLayerDragStart(id: string) {
+      this.layerDragId = id;
+    },
+
+    onLayerDrop(toId: string) {
+      if (!this.layerDragId) return;
+      this.reorderLayer(this.layerDragId, toId);
+      this.layerDragId = null;
     },
 
     nudge(dx: number, dy: number, fine: boolean) {
@@ -1483,6 +1609,152 @@ function pdfEditor() {
       if (this.editingMaster && !this.doc.master) {
         this.doc.master = { header: [], footer: [] };
       }
+      if (!this.editingMaster) this.masterZone = "header";
+    },
+
+    setMasterZone(zone: "header" | "footer") {
+      this.masterZone = zone;
+      this.selectedIds = [];
+      if (!this.editingMaster) this.toggleEditMaster();
+    },
+
+    togglePageApplyMaster() {
+      this.activePage.applyMaster = !(this.activePage.applyMaster !== false);
+      this.commit();
+    },
+
+    applyMarginPreset(preset: MarginPreset) {
+      const pt = MARGIN_PRESETS[preset];
+      this.doc.marginGuide = pt;
+      this.showGuides = pt > 0;
+      this.saveSettings();
+      this.commit(false);
+      this.showToast(pt ? `Margin ${preset} (${pt}pt)` : "Margins off");
+    },
+
+    applyMarginGuidesAsNamed() {
+      const m = this.marginGuidePt;
+      if (m <= 0) {
+        this.showToast("Set a margin preset first");
+        return;
+      }
+      const { width, height } = this.pageSize;
+      if (!this.doc.guides) this.doc.guides = [];
+      this.doc.guides = this.doc.guides.filter((g) => !g.name?.startsWith("Margin "));
+      this.doc.guides.push(...marginGuideLines(width, height, m));
+      this.commit();
+      this.showToast("Named margin guides added");
+    },
+
+    renameGuide(id: string, name: string) {
+      const g = (this.doc.guides || []).find((x) => x.id === id);
+      if (!g) return;
+      g.name = name.trim() || undefined;
+      this.persistSoft();
+    },
+
+    addNamedGuide(axis: "x" | "y", position: number, name: string) {
+      if (!this.doc.guides) this.doc.guides = [];
+      this.doc.guides.push({
+        id: uid(),
+        axis,
+        position: this.snap(position),
+        name: name.trim() || undefined,
+      });
+      this.commit();
+    },
+
+    setExportPreset(intent: "screen" | "print") {
+      if (intent === "screen") {
+        this.exportSettings = {
+          ...this.exportSettings,
+          intent: "screen",
+          margin: 0,
+          imageQuality: 0.72,
+          compressImages: true,
+          pdfaLite: false,
+        };
+      } else {
+        this.exportSettings = {
+          ...this.exportSettings,
+          intent: "print",
+          margin: Math.max(this.exportSettings.margin, 36),
+          imageQuality: 0.95,
+          compressImages: false,
+          pdfaLite: true,
+        };
+      }
+      this.saveExportSettings();
+    },
+
+    resizeSelectedTable(rows: number, cols: number) {
+      const el = this.selected;
+      if (!el || el.type !== "table") return;
+      resizeTable(el, rows, cols);
+      this.commit();
+    },
+
+    tableInsertRow() {
+      const el = this.selected;
+      if (!el || el.type !== "table") return;
+      insertTableRow(el, el.rows - 1);
+      this.commit();
+    },
+
+    tableInsertCol() {
+      const el = this.selected;
+      if (!el || el.type !== "table") return;
+      insertTableCol(el, el.cols - 1);
+      this.commit();
+    },
+
+    tableDeleteRow() {
+      const el = this.selected;
+      if (!el || el.type !== "table") return;
+      deleteTableRow(el, el.rows - 1);
+      this.commit();
+    },
+
+    tableDeleteCol() {
+      const el = this.selected;
+      if (!el || el.type !== "table") return;
+      deleteTableCol(el, el.cols - 1);
+      this.commit();
+    },
+
+    setImageObjectFit(fit: "contain" | "cover" | "fill") {
+      const el = this.selected;
+      if (!el || el.type !== "image") return;
+      el.objectFit = fit;
+      this.commit();
+    },
+
+    setImageCrop(edge: "top" | "right" | "bottom" | "left", value: number) {
+      const el = this.selected;
+      if (!el || el.type !== "image") return;
+      const v = Math.min(40, Math.max(0, Math.round(value) || 0));
+      el.crop = {
+        top: el.crop?.top ?? 0,
+        right: el.crop?.right ?? 0,
+        bottom: el.crop?.bottom ?? 0,
+        left: el.crop?.left ?? 0,
+        [edge]: v,
+      };
+      this.commit();
+    },
+
+    resetImageCrop() {
+      const el = this.selected;
+      if (!el || el.type !== "image") return;
+      el.crop = undefined;
+      this.commit();
+    },
+
+    startReplaceImage() {
+      if (this.selected?.type !== "image") return;
+      this.replaceImageId = this.selected.id;
+      const input = (this as unknown as { $refs: { imageInput: HTMLInputElement } }).$refs.imageInput;
+      input?.click();
     },
 
     addMasterPageNumber() {
@@ -1550,6 +1822,7 @@ function pdfEditor() {
       if (!m) return;
       this.activePageIndex = m.pageIndex;
       this.selectedIds = [m.elId];
+      this.findHighlightId = m.elId;
     },
 
     findNext() {
@@ -1760,7 +2033,8 @@ function pdfEditor() {
       }
       if (mod && event.key.toLowerCase() === "v") {
         event.preventDefault();
-        this.pasteClipboard();
+        if (event.shiftKey) this.pasteInPlace();
+        else this.pasteClipboard();
         return;
       }
       if (mod && event.key.toLowerCase() === "g" && !event.shiftKey) {
@@ -1781,7 +2055,16 @@ function pdfEditor() {
       if (mod && event.key.toLowerCase() === "s") {
         event.preventDefault();
         this.commit(false);
-        storeSet(STORAGE_KEY, JSON.stringify(this.doc));
+        this.saveState = "saving";
+        try {
+          const snapshot = JSON.stringify(this.doc);
+          storeSet(STORAGE_KEY, snapshot);
+          storeSet(docKey(this.doc.id), snapshot);
+          this.saveState = "saved";
+          this.showToast("Saved");
+        } catch {
+          this.saveState = "idle";
+        }
         return;
       }
       if (mod && event.key.toLowerCase() === "e") {
@@ -1790,13 +2073,30 @@ function pdfEditor() {
         return;
       }
 
+      if (event.key === "?" || (event.shiftKey && event.key === "/")) {
+        event.preventDefault();
+        this.showShortcuts = !this.showShortcuts;
+        return;
+      }
+
       if (event.key === "Escape") {
+        if (this.showShortcuts) {
+          this.showShortcuts = false;
+          return;
+        }
+        if (this.editingMaster) {
+          this.editingMaster = false;
+          this.masterZone = "header";
+          this.selectedIds = [];
+          return;
+        }
         this.selectedIds = [];
         this.editingTextId = null;
         this.tool = "select";
         this.pendingLibraryKind = null;
         this.placeHint = false;
         this.libraryKeepPlacing = false;
+        this.findHighlightId = null;
         this.showExportModal = false;
         this.showSignatureModal = false;
         this.showFindReplace = false;
@@ -1862,23 +2162,42 @@ function pdfEditor() {
 
       const form = new FormData();
       form.append("image", file);
+      const replaceId = this.replaceImageId;
 
       try {
         const res = await apiFetch("/api/upload", { method: "POST", body: form });
         const payload = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(payload.error || "Upload failed");
 
-        const imageEl = createImage(80, 80, {
-          src: payload.url as string,
-          name: payload.name as string,
-          width: payload.width as number,
-          height: payload.height as number,
-        });
-        this.pushElement(imageEl);
+        if (replaceId) {
+          const existing = this.workingElements.find((e) => e.id === replaceId);
+          if (existing && existing.type === "image") {
+            existing.src = payload.url as string;
+            existing.name = payload.name as string;
+            const nw = payload.width as number;
+            const nh = payload.height as number;
+            if (nw && nh) {
+              const scale = Math.min(existing.width / nw, existing.height / nh, 1);
+              existing.width = Math.round(nw * scale);
+              existing.height = Math.round(nh * scale);
+            }
+            this.commit();
+            this.showToast("Image replaced");
+          }
+        } else {
+          const imageEl = createImage(80, 80, {
+            src: payload.url as string,
+            name: payload.name as string,
+            width: payload.width as number,
+            height: payload.height as number,
+          });
+          this.pushElement(imageEl);
+        }
       } catch (err) {
         console.error(err);
         alert(err instanceof Error ? err.message : "Could not upload image.");
       } finally {
+        this.replaceImageId = null;
         input.value = "";
       }
     },
