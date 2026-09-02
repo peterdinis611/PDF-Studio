@@ -2,10 +2,24 @@
   x-data="pdfEditor"
   @keydown.window="onKeydown($event)"
   class="editor-shell flex h-full flex-col"
+  :class="{
+    'is-compact': isCompact,
+    'rail-open': showLeftPanel,
+    'inspector-open': showInspectorPanel,
+  }"
 >
   {{> editor-toolbar}}
 
-  <div class="flex min-h-0 flex-1">
+  <div class="editor-workspace relative flex min-h-0 flex-1 overflow-hidden">
+    <div
+      class="editor-scrim"
+      x-show="isCompact && (showLeftPanel || showInspectorPanel)"
+      x-cloak
+      x-transition.opacity.duration.150ms
+      @click="closeOverlayPanels()"
+      aria-hidden="true"
+    ></div>
+
     {{> editor-rail}}
 
     {{> editor-canvas}}
@@ -14,16 +28,16 @@
   </div>
 
   <footer class="status-bar">
-    <div class="flex min-w-0 items-center gap-2.5">
-      <span class="status-chip" x-text="'Page ' + (activePageIndex + 1) + ' / ' + doc.pages.length"></span>
-      <span class="status-chip accent" x-show="doc.importedPdf && hasSessionPdf()" x-text="'PDF in memory · ' + (doc.importedPdf.name || 'imported')"></span>
-      <span class="status-chip" x-show="selectedIds.length" x-text="selectedIds.length + ' selected'"></span>
-      <span class="status-chip accent" x-show="editingMaster" x-text="'Master · ' + masterZone"></span>
-      <span class="status-chip accent" x-show="reviewMode">Review</span>
+    <div class="flex min-w-0 items-center gap-1.5 overflow-hidden sm:gap-2.5">
+      <span class="status-chip shrink-0" x-text="'Page ' + (activePageIndex + 1) + '/' + doc.pages.length"></span>
+      <span class="status-chip accent hidden truncate sm:inline-flex" x-show="doc.importedPdf && hasSessionPdf()" x-text="'PDF · ' + (doc.importedPdf.name || 'imported')"></span>
+      <span class="status-chip shrink-0" x-show="selectedIds.length" x-text="selectedIds.length + ' sel'"></span>
+      <span class="status-chip accent hidden sm:inline-flex" x-show="editingMaster" x-text="'Master · ' + masterZone"></span>
+      <span class="status-chip accent hidden sm:inline-flex" x-show="reviewMode">Review</span>
       <span class="status-chip" x-show="saveState === 'saving'">Saving…</span>
       <span class="status-chip accent" x-show="saveState === 'saved'">Saved</span>
     </div>
-    <p class="hidden text-[11px] text-slate-muted md:block">
+    <p class="hidden text-[11px] text-slate-muted lg:block">
       <span class="opacity-70">Space</span> pan
       <span class="mx-2 opacity-30">·</span>
       <span class="opacity-70">⌘ scroll</span> zoom
@@ -34,10 +48,13 @@
       <span class="mx-2 opacity-30">·</span>
       <button type="button" class="opacity-70 hover:text-fg hover:opacity-100" @click="startTour()">Tour</button>
     </p>
-    <div class="flex items-center gap-1.5">
-      <button type="button" class="status-action" @click="fitWidth()">Fit width</button>
-      <button type="button" class="status-action" @click="fitPage()">Fit page</button>
-      <span class="ml-1 font-mono text-[11px] tabular-nums text-slate-muted" x-text="Math.round(zoom * 100) + '%'"></span>
+    <div class="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
+      <button type="button" class="status-action" @click="fitWidth()">
+        <span class="sm:hidden">Fit</span>
+        <span class="hidden sm:inline">Fit width</span>
+      </button>
+      <button type="button" class="status-action hidden sm:inline" @click="fitPage()">Fit page</button>
+      <span class="ml-0.5 font-mono text-[11px] tabular-nums text-slate-muted sm:ml-1" x-text="Math.round(zoom * 100) + '%'"></span>
     </div>
   </footer>
 

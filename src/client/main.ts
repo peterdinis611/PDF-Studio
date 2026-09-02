@@ -32,6 +32,7 @@ import {
   uid,
 } from "./factories.js";
 import { scheduleEditorTour, startEditorTour } from "./tour.js";
+import { markdownToHtml } from "../shared/markdown.js";
 import { allFontOptions, ensureGoogleFontStylesheet, fontCssFamily, googleFamilyCssName } from "./fonts.js";
 import { HistoryStack } from "./history.js";
 import { iconSvg } from "./icons.js";
@@ -251,6 +252,9 @@ function pdfEditor() {
     showTemplates: false,
     showLibrary: true,
     leftRail: "insert" as "insert" | "pages",
+    isCompact: false,
+    showLeftPanel: true,
+    showInspectorPanel: true,
     showExportModal: false,
     showSignatureModal: false,
     showFindReplace: false,
@@ -562,11 +566,47 @@ function pdfEditor() {
         );
       });
 
+      this.bindLayoutMedia();
       scheduleEditorTour();
+    },
+
+    bindLayoutMedia() {
+      const mq = window.matchMedia("(max-width: 1099px)");
+      const apply = () => {
+        const compact = mq.matches;
+        const wasCompact = this.isCompact;
+        this.isCompact = compact;
+        if (compact && !wasCompact) {
+          this.showLeftPanel = false;
+          this.showInspectorPanel = false;
+        } else if (!compact) {
+          this.showLeftPanel = true;
+          this.showInspectorPanel = true;
+        }
+      };
+      apply();
+      mq.addEventListener("change", apply);
+    },
+
+    toggleLeftPanel() {
+      this.showLeftPanel = !this.showLeftPanel;
+      if (this.isCompact && this.showLeftPanel) this.showInspectorPanel = false;
+    },
+
+    toggleInspectorPanel() {
+      this.showInspectorPanel = !this.showInspectorPanel;
+      if (this.isCompact && this.showInspectorPanel) this.showLeftPanel = false;
+    },
+
+    closeOverlayPanels() {
+      if (!this.isCompact) return;
+      this.showLeftPanel = false;
+      this.showInspectorPanel = false;
     },
 
     startTour() {
       this.leftRail = "insert";
+      this.showLeftPanel = true;
       this.showFileMenu = false;
       this.showTemplates = false;
       this.showSettings = false;
@@ -902,6 +942,10 @@ function pdfEditor() {
       } else {
         this.selectedIds = groupMembers;
       }
+      if (this.isCompact && this.selectedIds.length) {
+        this.showInspectorPanel = true;
+        this.showLeftPanel = false;
+      }
     },
 
     onCanvasBackground(event: MouseEvent) {
@@ -909,6 +953,7 @@ function pdfEditor() {
         if (spaceDown || event.button === 1) return;
         this.selectedIds = [];
         this.editingTextId = null;
+        this.closeOverlayPanels();
       }
     },
 
@@ -982,6 +1027,10 @@ function pdfEditor() {
         this.tool = "select";
         this.pendingLibraryKind = null;
         this.placeHint = false;
+      }
+      if (this.isCompact) {
+        this.showLeftPanel = false;
+        this.showInspectorPanel = true;
       }
       this.commit();
       setTimeout(() => {
@@ -1791,6 +1840,7 @@ function pdfEditor() {
       const el = this.selected;
       if (!el || el.type !== "text" || el.locked) return;
       el.content = loremIpsum(size);
+      el.markdown = false;
       if (size === "long") {
         el.width = Math.max(el.width, 360);
         el.height = Math.max(el.height, 160);
@@ -1800,6 +1850,22 @@ function pdfEditor() {
       }
       this.commit();
       this.showToast("Lorem ipsum filled");
+    },
+
+    renderMarkdownHtml(source: string) {
+      return markdownToHtml(source || "");
+    },
+
+    toggleMarkdown(enabled: boolean) {
+      const el = this.selected;
+      if (!el || el.type !== "text" || el.locked) return;
+      el.markdown = Boolean(enabled);
+      if (el.markdown) {
+        el.width = Math.max(el.width, 280);
+        el.height = Math.max(el.height, 120);
+      }
+      this.commit();
+      this.showToast(el.markdown ? "Markdown on" : "Markdown off");
     },
 
     async searchGoogleFonts() {
@@ -2195,6 +2261,10 @@ function pdfEditor() {
           this.showShortcuts = false;
           return;
         }
+        if (this.isCompact && (this.showLeftPanel || this.showInspectorPanel)) {
+          this.closeOverlayPanels();
+          return;
+        }
         if (this.editingMaster) {
           this.editingMaster = false;
           this.masterZone = "header";
@@ -2220,6 +2290,8 @@ function pdfEditor() {
         event.preventDefault();
         this.leftRail = "insert";
         this.showLibrary = true;
+        this.showLeftPanel = true;
+        if (this.isCompact) this.showInspectorPanel = false;
         queueMicrotask(() => {
           const input = (this as unknown as { $refs: { librarySearch?: HTMLInputElement } }).$refs
             .librarySearch;

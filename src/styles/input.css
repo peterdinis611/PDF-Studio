@@ -81,10 +81,32 @@
 
   .editor-chrome {
     @apply bg-rail/90;
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+  }
+
+  .editor-workspace {
+    min-width: 0;
+  }
+
+  .editor-scrim {
+    @apply absolute inset-0 z-[35] bg-black/45 backdrop-blur-[2px];
+  }
+
+  .rail-close {
+    @apply ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-muted transition hover:bg-slate-hover hover:text-fg;
+  }
+
+  .editor-shell:not(.is-compact) .rail-close {
+    display: none;
   }
 
   .rail-tabs {
-    @apply grid grid-cols-2 gap-1 border-b border-slate-line p-2;
+    @apply grid grid-cols-[1fr_1fr_auto] gap-1 border-b border-slate-line p-2;
+  }
+
+  .editor-shell:not(.is-compact) .rail-tabs {
+    @apply grid-cols-2;
   }
 
   .rail-tab {
@@ -185,11 +207,22 @@
   }
 
   .tool-dock {
-    @apply pointer-events-none absolute inset-x-0 bottom-5 z-20 flex justify-center px-4;
+    @apply pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center px-2 sm:bottom-5 sm:px-4;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .tool-dock-scroll {
+    @apply pointer-events-auto max-w-full overflow-x-auto overscroll-x-contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .tool-dock-scroll::-webkit-scrollbar {
+    display: none;
   }
 
   .tool-dock-inner {
-    @apply pointer-events-auto flex items-center gap-0.5 rounded-2xl border border-slate-line/90 bg-rail/95 p-1.5 shadow-page backdrop-blur-xl;
+    @apply flex w-max items-center gap-0.5 rounded-2xl border border-slate-line/90 bg-rail/95 p-1.5 shadow-page backdrop-blur-xl;
     animation: dock-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
@@ -328,7 +361,10 @@
   }
 
   .status-bar {
-    @apply flex h-9 shrink-0 items-center justify-between gap-3 border-t border-slate-line bg-rail px-4;
+    @apply flex h-9 shrink-0 items-center justify-between gap-2 border-t border-slate-line bg-rail px-2 sm:gap-3 sm:px-4;
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
   }
 
   .status-chip {
@@ -358,6 +394,73 @@
 
   .empty-properties {
     @apply px-2 py-12 text-center;
+  }
+
+  /* Compact editor: side panels become drawers over the canvas */
+  @media (max-width: 1099px) {
+    .editor-shell.is-compact .editor-rail,
+    .editor-shell.is-compact .inspector-panel {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      z-index: 40;
+      height: 100%;
+      max-width: min(19rem, 88vw);
+      box-shadow: var(--shadow-page);
+      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.22s;
+      will-change: transform;
+    }
+
+    .editor-shell.is-compact .editor-rail {
+      left: 0;
+      transform: translateX(-105%);
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .editor-shell.is-compact.rail-open .editor-rail {
+      transform: translateX(0);
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .editor-shell.is-compact .inspector-panel {
+      right: 0;
+      left: auto;
+      max-width: min(16rem, 88vw);
+      transform: translateX(105%);
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .editor-shell.is-compact.inspector-open .inspector-panel {
+      transform: translateX(0);
+      visibility: visible;
+      pointer-events: auto;
+    }
+  }
+
+  @media (min-width: 1100px) {
+    .editor-shell:not(.rail-open) .editor-rail {
+      display: none;
+    }
+
+    .editor-shell:not(.inspector-open) .inspector-panel {
+      display: none;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .dock-btn {
+      @apply h-10 w-10;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .editor-shell.is-compact .editor-rail,
+    .editor-shell.is-compact .inspector-panel {
+      transition: none;
+    }
   }
 
   .modal-backdrop {
@@ -1538,6 +1641,86 @@
     color: rgb(var(--color-ink) / 0.35);
   }
 
+  /* —— 500: jammed press / registration fault —— */
+  .nf-page--error .nf-atmosphere {
+    background:
+      radial-gradient(ellipse 90% 55% at 0% 0%, rgb(var(--color-warn) / 0.2), transparent 52%),
+      radial-gradient(ellipse 45% 35% at 100% 15%, rgb(var(--color-warn) / 0.1), transparent 48%),
+      linear-gradient(
+        160deg,
+        rgb(var(--color-panel)) 0%,
+        rgb(var(--color-rail)) 48%,
+        rgb(var(--color-panel)) 100%
+      );
+  }
+
+  .nf-page--error .nf-crop {
+    border-color: rgb(var(--color-warn) / 0.65);
+  }
+
+  .nf-page--error .nf-grid {
+    mask-image: radial-gradient(ellipse 70% 60% at 70% 55%, #000 20%, transparent 75%);
+    opacity: 0.4;
+  }
+
+  .nf-reg--fault {
+    transform: translate(6px, -4px);
+  }
+
+  .nf-reg--fault::before,
+  .nf-reg--fault::after {
+    background: rgb(var(--color-warn) / 0.85);
+  }
+
+  .nf-leaf--skew.nf-leaf--3 {
+    transform: rotate(-4.5deg) translate(-10px, 6px);
+  }
+
+  .nf-leaf--skew.nf-leaf--2 {
+    transform: rotate(3.2deg) translate(8px, -4px);
+  }
+
+  .nf-leaf--fault {
+    box-shadow:
+      0 18px 40px rgb(0 0 0 / 0.28),
+      inset 0 0 0 1px rgb(var(--color-warn) / 0.25);
+  }
+
+  .nf-smear {
+    position: absolute;
+    inset: 18% 8% 30% 55%;
+    background: linear-gradient(
+      115deg,
+      transparent 0%,
+      rgb(var(--color-warn) / 0.12) 35%,
+      rgb(var(--color-warn) / 0.28) 55%,
+      transparent 78%
+    );
+    filter: blur(1px);
+    pointer-events: none;
+    animation: nf-smear-pulse 3.8s ease-in-out infinite;
+  }
+
+  .nf-missing--fault {
+    border-color: rgb(var(--color-warn) / 0.55);
+    background:
+      repeating-linear-gradient(
+        -42deg,
+        transparent,
+        transparent 6px,
+        rgb(var(--color-warn) / 0.07) 6px,
+        rgb(var(--color-warn) / 0.07) 7px
+      );
+  }
+
+  .nf-missing--fault .nf-missing-code {
+    color: rgb(var(--color-warn));
+  }
+
+  .nf-detail {
+    animation: nf-copy-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+  }
+
   .nf-btn-home:hover {
     transform: translateY(-1px);
   }
@@ -1573,7 +1756,8 @@
     .nf-press-frame,
     .nf-leaf--3,
     .nf-leaf--2,
-    .nf-missing-code {
+    .nf-missing-code,
+    .nf-smear {
       animation: none !important;
     }
 
@@ -1663,6 +1847,18 @@
   }
   50% {
     opacity: 0.85;
+  }
+}
+
+@keyframes nf-smear-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translateX(0);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateX(4px);
   }
 }
 
@@ -1987,6 +2183,118 @@
 
 .driver-overlay {
   background: rgb(10 12 18 / 0.7) !important;
+}
+
+/* TanStack Markdown preview on canvas */
+.md-block {
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  text-align: inherit;
+}
+
+.md-block > *:first-child {
+  margin-top: 0;
+}
+
+.md-block > *:last-child {
+  margin-bottom: 0;
+}
+
+.md-block h1,
+.md-block h2,
+.md-block h3,
+.md-block h4 {
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0 0 0.4em;
+}
+
+.md-block h1 {
+  font-size: 1.55em;
+}
+
+.md-block h2 {
+  font-size: 1.3em;
+}
+
+.md-block h3 {
+  font-size: 1.15em;
+}
+
+.md-block p {
+  margin: 0 0 0.55em;
+}
+
+.md-block ul,
+.md-block ol {
+  margin: 0 0 0.55em;
+  padding-left: 1.25em;
+}
+
+.md-block li {
+  margin: 0.15em 0;
+}
+
+.md-block blockquote {
+  margin: 0 0 0.55em;
+  padding-left: 0.75em;
+  border-left: 3px solid rgb(var(--color-accent));
+  opacity: 0.9;
+}
+
+.md-block code {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.9em;
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  background: rgb(var(--color-line) / 0.45);
+}
+
+.md-block pre {
+  margin: 0 0 0.55em;
+  padding: 0.5em 0.65em;
+  border-radius: 8px;
+  overflow: auto;
+  background: rgb(var(--color-line) / 0.35);
+}
+
+.md-block pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.md-block a {
+  color: rgb(var(--color-accent-soft));
+  text-decoration: underline;
+}
+
+.md-block strong {
+  font-weight: 700;
+}
+
+.md-block em {
+  font-style: italic;
+}
+
+.md-block hr {
+  border: none;
+  border-top: 1px solid rgb(var(--color-line));
+  margin: 0.6em 0;
+}
+
+.md-block table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 0.55em;
+  font-size: 0.92em;
+}
+
+.md-block th,
+.md-block td {
+  border: 1px solid rgb(var(--color-line));
+  padding: 0.25em 0.4em;
+  text-align: left;
 }
 
 @media (prefers-reduced-motion: reduce) {

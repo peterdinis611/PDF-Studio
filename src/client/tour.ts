@@ -1,4 +1,4 @@
-import { driver, type DriveStep } from "driver.js";
+import { driver, type DriveStep, type Driver } from "driver.js";
 
 export const TOUR_SEEN_KEY = "pdf-studio-tour-seen";
 
@@ -85,6 +85,25 @@ const steps: DriveStep[] = [
   },
 ];
 
+let activeTour: Driver | null = null;
+let schedulePending = false;
+let scheduleTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Test-only: clear singleton tour / schedule state. */
+export function resetTourStateForTests(): void {
+  if (scheduleTimer) clearTimeout(scheduleTimer);
+  scheduleTimer = null;
+  schedulePending = false;
+  if (activeTour) {
+    try {
+      if (activeTour.isActive()) activeTour.destroy();
+    } catch {
+      /* ignore */
+    }
+  }
+  activeTour = null;
+}
+
 function markTourSeen(): void {
   try {
     localStorage.setItem(TOUR_SEEN_KEY, "1");
@@ -101,7 +120,30 @@ export function hasSeenEditorTour(): boolean {
   }
 }
 
+function destroyActiveTour(): void {
+  if (!activeTour) return;
+  const current = activeTour;
+  activeTour = null;
+  try {
+    if (current.isActive()) current.destroy();
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Remove leftover driver DOM if a previous instance leaked. */
+function scrubDriverDom(): void {
+  document.querySelectorAll(".driver-overlay, .driver-popover, .driver-active-element").forEach((el) => {
+    el.remove();
+  });
+  document.body.classList.remove("driver-active", "driver-fade", "driver-simple");
+  document.documentElement.classList.remove("driver-active", "driver-fade", "driver-simple");
+}
+
 export function startEditorTour(): void {
+  destroyActiveTour();
+  scrubDriverDom();
+
   const tour = driver({
     showProgress: true,
     animate: true,
@@ -116,14 +158,28 @@ export function startEditorTour(): void {
     progressText: "{{current}} / {{total}}",
     steps,
     onDestroyStarted: () => {
+      if (!tour.isActive()) return;
       markTourSeen();
+      activeTour = null;
       tour.destroy();
     },
     onDestroyed: () => {
       markTourSeen();
+      if (activeTour === tour) activeTour = null;
+      scrubDriverDom();
     },
   });
+
+  activeTour = tour;
   tour.drive();
+}
+
+function clearSchedule(): void {
+  schedulePending = false;
+  if (scheduleTimer) {
+    clearTimeout(scheduleTimer);
+    scheduleTimer = null;
+  }
 }
 
 /** Start tour after preload fades, once per browser unless forced. */
@@ -132,28 +188,34 @@ export function scheduleEditorTour(options?: { force?: boolean }): void {
     options?.force ||
     (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("tour"));
   if (!force && hasSeenEditorTour()) return;
+  if (schedulePending || (activeTour?.isActive() ?? false)) return;
 
-  const run = () => {
-    // Ensure Insert tab is visible for early steps
-    window.setTimeout(() => startEditorTour(), 200);
+  schedulePending = true;
+
+  const runOnce = () => {
+    if (!schedulePending) return;
+    clearSchedule();
+    if (!force && hasSeenEditorTour()) return;
+    if (activeTour?.isActive()) return;
+    startEditorTour();
   };
 
   const preload = document.getElementById("preload");
-  if (!preload || preload.classList.contains("is-done")) {
-    window.setTimeout(run, force ? 400 : 900);
+  if (!preload || preload.classList.contains("is-done") || !document.body.contains(preload)) {
+    scheduleTimer = setTimeout(runOnce, force ? 450 : 1000);
     return;
   }
 
   const observer = new MutationObserver(() => {
-    if (!document.getElementById("preload")) {
-      observer.disconnect();
-      run();
-    }
+    if (document.getElementById("preload")) return;
+    observer.disconnect();
+    scheduleTimer = setTimeout(runOnce, 250);
   });
   observer.observe(document.body, { childList: true, subtree: true });
-  // Fallback if preload never removes
-  window.setTimeout(() => {
+
+  // Single fallback — does not stack a second tour if observer already ran
+  scheduleTimer = setTimeout(() => {
     observer.disconnect();
-    if (force || !hasSeenEditorTour()) run();
-  }, 4000);
+    runOnce();
+  }, 4500);
 }

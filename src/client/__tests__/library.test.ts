@@ -4,6 +4,7 @@ import {
   matchesLibraryQuery,
   searchLibraryItems,
 } from "../library.js";
+import type { TextElement, FormTextElement, IconElement } from "../../shared/types.js";
 
 describe("matchesLibraryQuery", () => {
   const item = LIBRARY_ITEMS.find((i) => i.id === "text")!;
@@ -25,6 +26,13 @@ describe("matchesLibraryQuery", () => {
       expect(matchesLibraryQuery(item, "txt")).toBe(true);
       expect(matchesLibraryQuery(item, "paragrah")).toBe(true);
     });
+
+    it("finds markdown and lorem presets by tag", () => {
+      const md = LIBRARY_ITEMS.find((i) => i.id === "markdown")!;
+      const lorem = LIBRARY_ITEMS.find((i) => i.id === "lorem")!;
+      expect(matchesLibraryQuery(md, "tanstack")).toBe(true);
+      expect(matchesLibraryQuery(lorem, "dummy")).toBe(true);
+    });
   });
 
   describe("negative", () => {
@@ -44,6 +52,11 @@ describe("searchLibraryItems", () => {
     it("ranks fuzzy matches and keeps known hits", () => {
       const hits = searchLibraryItems(LIBRARY_ITEMS, "rect");
       expect(hits.some((i) => i.id === "rect" || i.label.toLowerCase().includes("rect"))).toBe(true);
+    });
+
+    it("finds fillable form items", () => {
+      const hits = searchLibraryItems(LIBRARY_ITEMS, "fillable");
+      expect(hits.some((i) => i.id.startsWith("fill-"))).toBe(true);
     });
   });
 
@@ -72,13 +85,53 @@ describe("createFromLibrary", () => {
       expect(createFromLibrary("image", 0, 0)).toBe("image");
       expect(createFromLibrary("signature", 0, 0)).toBe("signature");
     });
+
+    it("creates a markdown text preset with markdown flag", () => {
+      const el = createFromLibrary("preset:markdown", 12, 24);
+      expect(typeof el).not.toBe("string");
+      if (typeof el === "string") return;
+      expect(el.type).toBe("text");
+      const text = el as TextElement;
+      expect(text.markdown).toBe(true);
+      expect(text.content).toMatch(/Markdown/i);
+      expect(text.x).toBe(12);
+    });
+
+    it("creates fillable form elements", () => {
+      const field = createFromLibrary("formText", 0, 0);
+      expect(typeof field).not.toBe("string");
+      if (typeof field === "string") return;
+      expect(field.type).toBe("formText");
+      expect((field as FormTextElement).placeholder).toBeTruthy();
+    });
+
+    it("creates icon elements from icon: kinds", () => {
+      const icon = createFromLibrary("icon:calendar", 5, 5);
+      expect(typeof icon).not.toBe("string");
+      if (typeof icon === "string") return;
+      expect(icon.type).toBe("icon");
+      expect((icon as IconElement).icon).toBe("calendar");
+    });
   });
 
   describe("negative", () => {
     it("does not return a drawable element for image kind", () => {
       const result = createFromLibrary("image", 5, 5);
       expect(result).toBe("image");
-      expect(typeof result === "object" && result && "type" in result).toBe(false);
     });
+  });
+});
+
+describe("LIBRARY_ITEMS inventory", () => {
+  it("has unique ids", () => {
+    const ids = LIBRARY_ITEMS.map((i) => i.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("includes recent additions", () => {
+    const ids = new Set(LIBRARY_ITEMS.map((i) => i.id));
+    for (const id of ["markdown", "lorem", "fill-text", "icon-globe", "stamp-rejected"]) {
+      expect(ids.has(id)).toBe(true);
+    }
   });
 });

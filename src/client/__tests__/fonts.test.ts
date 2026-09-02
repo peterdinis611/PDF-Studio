@@ -1,4 +1,10 @@
-import { allFontOptions, fontCssFamily, STANDARD_FONTS } from "../fonts.js";
+import {
+  allFontOptions,
+  fontCssFamily,
+  googleFamilyCssName,
+  googleFontsStylesheetUrl,
+  STANDARD_FONTS,
+} from "../fonts.js";
 
 describe("fontCssFamily", () => {
   describe("positive", () => {
@@ -12,6 +18,7 @@ describe("fontCssFamily", () => {
       expect(fontCssFamily("Inter")).toContain("Inter");
       expect(fontCssFamily("OpenSans")).toContain("Open Sans");
       expect(fontCssFamily("Playfair")).toContain("Playfair Display");
+      expect(fontCssFamily("Montserrat")).toContain("Montserrat");
       expect(fontCssFamily("google:Poppins" as never)).toContain("Poppins");
     });
   });
@@ -27,18 +34,50 @@ describe("fontCssFamily", () => {
   });
 });
 
+describe("googleFamilyCssName / googleFontsStylesheetUrl", () => {
+  describe("positive", () => {
+    it("resolves bundled and google: ids", () => {
+      expect(googleFamilyCssName("OpenSans")).toBe("Open Sans");
+      expect(googleFamilyCssName("google:Poppins")).toBe("Poppins");
+    });
+
+    it("builds a Google CSS2 URL", () => {
+      const url = googleFontsStylesheetUrl("Open Sans");
+      expect(url).toContain("fonts.googleapis.com/css2");
+      expect(url).toContain("Open+Sans");
+      expect(url).toContain("ital,wght@");
+    });
+  });
+
+  describe("negative", () => {
+    it("returns null for standard PDF fonts", () => {
+      expect(googleFamilyCssName("Helvetica")).toBeNull();
+      expect(googleFamilyCssName("google:")).toBeNull();
+    });
+  });
+});
+
 describe("allFontOptions", () => {
   describe("positive", () => {
     it("includes standard and Google fonts without duplicates", () => {
       const options = allFontOptions();
       const ids = options.map((o) => o.id);
-      expect(ids).toEqual(expect.arrayContaining(["Helvetica", "Inter", "Lora"]));
+      expect(ids).toEqual(expect.arrayContaining(["Helvetica", "Inter", "Lora", "Nunito"]));
       expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it("merges extra google fonts without duplicating", () => {
+      const options = allFontOptions([
+        { id: "google:Poppins", label: "Poppins" },
+        { id: "Inter", label: "Inter again" },
+      ]);
+      expect(options.filter((o) => o.id === "Inter")).toHaveLength(1);
+      expect(options.some((o) => o.id === "google:Poppins")).toBe(true);
     });
   });
 
   describe("negative", () => {
-    it("does not include custom upload placeholders", () => {
+    it("does not include custom upload placeholders by default", () => {
       const ids = allFontOptions().map((o) => o.id);
       expect(ids.some((id) => id.startsWith("custom:"))).toBe(false);
     });

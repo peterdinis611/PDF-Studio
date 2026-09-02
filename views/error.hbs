@@ -1,0 +1,94 @@
+<div class="nf-page nf-page--error relative flex h-full flex-col overflow-y-auto" x-data="themeToggle">
+  <div class="nf-atmosphere pointer-events-none absolute inset-0" aria-hidden="true"></div>
+  <div class="nf-grain pointer-events-none absolute inset-0" aria-hidden="true"></div>
+  <div class="nf-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>
+
+  <header class="nf-header relative z-30 flex items-center justify-between px-5 py-4 md:px-10">
+    <a href="/" class="flex items-center gap-2.5">
+      <span class="site-mark">PS</span>
+      <span class="font-display text-base font-semibold tracking-tight text-fg">PDF Studio</span>
+    </a>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="tool-btn h-9 w-9"
+        @click="toggleTheme()"
+        :title="theme === 'dark' ? 'Light mode' : 'Dark mode'"
+      >
+        <svg x-show="theme === 'dark'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.4 6.4l-1.4-1.4M7 7L5.6 5.6m12.8 0L17 7M7 17l-1.4 1.4M12 8a4 4 0 100 8 4 4 0 000-8z" />
+        </svg>
+        <svg x-show="theme === 'light'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
+        </svg>
+      </button>
+      <a href="/editor" class="btn-primary">Open editor</a>
+    </div>
+  </header>
+
+  <main class="relative z-20 flex min-h-0 flex-1 flex-col lg:flex-row lg:items-stretch">
+    <section class="nf-copy relative flex flex-1 flex-col justify-center px-6 pb-10 pt-4 md:px-10 lg:max-w-[48%] lg:pb-16 lg:pt-0">
+      <p class="nf-kicker font-mono text-[11px] uppercase tracking-[0.28em] text-warn">
+        Error · press jammed
+      </p>
+      <h1 class="nf-brand mt-4 font-display text-[clamp(2.75rem,8vw,5.5rem)] font-semibold leading-[0.92] tracking-tight text-fg">
+        PDF Studio
+      </h1>
+      <p class="nf-headline mt-6 max-w-md text-xl font-medium leading-snug text-fg/85 md:text-2xl">
+        The press stopped mid-run.
+      </p>
+      <p class="nf-support mt-3 max-w-sm text-[15px] leading-relaxed text-slate-muted">
+        Something broke on our side while setting this sheet. Give it a moment, then try again — or head home and start a fresh plate.
+      </p>
+      {{#if detail}}
+      <pre class="nf-detail mt-5 max-w-md overflow-x-auto rounded-xl border border-warn/30 bg-rail/80 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-warn">{{detail}}</pre>
+      {{/if}}
+      <div class="nf-cta mt-10 flex flex-wrap gap-3">
+        <a
+          href="/"
+          class="nf-btn-home inline-flex items-center gap-2 rounded-xl bg-fg px-5 py-3 text-sm font-semibold transition hover:opacity-90"
+          style="color: rgb(var(--color-panel))"
+        >
+          Back home
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </a>
+        <button
+          type="button"
+          class="nf-btn-blank inline-flex items-center rounded-xl border border-slate-line px-5 py-3 text-sm font-medium text-fg transition hover:border-warn hover:text-warn"
+          onclick="window.location.reload()"
+        >
+          Try again
+        </button>
+      </div>
+      <p class="nf-meta mt-12 font-mono text-[10px] tracking-wide text-slate-muted/80">
+        HTTP 500 · internal fault · hold the run
+      </p>
+    </section>
+
+    <section class="nf-press relative min-h-[52vh] flex-1 lg:min-h-0" aria-hidden="true">
+      <div class="nf-press-frame">
+        <div class="nf-crop nf-crop--tl"></div>
+        <div class="nf-crop nf-crop--tr"></div>
+        <div class="nf-crop nf-crop--bl"></div>
+        <div class="nf-crop nf-crop--br"></div>
+        <div class="nf-reg nf-reg--fault" title="registration fault"></div>
+
+        <div class="nf-stack">
+          <div class="nf-leaf nf-leaf--3 nf-leaf--skew"></div>
+          <div class="nf-leaf nf-leaf--2 nf-leaf--skew"></div>
+          <div class="nf-leaf nf-leaf--1 nf-leaf--fault">
+            <div class="nf-rule-lines"></div>
+            <div class="nf-smear"></div>
+            <div class="nf-missing nf-missing--fault">
+              <span class="nf-missing-code">500</span>
+              <span class="nf-missing-label">server fault</span>
+            </div>
+            <div class="nf-folio">ERR / RUN</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>

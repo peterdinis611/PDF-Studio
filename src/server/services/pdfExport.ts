@@ -25,6 +25,7 @@ import {
   type TextElement,
   type DocWatermark,
 } from "../../shared/types.js";
+import { markdownToPlainText } from "../../shared/markdown.js";
 import { resolveUploadPath, base64ToBytes } from "./pdfImport.js";
 import { embedGoogleFonts, pickGoogleFont, type FontNeed } from "./fontEmbed.js";
 
@@ -165,7 +166,10 @@ function substituteTokens(text: string, pageIndex: number, pageCount: number) {
 }
 
 function formatTextLines(el: TextElement, pageIndex: number, pageCount: number): string[] {
-  let content = substituteTokens(el.content || "", pageIndex, pageCount);
+  let content = el.markdown
+    ? markdownToPlainText(el.content || "")
+    : el.content || "";
+  content = substituteTokens(content, pageIndex, pageCount);
   const raw = content.split("\n");
   if (el.listStyle === "bullet") {
     return raw.map((line) => (line.trim() ? `• ${line}` : line));

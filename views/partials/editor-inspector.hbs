@@ -1,8 +1,25 @@
-<aside class="inspector-panel flex w-[15.5rem] shrink-0 flex-col border-l border-slate-line bg-rail md:w-64" data-tour="inspector">
+<aside
+  class="inspector-panel flex w-[min(16rem,88vw)] shrink-0 flex-col border-l border-slate-line bg-rail md:w-64"
+  data-tour="inspector"
+  :aria-hidden="isCompact && !showInspectorPanel"
+>
   <div class="border-b border-slate-line px-3 py-3">
     <div class="flex items-center justify-between gap-2">
       <span class="text-xs font-semibold tracking-wide text-fg">Properties</span>
-      <span class="truncate rounded-md bg-slate-hover px-1.5 py-0.5 font-mono text-[10px] uppercase text-slate-muted" x-show="selected" x-text="selected?.type"></span>
+      <div class="flex min-w-0 items-center gap-1.5">
+        <span class="truncate rounded-md bg-slate-hover px-1.5 py-0.5 font-mono text-[10px] uppercase text-slate-muted" x-show="selected" x-text="selected?.type"></span>
+        <button
+          type="button"
+          class="rail-close"
+          @click="showInspectorPanel = false"
+          title="Close"
+          aria-label="Close properties"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -84,6 +101,11 @@
           <div>
             <label class="panel-label">Content</label>
             <textarea class="panel-input min-h-[5rem] resize-y" x-model="selected.content" @change="persist()"></textarea>
+            <label class="mt-2 flex items-center gap-2 text-sm text-slate-muted">
+              <input type="checkbox" class="accent-accent" :checked="!!selected.markdown" @change="toggleMarkdown($event.target.checked)" />
+              Markdown
+              <span class="text-[10px] opacity-70">(TanStack)</span>
+            </label>
             <div class="mt-1.5 flex flex-wrap gap-1.5">
               <button type="button" class="btn-ghost text-xs" @click="fillLoremIpsum('short')" title="Short sentence">Lorem · short</button>
               <button type="button" class="btn-ghost text-xs" @click="fillLoremIpsum('medium')" title="One paragraph">Lorem · para</button>

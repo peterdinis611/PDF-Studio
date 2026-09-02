@@ -30,8 +30,15 @@ describe("GOOGLE_FONTS", () => {
     it("lists the fonts used by the editor", () => {
       const ids = GOOGLE_FONTS.map((f) => f.id);
       expect(ids).toEqual(
-        expect.arrayContaining(["Inter", "Roboto", "OpenSans", "Lora", "Playfair"]),
+        expect.arrayContaining(["Inter", "Roboto", "OpenSans", "Lora", "Playfair", "Montserrat"]),
       );
+    });
+
+    it("includes googleFamily names for CSS API requests", () => {
+      for (const font of GOOGLE_FONTS) {
+        expect(font.googleFamily.length).toBeGreaterThan(0);
+      }
+      expect(GOOGLE_FONTS.find((f) => f.id === "OpenSans")?.googleFamily).toBe("Open Sans");
     });
   });
 

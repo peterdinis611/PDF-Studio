@@ -18,6 +18,7 @@ import {
   createText,
 } from "./factories.js";
 import { loremIpsum } from "./lorem.js";
+import { MARKDOWN_SAMPLE } from "../shared/markdown.js";
 import type { PdfElement } from "../shared/types.js";
 
 export type LibraryCategory =
@@ -85,6 +86,15 @@ export const LIBRARY_ITEMS: LibraryItem[] = [
     tags: ["text", "lorem", "ipsum", "placeholder", "dummy"],
     kind: "preset:lorem",
     preview: "¶",
+  },
+  {
+    id: "markdown",
+    category: "basics",
+    label: "Markdown",
+    hint: "TanStack Markdown block",
+    tags: ["markdown", "md", "rich", "tanstack"],
+    kind: "preset:markdown",
+    preview: "MD",
   },
   {
     id: "image",
@@ -1354,6 +1364,16 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         width: 400,
         height: 120,
         color: "#334155",
+        lineHeight: 1.4,
+      });
+    case "markdown":
+      return createText(x, y, {
+        content: MARKDOWN_SAMPLE,
+        markdown: true,
+        fontSize: 12,
+        width: 360,
+        height: 200,
+        color: "#1e293b",
         lineHeight: 1.4,
       });
     case "subhead":

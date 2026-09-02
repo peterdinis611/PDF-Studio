@@ -182,6 +182,51 @@ app.use(noStoreHtml, (req, res) => {
   });
 });
 
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+  const message = err instanceof Error ? err.message : "Internal server error";
+  const status = typeof (err as { status?: number })?.status === "number"
+    ? (err as { status: number }).status
+    : typeof (err as { statusCode?: number })?.statusCode === "number"
+      ? (err as { statusCode: number }).statusCode
+      : 500;
+  const code = status >= 400 && status < 600 ? status : 500;
+
+  logger.error({ err, path: req.originalUrl, method: req.method }, message);
+  audit("error", "http.error", `Unhandled error: ${req.method} ${req.originalUrl}`, {
+    sessionId: req.sessionId,
+    req: requestContext(req, code),
+    meta: { error: message },
+  });
+
+  if (res.headersSent) return;
+
+  res.setHeader("Cache-Control", "no-store");
+
+  const wantsJson =
+    req.path.startsWith("/api") ||
+    req.xhr ||
+    req.accepts(["html", "json"]) === "json";
+
+  if (wantsJson) {
+    res.status(code).json({
+      error: isProd && code >= 500 ? "Internal server error" : message,
+    });
+    return;
+  }
+
+  if (code === 404) {
+    res.status(404).render("not-found", {
+      title: "Page not found — PDF Studio",
+    });
+    return;
+  }
+
+  res.status(code).render("error", {
+    title: "Something went wrong — PDF Studio",
+    detail: isProd ? null : message,
+  });
+});
+
 app.listen(PORT, HOST, () => {
   audit("info", "server.start", `Listening on http://${HOST}:${PORT}`, {
     meta: { env: isProd ? "production" : "development", port: PORT },
