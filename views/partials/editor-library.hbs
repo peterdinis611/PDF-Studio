@@ -1,0 +1,119 @@
+<aside
+  class="library-panel flex shrink-0 flex-col border-r border-slate-line bg-slate-panel transition-all duration-300 ease-out"
+  :class="showLibrary ? 'w-60 md:w-72' : 'w-10'"
+>
+  <div class="flex items-center justify-between border-b border-slate-line px-2 py-2.5">
+    <span class="text-xs font-medium uppercase tracking-wider text-slate-muted" x-show="showLibrary" x-transition>Insert</span>
+    <div class="flex items-center gap-0.5">
+      <button
+        type="button"
+        class="tool-btn h-8 w-8"
+        x-show="showLibrary"
+        @click="libraryView = libraryView === 'list' ? 'grid' : 'list'"
+        :title="libraryView === 'list' ? 'Grid view' : 'List view'"
+      >
+        <span class="text-[10px] font-bold" x-text="libraryView === 'list' ? '▦' : '☰'"></span>
+      </button>
+      <button
+        type="button"
+        class="tool-btn h-8 w-8"
+        @click="showLibrary = !showLibrary"
+        :title="showLibrary ? 'Hide library' : 'Show library'"
+      >
+        <svg class="h-4 w-4 transition-transform duration-300" :class="showLibrary ? '' : 'rotate-180'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="flex min-h-0 flex-1 flex-col" x-show="showLibrary" x-transition.opacity.duration.200ms>
+    <div class="border-b border-slate-line p-2">
+      <input
+        type="search"
+        class="panel-input text-xs"
+        placeholder="Search elements…  /"
+        x-model="libraryQuery"
+        x-ref="librarySearch"
+        @keydown.escape.stop="libraryQuery = ''"
+      />
+      <label class="mt-2 flex items-center justify-between gap-2 text-[10px] text-slate-muted">
+        <span>Keep placing</span>
+        <input type="checkbox" class="accent-accent" x-model="libraryKeepPlacing" />
+      </label>
+    </div>
+
+    <div class="flex flex-wrap gap-1 border-b border-slate-line p-2">
+      <template x-for="cat in libraryCategories" :key="cat.id">
+        <button
+          type="button"
+          class="rounded-md px-2 py-1 text-[10px] font-medium uppercase tracking-wide transition"
+          :class="libraryCategory === cat.id ? 'bg-accent/20 text-accent-soft ring-1 ring-accent/30' : 'text-slate-muted hover:bg-slate-hover hover:text-fg'"
+          @click="libraryCategory = cat.id"
+          x-text="cat.label"
+        ></button>
+      </template>
+    </div>
+
+    <div class="flex items-center justify-between px-2.5 py-1.5 text-[10px] text-slate-muted">
+      <span x-text="filteredLibrary.length + ' items'"></span>
+      <button
+        type="button"
+        class="hover:text-fg"
+        x-show="libraryQuery"
+        @click="libraryQuery = ''"
+      >Clear</button>
+    </div>
+
+    <div
+      class="flex-1 overflow-y-auto p-2"
+      :class="libraryView === 'grid' ? 'grid grid-cols-2 content-start gap-1.5' : 'space-y-1'"
+    >
+      <template x-for="(item, idx) in filteredLibrary" :key="item.id">
+        <div class="group relative" :style="`animation-delay: ${Math.min(idx, 20) * 20}ms`">
+          <button
+            type="button"
+            class="library-card w-full rounded-lg border border-transparent text-left transition hover:border-accent/40 hover:bg-slate-hover"
+            :class="[
+              pendingLibraryKind === item.kind ? 'border-accent bg-accent/10' : '',
+              libraryView === 'grid' ? 'flex flex-col items-center gap-1.5 px-1.5 py-2.5' : 'flex items-center gap-2.5 px-2 py-2'
+            ]"
+            @click="pickLibraryItem(item)"
+            @dblclick.prevent="insertLibraryQuick(item)"
+            :title="item.hint + ' · Click place · Double-click center'"
+          >
+            <span
+              class="flex shrink-0 items-center justify-center rounded-md bg-slate-hover text-accent-soft transition group-hover:scale-110 group-hover:bg-accent/20"
+              :class="libraryView === 'grid' ? 'h-10 w-10 text-base' : 'h-9 w-9 text-sm'"
+              x-text="item.preview"
+            ></span>
+            <span class="min-w-0" :class="libraryView === 'grid' ? 'w-full text-center' : ''">
+              <span class="block truncate text-xs font-medium text-fg" x-text="item.label"></span>
+              <span class="block truncate text-[10px] text-slate-muted" x-show="libraryView === 'list'" x-text="item.hint"></span>
+            </span>
+          </button>
+          <button
+            type="button"
+            class="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded text-[11px] text-slate-muted hover:bg-slate-hover hover:text-accent-soft group-hover:flex"
+            :class="isFavorite(item.id) ? '!flex text-accent-soft' : ''"
+            @click.stop="toggleFavorite(item.id)"
+            title="Favorite"
+            x-text="isFavorite(item.id) ? '★' : '☆'"
+          ></button>
+        </div>
+      </template>
+
+      <p
+        x-show="filteredLibrary.length === 0"
+        class="col-span-2 px-2 py-6 text-center text-xs text-slate-muted"
+      >
+        No matches. Try another category or search term.
+      </p>
+    </div>
+
+    <div class="space-y-1 border-t border-slate-line px-2 py-2 text-[10px] leading-relaxed text-slate-muted">
+      <p>Click → place on page · Double-click → center</p>
+      <p x-show="libraryKeepPlacing" class="text-accent-soft">Multi-place on — Esc to stop</p>
+    </div>
+  </div>
+</aside>

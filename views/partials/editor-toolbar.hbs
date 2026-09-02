@@ -1,0 +1,316 @@
+<header class="editor-chrome relative z-30 flex h-13 shrink-0 items-center gap-2 border-b border-slate-line px-3 md:gap-3 md:px-4" style="height: 3.25rem">
+  <a href="/" class="group flex items-center gap-2.5 pr-1" title="Home">
+    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-xs font-bold tracking-tight text-white shadow-sm transition group-hover:bg-accent-dim">PS</span>
+    <span class="hidden text-sm font-semibold tracking-tight text-fg lg:inline">PDF Studio</span>
+  </a>
+
+  <div class="h-5 w-px bg-slate-line"></div>
+
+  <input
+    type="text"
+    class="doc-title-input max-w-[7.5rem] sm:max-w-[14rem]"
+    x-model="doc.name"
+    @change="persist()"
+    aria-label="Document name"
+    placeholder="Untitled"
+  />
+
+  <div class="flex items-center rounded-lg border border-slate-line bg-slate-hover/40 p-0.5">
+    <button type="button" class="tool-btn h-7 w-7" :disabled="!canUndo" @click="undo()" title="Undo (⌘Z)">
+      <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 14l-4-4 4-4m-4 4h11a4 4 0 010 8h-1" />
+      </svg>
+    </button>
+    <button type="button" class="tool-btn h-7 w-7" :disabled="!canRedo" @click="redo()" title="Redo (⌘Y)">
+      <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 14l4-4-4-4m4 4H8a4 4 0 000 8h1" />
+      </svg>
+    </button>
+  </div>
+
+  <div class="relative hidden sm:block">
+    <button
+      type="button"
+      class="btn-ghost"
+      :class="showFileMenu && 'border-accent text-accent-soft'"
+      @click="showFileMenu = !showFileMenu; showTemplates = false; showSettings = false"
+    >
+      File
+      <svg class="ml-1 h-3 w-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
+    <div
+      x-show="showFileMenu"
+      x-cloak
+      x-transition.opacity.duration.150ms
+      @click.outside="showFileMenu = false"
+      class="menu-popover absolute left-0 top-full z-50 mt-1.5 w-52 py-1"
+    >
+      <button type="button" class="menu-item" @click="showFileMenu = false; newDocument()">New document</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; showDocLibrary = true">Open library…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; $refs.pdfInput.click()">Import PDF…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; $refs.jsonInput.click()">Open JSON…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; openSignatureModal()">Sign PDF…</button>
+      <div class="my-1 border-t border-slate-line"></div>
+      <button type="button" class="menu-item" @click="showFileMenu = false; downloadStudioJson()">Share as JSON</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; openExportModal()">Export PDF…</button>
+    </div>
+  </div>
+
+  <button
+    type="button"
+    class="btn-ghost hidden sm:inline-flex"
+    :class="showTemplates && 'border-accent text-accent-soft'"
+    @click="showTemplates = !showTemplates; showFileMenu = false; showSettings = false"
+  >
+    Templates
+  </button>
+
+  <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
+    <button
+      type="button"
+      class="tool-btn h-8 w-8"
+      @click="showFindReplace = true"
+      title="Find (⌘F)"
+    >
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.3-4.3M11 18a7 7 0 100-14 7 7 0 000 14z" />
+      </svg>
+    </button>
+
+    <button
+      type="button"
+      class="tool-btn h-8 w-8 hidden md:flex"
+      @click="showBrandKit = true"
+      title="Brand kit"
+    >
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.5M12 5h7a2 2 0 012 2v2" />
+      </svg>
+    </button>
+
+    <button
+      type="button"
+      class="tool-btn h-8 w-8"
+      @click="toggleTheme()"
+      :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+      :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+    >
+      <svg x-show="theme === 'dark'" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.4 6.4l-1.4-1.4M7 7L5.6 5.6m12.8 0L17 7M7 17l-1.4 1.4M12 8a4 4 0 100 8 4 4 0 000-8z" />
+      </svg>
+      <svg x-show="theme === 'light'" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
+      </svg>
+    </button>
+
+    <button
+      type="button"
+      class="tool-btn h-8 w-8"
+      :class="showSettings && 'bg-accent/15 text-accent-soft'"
+      @click="showSettings = !showSettings; showFileMenu = false; showTemplates = false"
+      title="Settings"
+    >
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" />
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9c.2.6.7 1 1.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" />
+      </svg>
+    </button>
+
+    <div class="hidden h-5 w-px bg-slate-line sm:block"></div>
+
+    <select class="panel-select hidden w-auto min-w-[8.5rem] max-w-[11rem] py-1.5 text-xs sm:block" x-model="doc.pageSize" @change="persist()" title="Page size">
+      <optgroup label="ISO A">
+        <option value="a0">A0</option>
+        <option value="a1">A1</option>
+        <option value="a2">A2</option>
+        <option value="a3">A3</option>
+        <option value="a4">A4</option>
+        <option value="a5">A5</option>
+        <option value="a6">A6</option>
+        <option value="a7">A7</option>
+        <option value="a8">A8</option>
+        <option value="a9">A9</option>
+        <option value="a10">A10</option>
+      </optgroup>
+      <optgroup label="ISO B">
+        <option value="b0">B0</option>
+        <option value="b1">B1</option>
+        <option value="b2">B2</option>
+        <option value="b3">B3</option>
+        <option value="b4">B4</option>
+        <option value="b5">B5</option>
+        <option value="b6">B6</option>
+        <option value="b7">B7</option>
+        <option value="b8">B8</option>
+        <option value="b9">B9</option>
+        <option value="b10">B10</option>
+      </optgroup>
+      <optgroup label="Envelopes (ISO C)">
+        <option value="c4">C4</option>
+        <option value="c5">C5</option>
+        <option value="c6">C6</option>
+        <option value="dl">DL</option>
+      </optgroup>
+      <optgroup label="North America">
+        <option value="letter">Letter</option>
+        <option value="legal">Legal</option>
+        <option value="tabloid">Tabloid</option>
+        <option value="ledger">Ledger</option>
+        <option value="executive">Executive</option>
+        <option value="statement">Statement</option>
+        <option value="folio">Folio</option>
+        <option value="quarto">Quarto</option>
+        <option value="governmentLetter">Government Letter</option>
+        <option value="governmentLegal">Government Legal</option>
+        <option value="juniorLegal">Junior Legal</option>
+      </optgroup>
+      <optgroup label="Architectural">
+        <option value="archA">Arch A</option>
+        <option value="archB">Arch B</option>
+        <option value="archC">Arch C</option>
+        <option value="archD">Arch D</option>
+        <option value="archE">Arch E</option>
+      </optgroup>
+      <optgroup label="Photo &amp; cards">
+        <option value="photo4x6">4 × 6"</option>
+        <option value="photo5x7">5 × 7"</option>
+        <option value="photo8x10">8 × 10"</option>
+        <option value="photo8x12">8 × 12"</option>
+        <option value="businessCard">Business card</option>
+      </optgroup>
+      <optgroup label="Other">
+        <option value="square">Square</option>
+        <option value="squareSmall">Square (6")</option>
+        <option value="widescreen">Widescreen 16:9</option>
+        <option value="presentation">Presentation 4:3</option>
+      </optgroup>
+    </select>
+
+    <div class="zoom-cluster hidden items-center sm:flex">
+      <button type="button" class="zoom-btn" @click="zoomOut()" title="Zoom out">−</button>
+      <button type="button" class="zoom-label" @click="fitWidth()" title="Fit width" x-text="Math.round(zoom * 100) + '%'"></button>
+      <button type="button" class="zoom-btn" @click="zoomIn()" title="Zoom in">+</button>
+    </div>
+
+    <button
+      type="button"
+      class="btn-primary ml-0.5"
+      :disabled="exporting"
+      @click="openExportModal()"
+      title="Export (⌘E)"
+    >
+      <svg class="h-3.5 w-3.5 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4" />
+      </svg>
+      <span x-text="exporting ? '…' : 'Export'"></span>
+    </button>
+  </div>
+
+  {{!-- Templates popover --}}
+  <div
+    x-show="showTemplates"
+    x-cloak
+    x-transition
+    @click.outside="showTemplates = false"
+    class="absolute left-1/2 top-14 z-40 w-[min(92vw,32rem)] -translate-x-1/2 rounded-2xl border border-slate-line bg-slate-panel p-4 shadow-page"
+  >
+    <p class="mb-3 text-xs font-medium uppercase tracking-wider text-slate-muted">Start from template</p>
+    <div class="grid max-h-[60vh] gap-2 overflow-y-auto sm:grid-cols-2">
+      <template x-for="tpl in templates" :key="tpl.id">
+        <button
+          type="button"
+          class="template-card text-left"
+          @click="applyTemplate(tpl.id)"
+        >
+          <span class="block text-sm font-medium text-fg" x-text="tpl.name"></span>
+          <span class="mt-0.5 block text-xs leading-snug text-slate-muted" x-text="tpl.description"></span>
+        </button>
+      </template>
+    </div>
+  </div>
+
+  {{!-- Settings drawer --}}
+  <div
+    x-show="showSettings"
+    x-cloak
+    x-transition
+    @click.outside="showSettings = false"
+    class="absolute right-3 top-14 z-40 w-[min(92vw,22rem)] rounded-2xl border border-slate-line bg-slate-panel p-4 shadow-page"
+  >
+    <p class="mb-3 text-xs font-medium uppercase tracking-wider text-slate-muted">Appearance</p>
+    <div class="mb-3 flex gap-2">
+      <button
+        type="button"
+        class="btn-ghost flex-1 justify-center"
+        :class="theme === 'dark' && 'border-accent text-accent-soft'"
+        @click="applyTheme('dark')"
+      >Dark</button>
+      <button
+        type="button"
+        class="btn-ghost flex-1 justify-center"
+        :class="theme === 'light' && 'border-accent text-accent-soft'"
+        @click="applyTheme('light')"
+      >Light</button>
+    </div>
+
+    <p class="mb-3 text-xs font-medium uppercase tracking-wider text-slate-muted">Workspace</p>
+    <div class="space-y-1 text-sm">
+      <label class="settings-row">
+        <span>Snap to grid</span>
+        <input type="checkbox" class="accent-accent" x-model="snapEnabled" @change="saveSettings()" />
+      </label>
+      <label class="settings-row">
+        <span>Grid overlay</span>
+        <input type="checkbox" class="accent-accent" x-model="showGrid" @change="saveSettings()" />
+      </label>
+      <label class="settings-row">
+        <span>Margin guides</span>
+        <input type="checkbox" class="accent-accent" x-model="showGuides" @change="saveSettings()" />
+      </label>
+      <label class="settings-row">
+        <span>Rulers</span>
+        <input type="checkbox" class="accent-accent" x-model="showRulers" @change="saveSettings()" />
+      </label>
+      <label class="settings-row">
+        <span>Review mode</span>
+        <input type="checkbox" class="accent-accent" x-model="reviewMode" />
+      </label>
+    </div>
+
+    <div class="my-3 border-t border-slate-line"></div>
+    <p class="mb-2 text-xs font-medium uppercase tracking-wider text-slate-muted">Document</p>
+    <div class="space-y-3 text-sm">
+      <div>
+        <label class="panel-label">Page background</label>
+        <div class="flex items-center gap-2">
+          <input type="color" class="h-9 w-12 cursor-pointer rounded-lg border border-slate-line bg-transparent" x-model="doc.pageBackground" @input="persistSoft()" @change="persist()" />
+          <button type="button" class="btn-ghost" @click="doc.pageBackground = '#faf9f6'; persist()">Paper</button>
+          <button type="button" class="btn-ghost" @click="doc.pageBackground = '#ffffff'; persist()">White</button>
+        </div>
+      </div>
+      <div>
+        <label class="panel-label">Master &amp; watermark</label>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" class="btn-ghost" @click="toggleEditMaster()" x-text="editingMaster ? 'Exit master' : 'Edit master'"></button>
+          <button type="button" class="btn-ghost" @click="addMasterPageNumber()">Page #</button>
+          <button type="button" class="btn-ghost" @click="setWatermarkText(prompt('Watermark text') || 'DRAFT')">Watermark</button>
+          <button type="button" class="btn-ghost" @click="clearWatermark()">Clear</button>
+        </div>
+      </div>
+      <div>
+        <label class="panel-label">Fillable fields</label>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" class="btn-ghost" @click="insertFormField('formText')">Text field</button>
+          <button type="button" class="btn-ghost" @click="insertFormField('formCheck')">Checkbox</button>
+          <button type="button" class="btn-ghost" @click="insertFormField('formSelect')">Dropdown</button>
+        </div>
+      </div>
+      <div>
+        <label class="panel-label">Reviewer name</label>
+        <input type="text" class="panel-input" x-model="authorName" @change="saveAuthorName()" />
+      </div>
+    </div>
+  </div>
+</header>

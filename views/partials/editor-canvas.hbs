@@ -1,0 +1,329 @@
+<section class="relative flex min-w-0 flex-1 flex-col">
+  <div
+    x-show="placeHint || editingMaster"
+    x-transition.opacity.duration.200ms
+    class="place-banner pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-full border border-accent/25 bg-rail/95 px-4 py-1.5 text-xs font-medium text-accent-soft shadow-page backdrop-blur-md"
+    x-text="editingMaster ? 'Editing master · Esc to exit' : 'Click the page to place · Esc to cancel'"
+  ></div>
+
+  <div
+    class="canvas-workspace relative flex flex-1 overflow-hidden"
+    :style="viewportStyle"
+    @mousedown="onViewportMouseDown($event)"
+  >
+    <div x-show="showRulers" class="ruler-h absolute left-8 top-0 z-10 right-0" @mousedown="addGuideFromRuler('y', $event)" title="Drag for horizontal guide"></div>
+    <div x-show="showRulers" class="ruler-v absolute left-0 top-8 z-10 bottom-0" @mousedown="addGuideFromRuler('x', $event)" title="Drag for vertical guide"></div>
+
+    <div
+      class="relative flex flex-1 items-center justify-center overflow-auto p-10 md:p-16"
+      :class="[tool === 'place' ? 'cursor-crosshair' : '', showRulers ? 'pl-12 pt-12' : '']"
+      @mousedown="onCanvasBackground($event)"
+    >
+      <div
+        class="page-surface relative shrink-0"
+        :class="tool === 'place' ? 'ring-2 ring-accent/40 ring-offset-4 ring-offset-[rgb(var(--color-canvas))]' : ''"
+        :style="pageStyle"
+        @mousedown="onPageMouseDown($event)"
+        x-ref="page"
+      >
+        <div
+          x-show="showGrid"
+          class="guide-grid absolute inset-0 z-0"
+          :style="`background-size: ${32 * zoom}px ${32 * zoom}px`"
+        ></div>
+        <div
+          x-show="showGuides"
+          class="pointer-events-none absolute inset-0 z-0 border border-dashed border-accent/40"
+          :style="`margin: ${40 * zoom}px`"
+        ></div>
+
+        {{!-- User guides --}}
+        <template x-for="g in (doc.guides || [])" :key="g.id">
+          <div
+            class="pointer-events-auto absolute z-30 bg-accent/70"
+            :style="g.axis === 'x'
+              ? `left:${g.position * zoom}px; top:0; width:1px; height:100%; cursor:ew-resize`
+              : `top:${g.position * zoom}px; left:0; height:1px; width:100%; cursor:ns-resize`"
+            @mousedown.stop="drag = { mode: 'guide', axis: g.axis, id: g.id }"
+            @dblclick.stop="removeGuide(g.id)"
+          ></div>
+        </template>
+
+        {{!-- Smart guides --}}
+        <template x-for="(sg, si) in smartGuides" :key="si">
+          <div
+            class="pointer-events-none absolute z-40 bg-accent"
+            :style="sg.axis === 'x'
+              ? `left:${sg.position * zoom}px; top:0; width:1px; height:100%`
+              : `top:${sg.position * zoom}px; left:0; height:1px; width:100%`"
+          ></div>
+        </template>
+
+        {{!-- Watermark preview --}}
+        <div
+          x-show="doc.watermark?.type === 'text'"
+          class="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center"
+        >
+          <span
+            class="select-none font-bold tracking-widest"
+            :style="`opacity:${doc.watermark?.opacity ?? 0.12}; transform:rotate(${doc.watermark?.rotation || -30}deg); color:${doc.watermark?.color || '#94a3b8'}; font-size:${(doc.watermark?.fontSize || 56) * zoom}px`"
+            x-text="doc.watermark?.text"
+          ></span>
+        </div>
+
+        {{!-- Master elements (preview) --}}
+        <template x-for="el in masterPreviewElements" :key="'m-' + el.id">
+          <div class="canvas-element pointer-events-none opacity-70" :style="elementStyle(el)">
+            <template x-if="el.type === 'text'">
+              <div class="h-full w-full whitespace-pre-wrap break-words" :style="textInnerStyle(el)" x-text="previewText(el.content)"></div>
+            </template>
+          </div>
+        </template>
+
+        <template x-for="el in (editingMaster ? displayElements : activePage.elements)" :key="el.id">
+          <div
+            class="canvas-element"
+            :class="{ 'is-selected': isSelected(el.id), 'is-pop': justInsertedId === el.id }"
+            :data-el-id="el.id"
+            :style="elementStyle(el)"
+            @mousedown.stop="onElementMouseDown($event, el)"
+            @dblclick.stop="(el.type === 'text' || el.type === 'sticky') && startTextEdit(el)"
+          >
+            <template x-if="el.type === 'text'">
+              <div class="h-full w-full">
+                <div
+                  x-show="editingTextId !== el.id"
+                  class="h-full w-full whitespace-pre-wrap break-words"
+                  :style="textInnerStyle(el)"
+                  x-text="displayTextContent(el)"
+                ></div>
+                <div
+                  x-show="editingTextId === el.id"
+                  class="h-full w-full whitespace-pre-wrap break-words outline-none"
+                  contenteditable="true"
+                  :data-edit-id="el.id"
+                  :style="textInnerStyle(el)"
+                  @blur="finishTextEdit($event, el)"
+                  @keydown.escape.stop="$event.target.blur()"
+                ></div>
+              </div>
+            </template>
+
+            <template x-if="el.type === 'rect'">
+              <div class="h-full w-full" :style="shapeStyle(el)"></div>
+            </template>
+
+            <template x-if="el.type === 'ellipse'">
+              <div class="h-full w-full" :style="shapeStyle(el)"></div>
+            </template>
+
+            <template x-if="el.type === 'line'">
+              <svg class="h-full w-full overflow-visible">
+                <line x1="0" y1="0" :x2="el.width * zoom" :y2="el.height * zoom" :stroke="el.stroke" :stroke-width="el.strokeWidth * zoom" stroke-linecap="round" />
+              </svg>
+            </template>
+
+            <template x-if="el.type === 'arrow'">
+              <svg class="h-full w-full overflow-visible">
+                <defs>
+                  <marker :id="'arrow-' + el.id" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                    <path d="M0,0 L0,6 L8,3 z" :fill="el.stroke" />
+                  </marker>
+                </defs>
+                <line
+                  x1="0"
+                  :y1="(el.height * zoom) / 2"
+                  :x2="el.width * zoom"
+                  :y2="(el.height * zoom) / 2"
+                  :stroke="el.stroke"
+                  :stroke-width="el.strokeWidth * zoom"
+                  stroke-linecap="round"
+                  :marker-end="'url(#arrow-' + el.id + ')'"
+                />
+              </svg>
+            </template>
+
+            <template x-if="el.type === 'divider'">
+              <svg class="h-full w-full overflow-visible">
+                <line
+                  x1="0"
+                  :y1="(el.height * zoom) / 2"
+                  :x2="el.width * zoom"
+                  :y2="(el.height * zoom) / 2"
+                  :stroke="el.stroke"
+                  :stroke-width="el.strokeWidth * zoom"
+                  :stroke-dasharray="el.style === 'dashed' ? `${6 * zoom} ${4 * zoom}` : 'none'"
+                />
+              </svg>
+            </template>
+
+            <template x-if="el.type === 'sticky'">
+              <div
+                class="flex h-full w-full flex-col p-2 shadow-sm"
+                :style="`background:${el.fill}; color:${el.color}; font-size:${el.fontSize * zoom}px`"
+              >
+                <div x-show="editingTextId !== el.id" class="flex-1 whitespace-pre-wrap break-words" x-text="el.content"></div>
+                <div
+                  x-show="editingTextId === el.id"
+                  class="flex-1 whitespace-pre-wrap break-words outline-none"
+                  contenteditable="true"
+                  :data-edit-id="el.id"
+                  @blur="finishTextEdit($event, el)"
+                ></div>
+              </div>
+            </template>
+
+            <template x-if="el.type === 'badge'">
+              <div
+                class="flex h-full w-full items-center justify-center font-semibold tracking-wide"
+                :style="`background:${el.fill}; color:${el.color}; font-size:${el.fontSize * zoom}px; border-radius:${(el.height * zoom) / 2}px`"
+                x-text="el.label"
+              ></div>
+            </template>
+
+            <template x-if="el.type === 'checkbox'">
+              <div class="flex h-full items-center gap-2" :style="`color:${el.color}; font-size:${el.fontSize * zoom}px`">
+                <span
+                  class="flex shrink-0 items-center justify-center border-2"
+                  :style="`width:${16 * zoom}px; height:${16 * zoom}px; border-color:${el.color}`"
+                  x-text="el.checked ? '✓' : ''"
+                  @click.stop="el.checked = !el.checked; persist()"
+                ></span>
+                <span class="truncate" x-text="el.label"></span>
+              </div>
+            </template>
+
+            <template x-if="el.type === 'icon'">
+              <div class="flex h-full w-full items-center justify-center" x-html="iconHtml(el)"></div>
+            </template>
+
+            <template x-if="el.type === 'stamp'">
+              <div class="relative flex h-full w-full items-center justify-center">
+                <div class="absolute inset-1 rounded-full border-4" :style="`border-color:${el.color}`"></div>
+                <div class="absolute inset-3 rounded-full border" :style="`border-color:${el.color}`"></div>
+                <span class="relative z-10 font-bold tracking-widest" :style="`color:${el.color}; font-size:${el.fontSize * zoom}px`" x-text="el.label"></span>
+              </div>
+            </template>
+
+            <template x-if="el.type === 'table'">
+              <div class="grid h-full w-full overflow-hidden" :style="`grid-template-columns: repeat(${el.cols}, 1fr); grid-template-rows: repeat(${el.rows}, 1fr); border:1px solid ${el.stroke}`">
+                <template x-for="(cell, i) in el.cells" :key="i">
+                  <div
+                    class="flex items-center overflow-hidden px-1"
+                    :style="`border:0.5px solid ${el.stroke}; background:${el.header && i < el.cols ? el.headerFill : el.fill}; color:${el.header && i < el.cols ? '#fff' : el.color}; font-size:${el.fontSize * zoom}px; font-weight:${el.header && i < el.cols ? '600' : '400'}`"
+                    x-text="cell"
+                  ></div>
+                </template>
+              </div>
+            </template>
+
+            <template x-if="el.type === 'image' || el.type === 'signature'">
+              <img class="h-full w-full object-contain" :src="el.src" :alt="el.name" draggable="false" />
+            </template>
+
+            <template x-if="el.type === 'formText'">
+              <div class="flex h-full w-full items-center border px-2 text-slate-muted" :style="`border-color:${el.borderColor}; font-size:${el.fontSize * zoom}px; color:${el.color}`">
+                <span class="truncate" x-text="el.placeholder"></span>
+                <span class="ml-auto rounded bg-accent/20 px-1 text-[9px] font-semibold uppercase text-accent-soft">Fillable</span>
+              </div>
+            </template>
+
+            <template x-if="el.type === 'formCheck'">
+              <div class="flex h-full items-center gap-2" :style="`color:${el.color}; font-size:${el.fontSize * zoom}px`">
+                <span class="flex h-4 w-4 items-center justify-center border-2" :style="`border-color:${el.color}`" x-text="el.checked ? '✓' : ''"></span>
+                <span class="truncate" x-text="el.label"></span>
+                <span class="ml-auto rounded bg-accent/20 px-1 text-[9px] font-semibold uppercase text-accent-soft">Fillable</span>
+              </div>
+            </template>
+
+            <template x-if="el.type === 'formSelect'">
+              <div class="flex h-full w-full items-center justify-between border px-2" :style="`border-color:${el.borderColor}; font-size:${el.fontSize * zoom}px; color:${el.color}`">
+                <span class="truncate" x-text="el.options[0] || 'Select…'"></span>
+                <span class="text-xs">▾</span>
+              </div>
+            </template>
+
+            <template x-if="isSelected(el.id) && !el.locked">
+              <div>
+                <span class="resize-handle -bottom-1 -right-1 cursor-se-resize" @mousedown.stop="startResize($event, el)"></span>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        {{!-- Marquee --}}
+        <div
+          x-show="marquee"
+          class="pointer-events-none absolute z-50 border border-accent bg-accent/10"
+          :style="marquee && `left:${marquee.x * zoom}px;top:${marquee.y * zoom}px;width:${marquee.w * zoom}px;height:${marquee.h * zoom}px`"
+        ></div>
+
+        {{!-- Comments --}}
+        <template x-for="c in pageComments" :key="c.id">
+          <div
+            class="absolute z-40 max-w-[10rem] rounded-md border px-2 py-1 text-[10px] shadow-sm"
+            :class="c.resolved ? 'border-slate-line bg-slate-panel/90 text-slate-muted' : 'border-amber-500/50 bg-amber-50 text-amber-950'"
+            :style="`left:${c.x * zoom}px; top:${c.y * zoom}px`"
+          >
+            <p class="font-semibold" x-text="c.author"></p>
+            <p class="mt-0.5" x-text="c.body"></p>
+            <div class="mt-1 flex gap-1">
+              <button type="button" class="underline" @click.stop="toggleCommentResolved(c.id)" x-text="c.resolved ? 'Reopen' : 'Resolve'"></button>
+              <button type="button" class="underline" @click.stop="deleteComment(c.id)">Delete</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    {{!-- Floating tool dock --}}
+    <div class="tool-dock">
+      <div class="tool-dock-inner">
+        <button type="button" class="dock-btn" :aria-pressed="tool === 'select'" @click="tool = 'select'; pendingLibraryKind = null; placeHint = false" title="Select (V)">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4l7 16 2.5-6.5L20 11 4 4z" /></svg>
+        </button>
+        <button type="button" class="dock-btn" :aria-pressed="tool === 'text'" @click="tool = 'text'" title="Text (T)">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7V5h16v2M12 5v14m-4 0h8" /></svg>
+        </button>
+        <button type="button" class="dock-btn" :aria-pressed="tool === 'rect'" @click="tool = 'rect'" title="Rectangle (R)">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><rect x="5" y="6" width="14" height="12" rx="1" /></svg>
+        </button>
+        <button type="button" class="dock-btn" :aria-pressed="tool === 'ellipse'" @click="tool = 'ellipse'" title="Ellipse (O)">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><ellipse cx="12" cy="12" rx="8" ry="6" /></svg>
+        </button>
+        <button type="button" class="dock-btn" :aria-pressed="tool === 'line'" @click="tool = 'line'" title="Line (L)">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" d="M5 19L19 5" /></svg>
+        </button>
+        <button type="button" class="dock-btn" @click="$refs.imageInput.click()" title="Image">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.5-4.5a2 2 0 012.8 0L16 16m-2-2l1.5-1.5a2 2 0 012.8 0L20 14M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+        </button>
+        <button type="button" class="dock-btn" @click="openSignatureModal()" title="Sign PDF">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M4 20l4.5-1L19 8.5a2.5 2.5 0 00-3.5-3.5L5 15.5 4 20z" /></svg>
+        </button>
+        <span class="dock-sep"></span>
+        <button type="button" class="dock-btn" @click="groupSelected()" :disabled="selectedIds.length < 2" title="Group (⌘G)">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2" /></svg>
+        </button>
+        <button type="button" class="dock-btn" @click="duplicateSelected()" :disabled="!selected" title="Duplicate (⌘D)">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><rect x="8" y="8" width="11" height="11" rx="1" /><path stroke-linecap="round" d="M6 16V6a1 1 0 011-1h10" /></svg>
+        </button>
+        <button type="button" class="dock-btn" @click="toggleLock()" :disabled="!selected" title="Lock">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M8 11V8a4 4 0 118 0v3m-9 0h10v8H7v-8z" /></svg>
+        </button>
+        <button type="button" class="dock-btn dock-danger" @click="deleteSelected()" :disabled="!selected" title="Delete">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5h6v2m-8 0l1 12h8l1-12" /></svg>
+        </button>
+        <span class="dock-sep hidden sm:block"></span>
+        <button type="button" class="dock-btn hidden sm:flex" @click="alignSelected('left')" :disabled="!selected" title="Align left">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" d="M4 4v16M8 8h8M8 12h12M8 16h6" /></svg>
+        </button>
+        <button type="button" class="dock-btn hidden sm:flex" @click="alignSelected('center')" :disabled="!selected" title="Align center">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" d="M12 4v16M7 8h10M5 12h14M8 16h8" /></svg>
+        </button>
+        <button type="button" class="dock-btn hidden sm:flex" @click="alignSelected('right')" :disabled="!selected" title="Align right">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" d="M20 4v16M8 8h8M4 12h12M10 16h6" /></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

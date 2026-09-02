@@ -1,0 +1,204 @@
+<div class="site-page" x-data="themeToggle" data-home-scroll>
+  <div class="site-bg" aria-hidden="true">
+    <div class="site-bg-mesh" data-parallax-vibe></div>
+    <span class="site-bg-orb site-bg-orb--a" data-parallax-orb="a"></span>
+    <span class="site-bg-orb site-bg-orb--b" data-parallax-orb="b"></span>
+    <span class="site-bg-orb site-bg-orb--c" data-parallax-orb="c"></span>
+  </div>
+
+  <header class="site-nav">
+    <div class="site-nav-inner">
+      <a href="/" class="site-brand-link" aria-current="page">
+        <span class="site-mark">PS</span>
+        <span class="site-brand-name">PDF Studio</span>
+      </a>
+      <nav class="site-nav-actions">
+        <a href="#build" class="site-nav-link hidden sm:inline">Build</a>
+        <a href="#how" class="site-nav-link hidden sm:inline">How</a>
+        <a href="#templates" class="site-nav-link hidden md:inline">Templates</a>
+        <button
+          type="button"
+          class="site-icon-btn"
+          @click="toggleTheme()"
+          :title="theme === 'dark' ? 'Light mode' : 'Dark mode'"
+        >
+          <svg x-show="theme === 'dark'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.4 6.4l-1.4-1.4M7 7L5.6 5.6m12.8 0L17 7M7 17l-1.4 1.4M12 8a4 4 0 100 8 4 4 0 000-8z" />
+          </svg>
+          <svg x-show="theme === 'light'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
+          </svg>
+        </button>
+        <a href="/editor" class="site-nav-cta">Open editor</a>
+      </nav>
+    </div>
+  </header>
+
+  {{! Sticky parallax stage: brand stays, step copy swaps, PDF fills }}
+  <section class="site-stage" id="build" data-home-pin>
+    <div class="site-stage-sticky">
+      <div class="site-stage-copy">
+        <div class="site-stage-brand">
+          <p class="site-eyebrow">vibe · ship · export</p>
+          <h1 class="site-display">PDF Studio</h1>
+        </div>
+
+        <div class="site-stage-panels">
+          <div class="site-stage-panel is-active" data-stage-panel="0">
+            <p class="site-lede">
+              Browser PDF builder. Drop blocks, tweak type, export for real — no accounts, just flow.
+            </p>
+            <div class="site-hero-cta">
+              <a href="/editor?new=1" class="site-cta-primary">Start blank →</a>
+              <a href="/editor?template=invoice" class="site-cta-ghost">Try invoice</a>
+            </div>
+            <p class="site-scroll-hint" aria-hidden="true">
+              <span class="site-scroll-hint-line"></span>
+              Scroll — watch the PDF build
+            </p>
+          </div>
+
+          <div class="site-stage-panel" data-stage-panel="1">
+            <p class="site-eyebrow">01 · blank sheet</p>
+            <h2 class="site-stage-title">A clean A4 drops in</h2>
+            <p class="site-lede">Empty canvas. Your blocks land here — text, shapes, images, signatures.</p>
+          </div>
+
+          <div class="site-stage-panel" data-stage-panel="2">
+            <p class="site-eyebrow">02 · brand</p>
+            <h2 class="site-stage-title">Lock the header</h2>
+            <p class="site-lede">Logo mark + invoice id. Instant identity without a settings maze.</p>
+          </div>
+
+          <div class="site-stage-panel" data-stage-panel="3">
+            <p class="site-eyebrow">03 · type</p>
+            <h2 class="site-stage-title">Client lines stream in</h2>
+            <p class="site-lede">Recipient, terms, due date — text types onto the sheet as you scroll.</p>
+          </div>
+
+          <div class="site-stage-panel" data-stage-panel="4">
+            <p class="site-eyebrow">04 · items</p>
+            <h2 class="site-stage-title">Rows appear one by one</h2>
+            <p class="site-lede">Line items + amounts stack. Snap guides keep the vibe tidy.</p>
+          </div>
+
+          <div class="site-stage-panel" data-stage-panel="5">
+            <p class="site-eyebrow">05 · total</p>
+            <h2 class="site-stage-title">Sum up. Ship it.</h2>
+            <p class="site-lede">Total ticks live. Hit export whenever the page feels done.</p>
+            <div class="site-hero-cta">
+              <a href="/editor?new=1" class="site-cta-primary">Open editor →</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="site-stage-progress" aria-hidden="true">
+          <div class="site-stage-progress-bar" data-pin-progress></div>
+        </div>
+      </div>
+
+      <div class="site-stage-board">
+        <div class="site-board" data-home-board>
+          <span class="site-board-label">live pdf</span>
+          <article class="site-sheet" data-home-preview>
+            <header class="site-sheet-head">
+              <span class="site-sheet-logo" data-sheet-el="logo">PS</span>
+              <span class="site-sheet-meta" data-sheet-el="meta">Invoice 0042</span>
+            </header>
+            <div class="site-sheet-rule" data-sheet-el="rule"></div>
+            <p class="site-sheet-to" data-sheet-el="to">Acme Design Co.</p>
+            <p class="site-sheet-muted" data-sheet-el="muted">Net 14 · due on receipt</p>
+            <ul class="site-sheet-lines">
+              <li data-sheet-el="line"><span>Brand guidelines</span><span>1 200</span></li>
+              <li data-sheet-el="line"><span>Print-ready PDF set</span><span>480</span></li>
+              <li data-sheet-el="line"><span>Revision pass</span><span>160</span></li>
+            </ul>
+            <div class="site-sheet-total" data-sheet-el="total">
+              <span>Total due</span>
+              <strong>1 840</strong>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="site-bridge" aria-label="Continue">
+    <div class="site-bridge-inner">
+      <p class="site-eyebrow">Next</p>
+      <h2 class="site-bridge-title">From blank sheet to send-ready PDF</h2>
+      <p class="site-lede">Same loop in the editor — pick a start, remix, export.</p>
+      <a href="#how" class="site-nav-link site-bridge-link">See how it works ↓</a>
+    </div>
+  </section>
+
+  <section class="site-chapter" id="how" data-chapter>
+    <div class="site-chapter-inner">
+      <header class="site-chapter-head" data-reveal>
+        <p class="site-eyebrow">How it works</p>
+        <h2 class="site-chapter-title">Three steps. Zero ceremony.</h2>
+        <p class="site-lede">Built for the open-tab → ship-PDF loop.</p>
+      </header>
+      <ol class="site-how-rail">
+        <li class="site-how-card" data-reveal data-parallax-depth="0.08">
+          <span class="site-how-num">01</span>
+          <h3>Pick a start</h3>
+          <p>Blank canvas or a template — invoice, CV, proposal, whatever you’re shipping today.</p>
+        </li>
+        <li class="site-how-card" data-reveal data-parallax-depth="0.14">
+          <span class="site-how-num">02</span>
+          <h3>Remix in the editor</h3>
+          <p>Drag text, shapes, images, signatures. Guides keep layout honest while you vibe.</p>
+        </li>
+        <li class="site-how-card" data-reveal data-parallax-depth="0.2">
+          <span class="site-how-num">03</span>
+          <h3>Export for real</h3>
+          <p>Fonts embedded, pages sized — a real PDF, ready to send.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="site-chapter site-chapter--templates" id="templates" data-chapter>
+    <div class="site-chapter-inner">
+      <header class="site-chapter-head" data-reveal>
+        <p class="site-eyebrow">Templates</p>
+        <h2 class="site-chapter-title">Jump in mid-flow</h2>
+        <p class="site-lede">Every layout opens editable — pick one and ship.</p>
+      </header>
+      <ul class="site-tpl-grid">
+        <li data-reveal><a href="/editor?new=1" class="site-tpl-card"><span class="site-tpl-thumb site-template-thumb--blank"></span><span class="site-tpl-name">Blank A4</span><span class="site-tpl-desc">Empty canvas</span></a></li>
+        <li data-reveal><a href="/editor?template=invoice" class="site-tpl-card"><span class="site-tpl-thumb site-template-thumb--invoice"></span><span class="site-tpl-name">Invoice</span><span class="site-tpl-desc">Line items & totals</span></a></li>
+        <li data-reveal><a href="/editor?template=letter" class="site-tpl-card"><span class="site-tpl-thumb site-template-thumb--letter"></span><span class="site-tpl-name">Letter</span><span class="site-tpl-desc">Formal correspondence</span></a></li>
+        <li data-reveal><a href="/editor?template=cv" class="site-tpl-card"><span class="site-tpl-thumb site-template-thumb--cv"></span><span class="site-tpl-name">CV / Resume</span><span class="site-tpl-desc">Sidebar layout</span></a></li>
+        <li data-reveal><a href="/editor?template=report" class="site-tpl-card"><span class="site-tpl-thumb site-template-thumb--report"></span><span class="site-tpl-name">Report</span><span class="site-tpl-desc">Summary & next steps</span></a></li>
+        <li data-reveal><a href="/editor?template=proposal" class="site-tpl-card"><span class="site-tpl-thumb site-template-thumb--proposal"></span><span class="site-tpl-name">Proposal</span><span class="site-tpl-desc">Scope & investment</span></a></li>
+        <li data-reveal><a href="/editor?template=flyer" class="site-tpl-card"><span class="site-tpl-thumb site-template-thumb--flyer"></span><span class="site-tpl-name">Flyer</span><span class="site-tpl-desc">Bold promo</span></a></li>
+        <li data-reveal><a href="/editor?template=certificate" class="site-tpl-card"><span class="site-tpl-thumb site-template-thumb--cert"></span><span class="site-tpl-name">Certificate</span><span class="site-tpl-desc">Award frame</span></a></li>
+        <li data-reveal><a href="/editor?template=menu" class="site-tpl-card"><span class="site-tpl-thumb site-template-thumb--menu"></span><span class="site-tpl-name">Menu</span><span class="site-tpl-desc">Courses & prices</span></a></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="site-finale" id="cta" data-chapter>
+    <div class="site-finale-band" data-reveal>
+      <div class="site-finale-copy">
+        <p class="site-eyebrow">Ready when you are</p>
+        <h2 class="site-finale-title">Open the editor and ship something today.</h2>
+        <p class="site-lede">Local session. No signup wall. Just make the PDF.</p>
+      </div>
+      <div class="site-hero-cta">
+        <a href="/editor?new=1" class="site-cta-primary">Start blank →</a>
+        <a href="/editor?template=proposal" class="site-cta-ghost">Start from proposal</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <p>PDF Studio</p>
+    <div class="site-footer-links">
+      <a href="/sitemap.xml">Sitemap</a>
+      <a href="/audit-logs">Audit</a>
+    </div>
+  </footer>
+</div>
