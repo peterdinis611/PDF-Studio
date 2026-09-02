@@ -10,6 +10,7 @@ import { PAGE_SIZES } from "../../shared/types.js";
 import { ensureSessionDirs, sessionPublicUrl } from "../session.js";
 import { audit, listAuditEvents, requestContext, type AuditLevel } from "../audit.js";
 import { requireAuditAccess } from "../auditAccess.js";
+import { googleFontsRouter } from "./googleFonts.js";
 
 const ALLOWED_EXT = new Set([".png", ".jpg", ".jpeg"]);
 
@@ -40,6 +41,8 @@ const upload = multer({
 });
 
 export const apiRouter = Router();
+
+apiRouter.use("/fonts/google", googleFontsRouter);
 
 apiRouter.get("/audit-logs", requireAuditAccess, (req, res) => {
   const level = typeof req.query.level === "string" ? (req.query.level as AuditLevel) : undefined;

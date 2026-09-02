@@ -1,5 +1,6 @@
 import {
   PAGE_SIZES,
+  GOOGLE_FONTS,
   type DocComment,
   type ExportSettings,
   type GuideLine,
@@ -30,9 +31,10 @@ import {
   escapeHtml,
   uid,
 } from "./factories.js";
-import { allFontOptions, fontCssFamily } from "./fonts.js";
+import { allFontOptions, ensureGoogleFontStylesheet, fontCssFamily, googleFamilyCssName } from "./fonts.js";
 import { HistoryStack } from "./history.js";
 import { iconSvg } from "./icons.js";
+import { loremIpsum, type LoremSize } from "./lorem.js";
 import {
   LIBRARY_CATEGORIES,
   LIBRARY_ITEMS,
@@ -295,6 +297,10 @@ function pdfEditor() {
     shortcutGroups: SHORTCUT_GROUPS,
     marginPresets: MARGIN_PRESETS,
     fontOptions: allFontOptions(),
+    googleFontQuery: "",
+    googleFontResults: [] as { id: string; label: string; googleFamily: string }[],
+    googleFontsBusy: false,
+    googleFontsFromApi: false,
     findQuery: "",
     replaceQuery: "",
     findMatches: [] as { pageIndex: number; elId: string; field: string }[],
@@ -523,7 +529,7 @@ function pdfEditor() {
       }
 
       if (typeof this.doc.showGrid === "boolean") this.showGrid = this.doc.showGrid;
-      this.fontOptions = allFontOptions();
+      this.syncDocumentFonts();
 
       history.reset(this.doc);
       this.syncHistoryFlags();
@@ -666,7 +672,7 @@ function pdfEditor() {
         history.reset(this.doc);
         this.syncHistoryFlags();
         this.showDocLibrary = false;
-        this.fontOptions = allFontOptions();
+        this.syncDocumentFonts();
         storeSet(STORAGE_KEY, JSON.stringify(this.doc));
       } catch {
         alert("Could not open document.");
@@ -705,7 +711,7 @@ function pdfEditor() {
         this.selectedIds = [];
         history.reset(this.doc);
         this.syncHistoryFlags();
-        this.fontOptions = allFontOptions();
+        this.syncDocumentFonts();
         this.commit(false);
       } catch {
         alert("Invalid .pdfstudio.json file");
@@ -1727,6 +1733,99 @@ function pdfEditor() {
       if (!el || el.type !== "image") return;
       el.objectFit = fit;
       this.commit();
+    },
+
+    collectDocFontExtras(): { id: string; label: string }[] {
+      const extras: { id: string; label: string }[] = [];
+      const seen = new Set<string>();
+      const visit = (family: string | undefined) => {
+        if (!family || seen.has(family)) return;
+        if (!family.startsWith("google:")) return;
+        seen.add(family);
+        const name = family.slice("google:".length).trim();
+        if (name) extras.push({ id: family, label: name });
+      };
+      for (const page of this.doc.pages) {
+        for (const el of page.elements) {
+          if (el.type === "text") visit(el.fontFamily);
+        }
+      }
+      for (const el of [...(this.doc.master?.header || []), ...(this.doc.master?.footer || [])]) {
+        if (el.type === "text") visit(el.fontFamily);
+      }
+      return extras;
+    },
+
+    syncDocumentFonts() {
+      const extras = this.collectDocFontExtras();
+      this.fontOptions = allFontOptions(extras);
+      for (const f of GOOGLE_FONTS) ensureGoogleFontStylesheet(f.googleFamily);
+      for (const extra of extras) {
+        const name = googleFamilyCssName(extra.id);
+        if (name) ensureGoogleFontStylesheet(name);
+      }
+    },
+
+    onFontFamilyChange() {
+      const el = this.selected;
+      if (el?.type === "text") {
+        const name = googleFamilyCssName(el.fontFamily);
+        if (name) ensureGoogleFontStylesheet(name);
+      }
+      this.persist();
+    },
+
+    fillLoremIpsum(size: LoremSize = "medium") {
+      const el = this.selected;
+      if (!el || el.type !== "text" || el.locked) return;
+      el.content = loremIpsum(size);
+      if (size === "long") {
+        el.width = Math.max(el.width, 360);
+        el.height = Math.max(el.height, 160);
+      } else if (size === "medium") {
+        el.width = Math.max(el.width, 320);
+        el.height = Math.max(el.height, 100);
+      }
+      this.commit();
+      this.showToast("Lorem ipsum filled");
+    },
+
+    async searchGoogleFonts() {
+      this.googleFontsBusy = true;
+      try {
+        const q = encodeURIComponent(this.googleFontQuery.trim());
+        const res = await apiFetch(`/api/fonts/google${q ? `?q=${q}` : ""}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Font search failed");
+        this.googleFontResults = (data.items || []) as {
+          id: string;
+          label: string;
+          googleFamily: string;
+        }[];
+        this.googleFontsFromApi = Boolean(data.fromApi);
+        for (const item of this.googleFontResults.slice(0, 12)) {
+          ensureGoogleFontStylesheet(item.googleFamily);
+        }
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Font search failed");
+        this.googleFontResults = [];
+      } finally {
+        this.googleFontsBusy = false;
+      }
+    },
+
+    addGoogleFont(item: { id: string; label: string; googleFamily: string }) {
+      ensureGoogleFontStylesheet(item.googleFamily);
+      const fontId = item.id.startsWith("google:") ? item.id : `google:${item.googleFamily}`;
+      const label = item.label || item.googleFamily;
+      if (!this.fontOptions.some((f: { id: string }) => f.id === fontId)) {
+        this.fontOptions = [...this.fontOptions, { id: fontId, label }];
+      }
+      if (this.selected?.type === "text") {
+        this.selected.fontFamily = fontId;
+        this.persist();
+      }
+      this.showToast(`Added ${label}`);
     },
 
     setImageCrop(edge: "top" | "right" | "bottom" | "left", value: number) {

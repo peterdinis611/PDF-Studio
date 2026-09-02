@@ -84,14 +84,49 @@
           <div>
             <label class="panel-label">Content</label>
             <textarea class="panel-input min-h-[5rem] resize-y" x-model="selected.content" @change="persist()"></textarea>
+            <div class="mt-1.5 flex flex-wrap gap-1.5">
+              <button type="button" class="btn-ghost text-xs" @click="fillLoremIpsum('short')" title="Short sentence">Lorem · short</button>
+              <button type="button" class="btn-ghost text-xs" @click="fillLoremIpsum('medium')" title="One paragraph">Lorem · para</button>
+              <button type="button" class="btn-ghost text-xs" @click="fillLoremIpsum('long')" title="Two paragraphs">Lorem · long</button>
+            </div>
           </div>
             <div>
             <label class="panel-label">Font</label>
-            <select class="panel-select" x-model="selected.fontFamily" @change="persist()">
+            <select class="panel-select" x-model="selected.fontFamily" @change="onFontFamilyChange()">
               <template x-for="f in fontOptions" :key="f.id">
                 <option :value="f.id" x-text="f.label"></option>
               </template>
             </select>
+            <div class="mt-2">
+              <label class="panel-label">Google Fonts</label>
+              <div class="flex gap-1.5">
+                <input
+                  type="search"
+                  class="panel-input flex-1"
+                  placeholder="Search fonts…"
+                  x-model="googleFontQuery"
+                  @keydown.enter.prevent="searchGoogleFonts()"
+                />
+                <button type="button" class="btn-ghost shrink-0 text-xs" :disabled="googleFontsBusy" @click="searchGoogleFonts()">
+                  <span x-text="googleFontsBusy ? '…' : 'Find'"></span>
+                </button>
+              </div>
+              <ul class="mt-1.5 max-h-28 space-y-1 overflow-y-auto" x-show="googleFontResults.length">
+                <template x-for="gf in googleFontResults" :key="gf.id">
+                  <li>
+                    <button
+                      type="button"
+                      class="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-slate-hover"
+                      @click="addGoogleFont(gf)"
+                    >
+                      <span class="truncate text-fg" :style="`font-family:'${gf.googleFamily}',sans-serif`" x-text="gf.label"></span>
+                      <span class="shrink-0 text-[10px] text-accent-soft">Add</span>
+                    </button>
+                  </li>
+                </template>
+              </ul>
+              <p class="mt-1 text-[10px] text-slate-muted" x-show="googleFontsFromApi">Live catalog via Google Web Fonts API</p>
+            </div>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>

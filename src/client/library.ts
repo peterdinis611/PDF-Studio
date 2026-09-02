@@ -14,6 +14,7 @@ import {
   createTable,
   createText,
 } from "./factories.js";
+import { loremIpsum } from "./lorem.js";
 import type { PdfElement } from "../shared/types.js";
 
 export type LibraryCategory =
@@ -72,6 +73,15 @@ export const LIBRARY_ITEMS: LibraryItem[] = [
     tags: ["text", "paragraph", "copy"],
     kind: "text",
     preview: "T",
+  },
+  {
+    id: "lorem",
+    category: "basics",
+    label: "Lorem ipsum",
+    hint: "Random placeholder text",
+    tags: ["text", "lorem", "ipsum", "placeholder", "dummy"],
+    kind: "preset:lorem",
+    preview: "¶",
   },
   {
     id: "image",
@@ -923,6 +933,15 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontWeight: "bold",
         width: 360,
         height: 44,
+      });
+    case "lorem":
+      return createText(x, y, {
+        content: loremIpsum("medium"),
+        fontSize: 12,
+        width: 400,
+        height: 120,
+        color: "#334155",
+        lineHeight: 1.4,
       });
     case "subhead":
       return createText(x, y, {

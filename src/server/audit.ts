@@ -10,6 +10,7 @@ export type AuditAction =
   | "pdf.export.fail"
   | "image.upload"
   | "image.upload.fail"
+  | "fonts.google.fail"
   | "audit.view"
   | "http.error";
 

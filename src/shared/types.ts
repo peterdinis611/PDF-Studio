@@ -38,7 +38,12 @@ export type FontFamily =
   | "OpenSans"
   | "Lora"
   | "Playfair"
-  | string; // custom:<id>
+  | "Montserrat"
+  | "SourceSans3"
+  | "Merriweather"
+  | "Nunito"
+  | "Raleway"
+  | string; // custom:<id> | google:<Family Name>
 
 export type ListStyle = "none" | "bullet" | "number";
 
@@ -397,11 +402,16 @@ export const PAGE_SIZE_GROUPS = PAGE_SIZE_GROUP_ORDER.map((group) => ({
 }));
 
 export const GOOGLE_FONTS = [
-  { id: "Inter", label: "Inter", css: "Inter, sans-serif" },
-  { id: "Roboto", label: "Roboto", css: "Roboto, sans-serif" },
-  { id: "OpenSans", label: "Open Sans", css: '"Open Sans", sans-serif' },
-  { id: "Lora", label: "Lora", css: "Lora, serif" },
-  { id: "Playfair", label: "Playfair Display", css: '"Playfair Display", serif' },
+  { id: "Inter", label: "Inter", css: "Inter, sans-serif", googleFamily: "Inter" },
+  { id: "Roboto", label: "Roboto", css: "Roboto, sans-serif", googleFamily: "Roboto" },
+  { id: "OpenSans", label: "Open Sans", css: '"Open Sans", sans-serif', googleFamily: "Open Sans" },
+  { id: "Lora", label: "Lora", css: "Lora, serif", googleFamily: "Lora" },
+  { id: "Playfair", label: "Playfair Display", css: '"Playfair Display", serif', googleFamily: "Playfair Display" },
+  { id: "Montserrat", label: "Montserrat", css: "Montserrat, sans-serif", googleFamily: "Montserrat" },
+  { id: "SourceSans3", label: "Source Sans 3", css: '"Source Sans 3", sans-serif', googleFamily: "Source Sans 3" },
+  { id: "Merriweather", label: "Merriweather", css: "Merriweather, serif", googleFamily: "Merriweather" },
+  { id: "Nunito", label: "Nunito", css: "Nunito, sans-serif", googleFamily: "Nunito" },
+  { id: "Raleway", label: "Raleway", css: "Raleway, sans-serif", googleFamily: "Raleway" },
 ] as const;
 
 export interface ExportSettings {

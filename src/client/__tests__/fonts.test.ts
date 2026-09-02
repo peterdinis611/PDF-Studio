@@ -12,6 +12,7 @@ describe("fontCssFamily", () => {
       expect(fontCssFamily("Inter")).toContain("Inter");
       expect(fontCssFamily("OpenSans")).toContain("Open Sans");
       expect(fontCssFamily("Playfair")).toContain("Playfair Display");
+      expect(fontCssFamily("google:Poppins" as never)).toContain("Poppins");
     });
   });
 
