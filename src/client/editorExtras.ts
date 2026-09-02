@@ -125,6 +125,7 @@ export const SHORTCUT_GROUPS: { title: string; items: { keys: string; action: st
       { keys: "L", action: "Line" },
       { keys: "/", action: "Search library" },
       { keys: "?", action: "This cheat sheet" },
+      { keys: "Tour", action: "Product walkthrough" },
     ],
   },
   {

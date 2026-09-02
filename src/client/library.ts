@@ -6,6 +6,9 @@ import {
   createCheckbox,
   createDivider,
   createEllipse,
+  createFormCheck,
+  createFormSelect,
+  createFormText,
   createIcon,
   createLine,
   createRect,
@@ -866,6 +869,416 @@ export const LIBRARY_ITEMS: LibraryItem[] = [
     kind: "stamp:FINAL",
     preview: "FN",
   },
+  {
+    id: "stamp-rejected",
+    category: "stamps",
+    label: "Rejected",
+    hint: "Round stamp",
+    tags: ["stamp", "reject"],
+    kind: "stamp:REJECTED",
+    preview: "RJ",
+  },
+  {
+    id: "stamp-received",
+    category: "stamps",
+    label: "Received",
+    hint: "Round stamp",
+    tags: ["stamp"],
+    kind: "stamp:RECEIVED",
+    preview: "RC",
+  },
+  {
+    id: "stamp-original",
+    category: "stamps",
+    label: "Original",
+    hint: "Round stamp",
+    tags: ["stamp"],
+    kind: "stamp:ORIGINAL",
+    preview: "OR",
+  },
+
+  // Extra shapes
+  {
+    id: "ring",
+    category: "shapes",
+    label: "Ring",
+    hint: "Outlined circle",
+    tags: ["circle", "outline"],
+    kind: "preset:ring",
+    preview: "◎",
+  },
+  {
+    id: "pill",
+    category: "shapes",
+    label: "Pill",
+    hint: "Capsule shape",
+    tags: ["rounded", "chip"],
+    kind: "preset:pill",
+    preview: "⬭",
+  },
+  {
+    id: "accent-bar",
+    category: "shapes",
+    label: "Accent bar",
+    hint: "Thin vertical stripe",
+    tags: ["bar", "accent"],
+    kind: "preset:accent-bar",
+    preview: "|",
+  },
+  {
+    id: "avatar",
+    category: "shapes",
+    label: "Avatar",
+    hint: "Photo placeholder circle",
+    tags: ["photo", "profile"],
+    kind: "preset:avatar",
+    preview: "☺",
+  },
+  {
+    id: "arrow-left",
+    category: "shapes",
+    label: "Arrow left",
+    hint: "Point left",
+    tags: ["pointer"],
+    kind: "preset:arrow-left",
+    preview: "←",
+  },
+
+  // Extra notes
+  {
+    id: "sticky-amber",
+    category: "notes",
+    label: "Amber sticky",
+    hint: "Warm note",
+    tags: ["note"],
+    kind: "preset:sticky-amber",
+    preview: "🗒",
+  },
+  {
+    id: "badge-todo",
+    category: "notes",
+    label: "TODO badge",
+    hint: "Status chip",
+    tags: ["status", "todo"],
+    kind: "preset:badge-todo",
+    preview: "…",
+  },
+  {
+    id: "badge-done",
+    category: "notes",
+    label: "Done badge",
+    hint: "Status chip",
+    tags: ["status", "done"],
+    kind: "preset:badge-done",
+    preview: "✓",
+  },
+
+  // Extra presets
+  {
+    id: "body",
+    category: "presets",
+    label: "Body copy",
+    hint: "Paragraph with lorem",
+    tags: ["text", "paragraph", "body"],
+    kind: "preset:body",
+    preview: "P",
+  },
+  {
+    id: "code-block",
+    category: "presets",
+    label: "Code block",
+    hint: "Monospace snippet",
+    tags: ["code", "mono"],
+    kind: "preset:code-block",
+    preview: "</>",
+  },
+  {
+    id: "success-box",
+    category: "presets",
+    label: "Success box",
+    hint: "Green callout",
+    tags: ["success", "ok"],
+    kind: "preset:success-box",
+    preview: "✓",
+  },
+  {
+    id: "testimonial",
+    category: "presets",
+    label: "Testimonial",
+    hint: "Quote + attribution",
+    tags: ["quote", "review"],
+    kind: "preset:testimonial",
+    preview: "❝",
+  },
+  {
+    id: "faq",
+    category: "presets",
+    label: "FAQ item",
+    hint: "Question and answer",
+    tags: ["faq", "q&a"],
+    kind: "preset:faq",
+    preview: "?",
+  },
+  {
+    id: "contact-card",
+    category: "presets",
+    label: "Contact card",
+    hint: "Name, email, phone",
+    tags: ["contact", "vcard"],
+    kind: "preset:contact-card",
+    preview: "@",
+  },
+  {
+    id: "hours",
+    category: "presets",
+    label: "Opening hours",
+    hint: "Week schedule",
+    tags: ["hours", "schedule"],
+    kind: "preset:hours",
+    preview: "◷",
+  },
+  {
+    id: "invoice-meta",
+    category: "presets",
+    label: "Invoice meta",
+    hint: "Number, date, due",
+    tags: ["invoice", "meta"],
+    kind: "preset:invoice-meta",
+    preview: "#",
+  },
+  {
+    id: "small-print",
+    category: "presets",
+    label: "Small print",
+    hint: "Legal / fine text",
+    tags: ["legal", "terms"],
+    kind: "preset:small-print",
+    preview: "※",
+  },
+  {
+    id: "price-tag",
+    category: "presets",
+    label: "Price tag",
+    hint: "Big price display",
+    tags: ["price", "money"],
+    kind: "preset:price-tag",
+    preview: "€",
+  },
+  {
+    id: "checklist",
+    category: "presets",
+    label: "Checklist",
+    hint: "Unchecked list",
+    tags: ["todo", "list"],
+    kind: "preset:checklist",
+    preview: "☐",
+  },
+  {
+    id: "email-sig",
+    category: "presets",
+    label: "Email signature",
+    hint: "Name + role + contact",
+    tags: ["signature", "email"],
+    kind: "preset:email-sig",
+    preview: "✉",
+  },
+  {
+    id: "byline",
+    category: "presets",
+    label: "Byline",
+    hint: "Author line",
+    tags: ["author", "meta"],
+    kind: "preset:byline",
+    preview: "—",
+  },
+  {
+    id: "overline",
+    category: "presets",
+    label: "Overline",
+    hint: "Small uppercase kicker",
+    tags: ["kicker", "label"],
+    kind: "preset:overline",
+    preview: "∙",
+  },
+  {
+    id: "drop-cap",
+    category: "presets",
+    label: "Drop cap",
+    hint: "Large initial letter",
+    tags: ["initial", "letter"],
+    kind: "preset:drop-cap",
+    preview: "A",
+  },
+
+  // Extra layout
+  {
+    id: "footer-legal",
+    category: "layout",
+    label: "Legal footer",
+    hint: "Company + disclaimer",
+    tags: ["footer", "legal"],
+    kind: "preset:footer-legal",
+    preview: "§",
+  },
+  {
+    id: "bottom-bar",
+    category: "layout",
+    label: "Bottom bar",
+    hint: "Full-width footer strip",
+    tags: ["bar", "footer"],
+    kind: "preset:bottom-bar",
+    preview: "▁",
+  },
+  {
+    id: "cover-kicker",
+    category: "layout",
+    label: "Cover kicker",
+    hint: "Eyebrow over hero title",
+    tags: ["cover", "hero"],
+    kind: "preset:cover-kicker",
+    preview: "▴",
+  },
+
+  // Fillable forms
+  {
+    id: "fill-text",
+    category: "forms",
+    label: "Fillable text",
+    hint: "Real AcroForm field",
+    tags: ["form", "input", "fillable"],
+    kind: "formText",
+    preview: "▭",
+  },
+  {
+    id: "fill-check",
+    category: "forms",
+    label: "Fillable check",
+    hint: "AcroForm checkbox",
+    tags: ["form", "checkbox", "fillable"],
+    kind: "formCheck",
+    preview: "☑",
+  },
+  {
+    id: "fill-select",
+    category: "forms",
+    label: "Fillable dropdown",
+    hint: "AcroForm select",
+    tags: ["form", "select", "fillable"],
+    kind: "formSelect",
+    preview: "▾",
+  },
+  {
+    id: "form-phone",
+    category: "forms",
+    label: "Phone field",
+    hint: "Labeled phone line",
+    tags: ["form", "phone"],
+    kind: "preset:form-phone",
+    preview: "☎",
+  },
+  {
+    id: "form-notes",
+    category: "forms",
+    label: "Notes field",
+    hint: "Multiline fillable",
+    tags: ["form", "notes", "multiline"],
+    kind: "preset:form-notes",
+    preview: "≡",
+  },
+
+  // Extra brand / data
+  {
+    id: "social-handle",
+    category: "brand",
+    label: "Social handle",
+    hint: "@username line",
+    tags: ["social", "brand"],
+    kind: "preset:social-handle",
+    preview: "@",
+  },
+  {
+    id: "comparison",
+    category: "data",
+    label: "Comparison row",
+    hint: "Before vs after",
+    tags: ["compare", "vs"],
+    kind: "preset:comparison",
+    preview: "⇄",
+  },
+  {
+    id: "schedule-row",
+    category: "data",
+    label: "Schedule row",
+    hint: "Time + event",
+    tags: ["agenda", "time"],
+    kind: "preset:schedule-row",
+    preview: "·",
+  },
+  {
+    id: "stat-delta",
+    category: "data",
+    label: "Stat delta",
+    hint: "Change indicator",
+    tags: ["kpi", "growth"],
+    kind: "preset:stat-delta",
+    preview: "↑",
+  },
+
+  // Extra icons
+  {
+    id: "icon-calendar",
+    category: "icons",
+    label: "Calendar",
+    hint: "Date icon",
+    tags: ["icon", "date"],
+    kind: "icon:calendar",
+    preview: "📅",
+  },
+  {
+    id: "icon-link",
+    category: "icons",
+    label: "Link",
+    hint: "URL icon",
+    tags: ["icon", "url"],
+    kind: "icon:link",
+    preview: "🔗",
+  },
+  {
+    id: "icon-globe",
+    category: "icons",
+    label: "Globe",
+    hint: "Web icon",
+    tags: ["icon", "web"],
+    kind: "icon:globe",
+    preview: "🌐",
+  },
+  {
+    id: "icon-file",
+    category: "icons",
+    label: "File",
+    hint: "Document icon",
+    tags: ["icon", "doc"],
+    kind: "icon:file",
+    preview: "📄",
+  },
+  {
+    id: "icon-clock",
+    category: "icons",
+    label: "Clock",
+    hint: "Time icon",
+    tags: ["icon", "time"],
+    kind: "icon:clock",
+    preview: "⏰",
+  },
+  {
+    id: "icon-image",
+    category: "icons",
+    label: "Image icon",
+    hint: "Picture glyph",
+    tags: ["icon", "photo"],
+    kind: "icon:image",
+    preview: "🖼",
+  },
 ];
 
 function createPreset(id: string, x: number, y: number): PdfElement {
@@ -1257,6 +1670,260 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         width: 260,
         height: 50,
       });
+    case "ring":
+      return createEllipse(x, y, {
+        width: 120,
+        height: 120,
+        fill: "#ffffff",
+        stroke: "#0f766e",
+        strokeWidth: 4,
+      });
+    case "pill":
+      return createRect(x, y, {
+        width: 160,
+        height: 40,
+        fill: "#0d9488",
+        strokeWidth: 0,
+        cornerRadius: 20,
+      });
+    case "accent-bar":
+      return createRect(x, y, {
+        width: 8,
+        height: 160,
+        fill: "#0f766e",
+        strokeWidth: 0,
+        cornerRadius: 4,
+      });
+    case "avatar":
+      return createEllipse(x, y, {
+        width: 72,
+        height: 72,
+        fill: "#e2e8f0",
+        stroke: "#94a3b8",
+        strokeWidth: 1,
+      });
+    case "arrow-left":
+      return createArrow(x, y, { width: 140, height: 20, rotation: 180, stroke: "#0f766e" });
+    case "sticky-amber":
+      return createSticky(x, y, { fill: "#fde68a", color: "#78350f" });
+    case "badge-todo":
+      return createBadge(x, y, { label: "TODO", fill: "#475569", color: "#f8fafc" });
+    case "badge-done":
+      return createBadge(x, y, { label: "DONE", fill: "#16a34a", color: "#f0fdf4" });
+    case "body":
+      return createText(x, y, {
+        content: loremIpsum("medium"),
+        fontSize: 12,
+        width: 420,
+        height: 110,
+        color: "#334155",
+        lineHeight: 1.45,
+      });
+    case "code-block":
+      return createText(x, y, {
+        content: "const doc = await exportPdf(payload);\nconsole.log(doc.byteLength);",
+        fontSize: 11,
+        fontFamily: "Courier",
+        width: 400,
+        height: 56,
+        color: "#0f172a",
+        lineHeight: 1.35,
+      });
+    case "success-box":
+      return createRect(x, y, {
+        width: 360,
+        height: 72,
+        fill: "#f0fdf4",
+        stroke: "#16a34a",
+        strokeWidth: 1.5,
+        cornerRadius: 8,
+      });
+    case "testimonial":
+      return createText(x, y, {
+        content: "“This layout saved us hours every week.”\n— Alex Rivera, Design lead",
+        fontSize: 14,
+        fontFamily: "Times-Roman",
+        width: 360,
+        height: 70,
+        color: "#334155",
+        lineHeight: 1.4,
+      });
+    case "faq":
+      return createText(x, y, {
+        content: "Q: How long does delivery take?\nA: Typical turnaround is 5–7 business days.",
+        fontSize: 12,
+        width: 400,
+        height: 56,
+        color: "#1e293b",
+        lineHeight: 1.4,
+      });
+    case "contact-card":
+      return createText(x, y, {
+        content: "Jordan Lee\njordan@example.com\n+49 30 1234 5678",
+        fontSize: 12,
+        width: 220,
+        height: 64,
+        color: "#334155",
+        lineHeight: 1.45,
+      });
+    case "hours":
+      return createText(x, y, {
+        content: "Mon–Fri  09:00–18:00\nSaturday  10:00–14:00\nSunday    Closed",
+        fontSize: 12,
+        fontFamily: "Courier",
+        width: 240,
+        height: 64,
+        color: "#334155",
+      });
+    case "invoice-meta":
+      return createText(x, y, {
+        content: "Invoice #INV-2048\nIssued  12 Mar 2026\nDue     26 Mar 2026",
+        fontSize: 12,
+        width: 220,
+        height: 64,
+        color: "#475569",
+        align: "right",
+      });
+    case "small-print":
+      return createText(x, y, {
+        content:
+          "By signing this document you acknowledge the terms of service. Prices exclude applicable tax unless stated otherwise.",
+        fontSize: 8,
+        color: "#94a3b8",
+        width: 480,
+        height: 36,
+        lineHeight: 1.35,
+      });
+    case "price-tag":
+      return createText(x, y, {
+        content: "€49\n/month",
+        fontSize: 42,
+        fontWeight: "bold",
+        width: 140,
+        height: 80,
+        color: "#0f766e",
+        align: "center",
+      });
+    case "checklist":
+      return createText(x, y, {
+        content: "☐ Kickoff meeting\n☐ First draft\n☐ Final delivery",
+        fontSize: 13,
+        width: 260,
+        height: 80,
+        listStyle: "none",
+      });
+    case "email-sig":
+      return createText(x, y, {
+        content: "Sam Okonkwo\nProduct Designer · PDF Studio\nsam@pdfstudio.app · pdfstudio.app",
+        fontSize: 11,
+        width: 300,
+        height: 56,
+        color: "#475569",
+        lineHeight: 1.4,
+      });
+    case "byline":
+      return createText(x, y, {
+        content: "By Maya Chen · 4 min read",
+        fontSize: 11,
+        color: "#64748b",
+        width: 260,
+        height: 20,
+      });
+    case "overline":
+      return createText(x, y, {
+        content: "CASE STUDY",
+        fontSize: 10,
+        fontWeight: "bold",
+        letterSpacing: 2,
+        color: "#0f766e",
+        width: 200,
+        height: 18,
+      });
+    case "drop-cap":
+      return createText(x, y, {
+        content: "A",
+        fontSize: 72,
+        fontWeight: "bold",
+        fontFamily: "Times-Roman",
+        width: 64,
+        height: 80,
+        color: "#0f766e",
+      });
+    case "footer-legal":
+      return createText(x, y, {
+        content: "© 2026 PDF Studio · All rights reserved · privacy@pdfstudio.app",
+        fontSize: 9,
+        color: "#94a3b8",
+        width: 500,
+        height: 18,
+        align: "center",
+      });
+    case "bottom-bar":
+      return createRect(x, y, {
+        width: 595,
+        height: 48,
+        fill: "#134e4a",
+        strokeWidth: 0,
+      });
+    case "cover-kicker":
+      return createText(x, y, {
+        content: "ANNUAL REPORT 2026",
+        fontSize: 12,
+        fontWeight: "bold",
+        letterSpacing: 3,
+        color: "#0f766e",
+        width: 360,
+        height: 22,
+      });
+    case "form-phone":
+      return createText(x, y, {
+        content: "Phone\n________________________________",
+        fontSize: 12,
+        width: 320,
+        height: 44,
+      });
+    case "form-notes":
+      return createFormText(x, y, {
+        name: "notes",
+        placeholder: "Additional notes…",
+        multiline: true,
+        width: 360,
+        height: 96,
+      });
+    case "social-handle":
+      return createText(x, y, {
+        content: "@pdfstudio",
+        fontSize: 14,
+        color: "#0f766e",
+        width: 160,
+        height: 24,
+      });
+    case "comparison":
+      return createText(x, y, {
+        content: "Before          →          After\n3 days                 45 minutes",
+        fontSize: 13,
+        width: 320,
+        height: 48,
+        align: "center",
+        color: "#334155",
+      });
+    case "schedule-row":
+      return createText(x, y, {
+        content: "09:30  Kickoff & goals\n11:00  Design review",
+        fontSize: 12,
+        fontFamily: "Courier",
+        width: 280,
+        height: 44,
+      });
+    case "stat-delta":
+      return createText(x, y, {
+        content: "↑ 24%\nvs last quarter",
+        fontSize: 22,
+        fontWeight: "bold",
+        width: 160,
+        height: 56,
+        color: "#16a34a",
+      });
     default:
       return createText(x, y);
   }
@@ -1279,6 +1946,13 @@ export function createFromLibrary(
   if (kind === "checkbox") return createCheckbox(x, y);
   if (kind === "divider") return createDivider(x, y);
   if (kind === "table") return createTable(x, y);
+  if (kind === "formText") return createFormText(x, y);
+  if (kind === "formCheck") return createFormCheck(x, y);
+  if (kind === "formSelect") {
+    return createFormSelect(x, y, {
+      options: ["Option A", "Option B", "Option C"],
+    });
+  }
 
   if (kind.startsWith("icon:")) {
     return createIcon(x, y, kind.slice(5) as IconKind);
@@ -1302,6 +1976,9 @@ export function createFromLibrary(
       CONFIDENTIAL: "#dc2626",
       SAMPLE: "#7c3aed",
       FINAL: "#0f766e",
+      REJECTED: "#b91c1c",
+      RECEIVED: "#0369a1",
+      ORIGINAL: "#7c2d12",
     };
     return createStamp(x, y, {
       label,

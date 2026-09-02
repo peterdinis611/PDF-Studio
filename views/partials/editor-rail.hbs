@@ -3,6 +3,7 @@
     <button
       type="button"
       class="rail-tab"
+      data-tour="insert"
       :class="leftRail === 'insert' && 'is-active'"
       @click="leftRail = 'insert'"
     >
@@ -11,6 +12,7 @@
     <button
       type="button"
       class="rail-tab"
+      data-tour="pages"
       :class="leftRail === 'pages' && 'is-active'"
       @click="leftRail = 'pages'"
     >

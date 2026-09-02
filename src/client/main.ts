@@ -31,6 +31,7 @@ import {
   escapeHtml,
   uid,
 } from "./factories.js";
+import { scheduleEditorTour, startEditorTour } from "./tour.js";
 import { allFontOptions, ensureGoogleFontStylesheet, fontCssFamily, googleFamilyCssName } from "./fonts.js";
 import { HistoryStack } from "./history.js";
 import { iconSvg } from "./icons.js";
@@ -560,6 +561,17 @@ function pdfEditor() {
           { passive: false },
         );
       });
+
+      scheduleEditorTour();
+    },
+
+    startTour() {
+      this.leftRail = "insert";
+      this.showFileMenu = false;
+      this.showTemplates = false;
+      this.showSettings = false;
+      this.showShortcuts = false;
+      queueMicrotask(() => startEditorTour());
     },
 
     applyTheme(theme: "dark" | "light") {

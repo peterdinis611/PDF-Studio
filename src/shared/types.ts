@@ -27,7 +27,13 @@ export type IconKind =
   | "mail"
   | "phone"
   | "pin"
-  | "user";
+  | "user"
+  | "calendar"
+  | "link"
+  | "globe"
+  | "file"
+  | "clock"
+  | "image";
 
 export type FontFamily =
   | "Helvetica"

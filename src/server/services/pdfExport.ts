@@ -426,6 +426,12 @@ async function drawIcon(page: PDFPage, el: IconElement, pageHeight: number, font
     phone: "☎",
     pin: "•",
     user: "☺",
+    calendar: "📅",
+    link: "⛓",
+    globe: "○",
+    file: "▢",
+    clock: "◷",
+    image: "▦",
   };
   const label = symbols[el.icon] ?? "*";
   const size = Math.min(el.width, el.height) * 0.7;
