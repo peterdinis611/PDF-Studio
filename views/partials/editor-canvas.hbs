@@ -298,6 +298,36 @@
           :style="marquee && `left:${marquee.x * zoom}px;top:${marquee.y * zoom}px;width:${marquee.w * zoom}px;height:${marquee.h * zoom}px`"
         ></div>
 
+        {{!-- Empty page nudge --}}
+        <div
+          x-show="workingElements.length === 0 && !editingMaster && tool === 'select'"
+          x-cloak
+          x-transition.opacity.duration.200ms
+          class="canvas-empty"
+        >
+          <p class="canvas-empty-title">Start with a building block</p>
+          <p class="canvas-empty-copy">Click the page with a tool, or pick from Insert.</p>
+          <div class="canvas-empty-actions">
+            <button type="button" class="canvas-empty-btn" @click="tool = 'text'; placeHint = false; pendingLibraryKind = null">
+              <span class="canvas-empty-btn-ico" aria-hidden="true">T</span>
+              Text
+            </button>
+            <button type="button" class="canvas-empty-btn" @click="$refs.imageInput.click()">
+              <span class="canvas-empty-btn-ico" aria-hidden="true">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.5-6 3.5 4.5L15 12l5 6H4zM8 9a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" /></svg>
+              </span>
+              Image
+            </button>
+            <button
+              type="button"
+              class="canvas-empty-btn is-accent"
+              @click="leftRail = 'insert'; showLeftPanel = true; if (isCompact) showInspectorPanel = false; $nextTick(() => $refs.librarySearch?.focus())"
+            >
+              Browse Insert
+            </button>
+          </div>
+        </div>
+
         {{!-- Comments --}}
         <template x-for="c in pageComments" :key="c.id">
           <div

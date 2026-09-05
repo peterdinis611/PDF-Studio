@@ -37,7 +37,7 @@
 
   {{!-- Insert library --}}
   <div class="flex min-h-0 flex-1 flex-col" x-show="leftRail === 'insert'" x-cloak>
-    <div class="insert-header space-y-2.5 border-b border-slate-line p-3">
+    <div class="insert-header space-y-2 border-b border-slate-line p-3">
       <div class="search-field">
         <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
           <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.3-4.3M11 18a7 7 0 100-14 7 7 0 000 14z" />
@@ -54,11 +54,66 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <select class="panel-select flex-1 py-2 text-xs" x-model="libraryCategory">
-          <template x-for="cat in libraryCategories" :key="cat.id">
-            <option :value="cat.id" x-text="cat.label"></option>
+        <div class="quick-filter-row min-w-0 flex-1">
+          <button
+            type="button"
+            class="quick-filter"
+            :class="libraryCategory === 'all' && 'is-active'"
+            @click="libraryCategory = 'all'"
+          >All</button>
+          <button
+            type="button"
+            class="quick-filter"
+            :class="libraryCategory === 'favorites' && 'is-active'"
+            @click="libraryCategory = 'favorites'"
+            title="Favorites"
+          >★</button>
+          <button
+            type="button"
+            class="quick-filter"
+            :class="libraryCategory === 'recent' && 'is-active'"
+            @click="libraryCategory = 'recent'"
+          >Recent</button>
+          <button
+            type="button"
+            class="quick-filter"
+            :class="libraryCategory === 'basics' && 'is-active'"
+            @click="libraryCategory = 'basics'"
+          >Basics</button>
+          <button
+            type="button"
+            class="quick-filter"
+            :class="libraryCategory === 'shapes' && 'is-active'"
+            @click="libraryCategory = 'shapes'"
+          >Shapes</button>
+          <button
+            type="button"
+            class="quick-filter"
+            :class="libraryCategory === 'notes' && 'is-active'"
+            @click="libraryCategory = 'notes'"
+          >Notes</button>
+          <button
+            type="button"
+            class="quick-filter"
+            :class="libraryCategory === 'presets' && 'is-active'"
+            @click="libraryCategory = 'presets'"
+          >Presets</button>
+          <button
+            type="button"
+            class="quick-filter"
+            :class="libraryCategory === 'forms' && 'is-active'"
+            @click="libraryCategory = 'forms'"
+          >Forms</button>
+          <template x-for="cat in libraryCategories.filter(c => !['all','favorites','recent','basics','shapes','notes','presets','forms'].includes(c.id))" :key="cat.id">
+            <button
+              type="button"
+              class="quick-filter"
+              :class="libraryCategory === cat.id && 'is-active'"
+              @click="libraryCategory = cat.id"
+              x-text="cat.label"
+            ></button>
           </template>
-        </select>
+        </div>
         <button
           type="button"
           class="view-toggle"
@@ -74,61 +129,9 @@
           </svg>
         </button>
       </div>
-
-      <div class="flex flex-wrap items-center gap-1">
-        <button
-          type="button"
-          class="quick-filter"
-          :class="libraryCategory === 'all' && 'is-active'"
-          @click="libraryCategory = 'all'"
-        >All</button>
-        <button
-          type="button"
-          class="quick-filter"
-          :class="libraryCategory === 'favorites' && 'is-active'"
-          @click="libraryCategory = 'favorites'"
-          title="Favorites"
-        >★</button>
-        <button
-          type="button"
-          class="quick-filter"
-          :class="libraryCategory === 'recent' && 'is-active'"
-          @click="libraryCategory = 'recent'"
-        >Recent</button>
-        <button
-          type="button"
-          class="quick-filter"
-          :class="libraryCategory === 'basics' && 'is-active'"
-          @click="libraryCategory = 'basics'"
-        >Basics</button>
-        <button
-          type="button"
-          class="quick-filter"
-          :class="libraryCategory === 'shapes' && 'is-active'"
-          @click="libraryCategory = 'shapes'"
-        >Shapes</button>
-        <button
-          type="button"
-          class="quick-filter"
-          :class="libraryCategory === 'notes' && 'is-active'"
-          @click="libraryCategory = 'notes'"
-        >Notes</button>
-        <button
-          type="button"
-          class="quick-filter"
-          :class="libraryCategory === 'presets' && 'is-active'"
-          @click="libraryCategory = 'presets'"
-        >Presets</button>
-        <button
-          type="button"
-          class="quick-filter"
-          :class="libraryCategory === 'forms' && 'is-active'"
-          @click="libraryCategory = 'forms'"
-        >Forms</button>
-      </div>
     </div>
 
-    <div class="flex items-center justify-between px-3 py-2">
+    <div class="flex items-center justify-between px-3 py-1.5">
       <span class="text-[11px] text-slate-muted">
         <span class="font-medium text-fg/80" x-text="filteredLibraryCount"></span>
         <span x-text="filteredLibraryCount === 1 ? ' element' : ' elements'"></span>

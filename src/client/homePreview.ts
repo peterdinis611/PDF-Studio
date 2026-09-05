@@ -14,6 +14,13 @@ function setActivePanel(panels: HTMLElement[], index: number): void {
   });
 }
 
+function setActiveSteps(steps: HTMLElement[], index: number): void {
+  steps.forEach((step, i) => {
+    step.classList.toggle("is-active", i === index);
+    step.classList.toggle("is-done", i < index);
+  });
+}
+
 function showSheetContent(sheet: HTMLElement): void {
   utils.set(sheet.querySelectorAll("[data-sheet-el]"), {
     opacity: 1,
@@ -21,6 +28,16 @@ function showSheetContent(sheet: HTMLElement): void {
     scale: 1,
     scaleX: 1,
   });
+}
+
+function initNavScroll(page: HTMLElement): void {
+  const nav = document.querySelector<HTMLElement>("[data-site-nav]");
+  if (!nav) return;
+  const onScrollPage = () => {
+    nav.classList.toggle("is-scrolled", page.scrollTop > 12);
+  };
+  page.addEventListener("scroll", onScrollPage, { passive: true });
+  onScrollPage();
 }
 
 function initPageParallax(page: HTMLElement): void {
@@ -33,10 +50,10 @@ function initPageParallax(page: HTMLElement): void {
   const onScrollPage = () => {
     const max = page.scrollHeight - page.clientHeight;
     const p = max > 0 ? page.scrollTop / max : 0;
-    if (vibe) vibe.style.transform = `translate3d(0, ${p * -6}%, 0) scale(${1 + p * 0.04})`;
-    if (orbA) orbA.style.transform = `translate3d(${p * -12}%, ${p * 22}%, 0)`;
-    if (orbB) orbB.style.transform = `translate3d(${p * 14}%, ${p * -18}%, 0)`;
-    if (orbC) orbC.style.transform = `translate3d(${p * -6}%, ${p * 10}%, 0)`;
+    if (vibe) vibe.style.transform = `translate3d(0, ${p * -4}%, 0) scale(${1 + p * 0.03})`;
+    if (orbA) orbA.style.transform = `translate3d(${p * -8}%, ${p * 16}%, 0)`;
+    if (orbB) orbB.style.transform = `translate3d(${p * 10}%, ${p * -12}%, 0)`;
+    if (orbC) orbC.style.transform = `translate3d(${p * -4}%, ${p * 8}%, 0)`;
     for (const el of depths) {
       const depth = Number(el.dataset.parallaxDepth || 0.1);
       el.style.transform = `translate3d(0, ${-(p * depth * 120)}px, 0)`;
@@ -51,7 +68,6 @@ function initChapterReveals(page: HTMLElement): void {
   const items = [...document.querySelectorAll<HTMLElement>("[data-reveal]")];
   if (!items.length) return;
 
-  // Always visible by default — animation is enhancement only
   for (const el of items) {
     el.classList.add("is-reveal-pending");
   }
@@ -66,15 +82,99 @@ function initChapterReveals(page: HTMLElement): void {
         io.unobserve(el);
       }
     },
-    { root: page, rootMargin: "0px 0px -8% 0px", threshold: 0.12 },
+    { root: page, rootMargin: "0px 0px -10% 0px", threshold: 0.12 },
   );
 
   for (const el of items) io.observe(el);
 }
 
+function initTemplateRack(): void {
+  const rack = document.querySelector<HTMLElement>("[data-tpl-rack]");
+  if (!rack) return;
+
+  const prev = document.querySelector<HTMLButtonElement>("[data-rack-prev]");
+  const next = document.querySelector<HTMLButtonElement>("[data-rack-next]");
+  const step = () => Math.min(280, rack.clientWidth * 0.7);
+
+  const updateArrows = () => {
+    const max = rack.scrollWidth - rack.clientWidth;
+    if (prev) prev.disabled = rack.scrollLeft <= 4;
+    if (next) next.disabled = rack.scrollLeft >= max - 4;
+  };
+
+  prev?.addEventListener("click", () => {
+    rack.scrollBy({ left: -step(), behavior: "smooth" });
+  });
+  next?.addEventListener("click", () => {
+    rack.scrollBy({ left: step(), behavior: "smooth" });
+  });
+  rack.addEventListener("scroll", updateArrows, { passive: true });
+  updateArrows();
+
+  let pointerId: number | null = null;
+  let startX = 0;
+  let startScroll = 0;
+  let lastX = 0;
+  let lastT = 0;
+  let velocity = 0;
+  let momentumId = 0;
+
+  const stopMomentum = () => {
+    if (momentumId) cancelAnimationFrame(momentumId);
+    momentumId = 0;
+  };
+
+  const momentum = () => {
+    if (Math.abs(velocity) < 0.15) {
+      rack.classList.remove("is-dragging");
+      updateArrows();
+      return;
+    }
+    rack.scrollLeft -= velocity;
+    velocity *= 0.95;
+    momentumId = requestAnimationFrame(momentum);
+  };
+
+  rack.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    stopMomentum();
+    pointerId = e.pointerId;
+    startX = e.clientX;
+    lastX = e.clientX;
+    lastT = performance.now();
+    startScroll = rack.scrollLeft;
+    velocity = 0;
+    rack.classList.add("is-dragging");
+    rack.setPointerCapture(e.pointerId);
+  });
+
+  rack.addEventListener("pointermove", (e) => {
+    if (pointerId !== e.pointerId) return;
+    const dx = e.clientX - startX;
+    rack.scrollLeft = startScroll - dx;
+    const now = performance.now();
+    const dt = Math.max(1, now - lastT);
+    velocity = ((e.clientX - lastX) / dt) * 16;
+    lastX = e.clientX;
+    lastT = now;
+  });
+
+  const endDrag = (e: PointerEvent) => {
+    if (pointerId !== e.pointerId) return;
+    pointerId = null;
+    rack.releasePointerCapture(e.pointerId);
+    velocity = -velocity;
+    momentumId = requestAnimationFrame(momentum);
+  };
+
+  rack.addEventListener("pointerup", endDrag);
+  rack.addEventListener("pointercancel", endDrag);
+}
+
 function initPdfScrollBuild(page: HTMLElement, pin: HTMLElement, sheet: HTMLElement): void {
   const panels = [...document.querySelectorAll<HTMLElement>("[data-stage-panel]")];
   const progressBar = document.querySelector<HTMLElement>("[data-pin-progress]");
+  const steps = [...document.querySelectorAll<HTMLElement>("[data-pin-steps] [data-step]")];
   const board = document.querySelector<HTMLElement>("[data-home-board]");
 
   const logo = sheet.querySelector<HTMLElement>('[data-sheet-el="logo"]');
@@ -88,7 +188,6 @@ function initPdfScrollBuild(page: HTMLElement, pin: HTMLElement, sheet: HTMLElem
 
   if (!logo || !meta || !rule || !toEl || !muted || !total || !totalStrong) return;
 
-  // Sheet paper always visible — only ink layers animate
   utils.set(sheet, { opacity: 1, y: 18, rotate: "-2deg", scale: 0.96 });
   utils.set([logo, meta, muted, total, ...lines], { opacity: 0 });
   utils.set(logo, { scale: 0.7 });
@@ -131,9 +230,10 @@ function initPdfScrollBuild(page: HTMLElement, pin: HTMLElement, sheet: HTMLElem
       if (progressBar) progressBar.style.width = `${Math.round(p * 100)}%`;
       const panelIndex = Math.min(panels.length - 1, Math.floor(p * panels.length));
       setActivePanel(panels, panelIndex);
+      setActiveSteps(steps, panelIndex);
       if (board) {
-        board.style.setProperty("--board-glow", String(0.2 + p * 0.45));
-        board.style.transform = `translate3d(0, ${(0.5 - p) * 12}px, 0)`;
+        board.style.setProperty("--board-glow", String(0.22 + p * 0.5));
+        board.style.transform = `translate3d(0, ${(0.5 - p) * 10}px, 0)`;
       }
     },
     onSyncComplete: () => {
@@ -147,7 +247,6 @@ function initPdfScrollBuild(page: HTMLElement, pin: HTMLElement, sheet: HTMLElem
     defaults: { ease: "linear" },
   });
 
-  // Panel 0–1: sheet settles into frame (already visible)
   tl.add(sheet, {
     y: { to: 0, duration: 900 },
     scale: { to: 1, duration: 900 },
@@ -155,7 +254,6 @@ function initPdfScrollBuild(page: HTMLElement, pin: HTMLElement, sheet: HTMLElem
     ease: "outCubic",
   });
 
-  // Panel 2: brand
   tl.add(
     logo,
     {
@@ -173,7 +271,6 @@ function initPdfScrollBuild(page: HTMLElement, pin: HTMLElement, sheet: HTMLElem
     "-=360",
   );
 
-  // Panel 3: type-on
   tl.add(rule, { scaleX: { to: 1, duration: 520 }, ease: "outQuad" }, "+=220")
     .add(
       toSplit.chars,
@@ -193,7 +290,6 @@ function initPdfScrollBuild(page: HTMLElement, pin: HTMLElement, sheet: HTMLElem
       "-=40",
     );
 
-  // Panel 4: lines
   lines.forEach((li, i) => {
     const split = lineSplits[i];
     const amount = amounts[i];
@@ -219,7 +315,6 @@ function initPdfScrollBuild(page: HTMLElement, pin: HTMLElement, sheet: HTMLElem
     if (amount) tl.add(amount, { opacity: { to: 1, duration: 260 } }, "-=70");
   });
 
-  // Panel 5: total
   tl.add(
     total,
     {
@@ -253,10 +348,15 @@ export function initHomePreview(): void {
   if (!page || !pin || !sheet) return;
 
   const panels = [...document.querySelectorAll<HTMLElement>("[data-stage-panel]")];
+  const steps = [...document.querySelectorAll<HTMLElement>("[data-pin-steps] [data-step]")];
+
+  initNavScroll(page);
+  initTemplateRack();
 
   if (prefersReducedMotion()) {
     showSheetContent(sheet);
     setActivePanel(panels, panels.length - 1);
+    setActiveSteps(steps, steps.length - 1);
     const progressBar = document.querySelector<HTMLElement>("[data-pin-progress]");
     if (progressBar) progressBar.style.width = "100%";
     document.querySelectorAll("[data-reveal]").forEach((el) => {

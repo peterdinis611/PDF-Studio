@@ -511,26 +511,26 @@
     </div>
 
     <div x-show="!selected" class="empty-properties">
-      <div class="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-slate-line text-slate-muted">
+      <div class="empty-properties-icon" aria-hidden="true">
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6.768-6.768a2 2 0 012.828 0l.172.172a2 2 0 010 2.828L12 14l-4 1 1-4z" />
         </svg>
       </div>
-      <p class="text-sm font-medium text-fg/80">Nothing selected</p>
+      <p class="text-sm font-medium text-fg">Nothing selected</p>
       <p class="mt-1.5 text-xs leading-relaxed text-slate-muted">
-        Click an element on the page, or place one from Insert.
+        Select something on the page, or place an element from Insert.
       </p>
-      <ul class="mt-3 space-y-1.5 text-left text-[11px] text-slate-muted">
-        <li><kbd class="rounded border border-slate-line px-1 font-mono text-[10px]">T</kbd> text tool</li>
-        <li><kbd class="rounded border border-slate-line px-1 font-mono text-[10px]">/</kbd> search library</li>
-        <li><kbd class="rounded border border-slate-line px-1 font-mono text-[10px]">Shift</kbd> + click multi-select</li>
-      </ul>
+      <div class="empty-properties-hints">
+        <span><kbd>T</kbd> text</span>
+        <span><kbd>/</kbd> search</span>
+        <span><kbd>⇧</kbd> multi-select</span>
+      </div>
       <button
         type="button"
-        class="mt-4 text-xs font-medium text-accent-soft hover:underline"
-        @click="leftRail = 'insert'; $nextTick(() => $refs.librarySearch?.focus())"
+        class="btn-ghost mt-4 w-full justify-center text-accent-soft"
+        @click="leftRail = 'insert'; showLeftPanel = true; if (isCompact) showInspectorPanel = false; $nextTick(() => $refs.librarySearch?.focus())"
       >
-        Open Insert →
+        Open Insert
       </button>
     </div>
 
@@ -562,7 +562,9 @@
             </div>
           </li>
         </template>
-        <li x-show="layers.length === 0" class="px-2 py-2 text-xs text-slate-muted">No elements on this page.</li>
+        <li x-show="layers.length === 0" class="layers-empty">
+          Page is empty — place something from Insert.
+        </li>
       </ul>
       <div class="mt-2 flex flex-wrap gap-1" x-show="selected">
         <button type="button" class="btn-ghost text-[10px]" @click="bringToFront()">Front</button>

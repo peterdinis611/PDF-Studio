@@ -4,14 +4,14 @@
   <div class="nf-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>
 
   <header class="nf-header relative z-30 flex items-center justify-between px-5 py-4 md:px-10">
-    <a href="/" class="flex items-center gap-2.5">
-      <span class="site-mark">PS</span>
-      <span class="font-display text-base font-semibold tracking-tight text-fg">PDF Studio</span>
+    <a href="/" class="site-brand-link">
+      <span class="site-mark" aria-hidden="true"></span>
+      <span class="site-brand-name">PDF Studio</span>
     </a>
     <div class="flex items-center gap-2">
       <button
         type="button"
-        class="tool-btn h-9 w-9"
+        class="site-icon-btn"
         @click="toggleTheme()"
         :title="theme === 'dark' ? 'Light mode' : 'Dark mode'"
       >
@@ -22,49 +22,30 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
         </svg>
       </button>
-      <a href="/editor" class="btn-primary">Open editor</a>
+      <a href="/editor" class="site-nav-cta">Open editor</a>
     </div>
   </header>
 
   <main class="relative z-20 flex min-h-0 flex-1 flex-col lg:flex-row lg:items-stretch">
-    {{!-- Copy — brand-first --}}
     <section class="nf-copy relative flex flex-1 flex-col justify-center px-6 pb-10 pt-4 md:px-10 lg:max-w-[48%] lg:pb-16 lg:pt-0">
-      <p class="nf-kicker font-mono text-[11px] uppercase tracking-[0.28em] text-accent-soft">
-        Error · signature incomplete
-      </p>
-      <h1 class="nf-brand mt-4 font-display text-[clamp(2.75rem,8vw,5.5rem)] font-semibold leading-[0.92] tracking-tight text-fg">
+      <h1 class="nf-brand mt-0 font-display text-[clamp(2.75rem,8vw,5.5rem)] font-semibold leading-[0.92] tracking-tight">
         PDF Studio
       </h1>
-      <p class="nf-headline mt-6 max-w-md text-xl font-medium leading-snug text-fg/85 md:text-2xl">
+      <p class="nf-headline mt-6 max-w-md text-xl font-medium leading-snug md:text-2xl" style="color: rgb(var(--mk-fg) / 0.88)">
         This page isn’t in the document.
       </p>
-      <p class="nf-support mt-3 max-w-sm text-[15px] leading-relaxed text-slate-muted">
-        The sheet you asked for never made the print run. Return home, or open a blank canvas and write the next page yourself.
+      <p class="nf-support mt-3 max-w-sm text-[15px] leading-relaxed" style="color: rgb(var(--mk-muted))">
+        The address doesn’t match a sheet we have. Go home, or open a blank page and start a new one.
       </p>
       <div class="nf-cta mt-10 flex flex-wrap gap-3">
-        <a
-          href="/"
-          class="nf-btn-home inline-flex items-center gap-2 rounded-xl bg-fg px-5 py-3 text-sm font-semibold transition hover:opacity-90"
-          style="color: rgb(var(--color-panel))"
-        >
-          Back home
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-          </svg>
-        </a>
-        <a
-          href="/editor?new=1"
-          class="nf-btn-blank inline-flex items-center rounded-xl border border-slate-line px-5 py-3 text-sm font-medium text-fg transition hover:border-accent hover:text-accent-soft"
-        >
-          Start blank
-        </a>
+        <a href="/" class="site-cta-primary">Back home</a>
+        <a href="/editor?new=1" class="site-cta-ghost">Start blank</a>
       </div>
-      <p class="nf-meta mt-12 font-mono text-[10px] tracking-wide text-slate-muted/80">
-        HTTP 404 · no plate found · trim after export
+      <p class="nf-meta mt-12 text-sm" style="color: rgb(var(--mk-muted) / 0.85)">
+        404 — page missing
       </p>
     </section>
 
-    {{!-- Full-bleed press sheet — visual anchor --}}
     <section class="nf-press relative min-h-[52vh] flex-1 lg:min-h-0" aria-hidden="true">
       <div class="nf-press-frame">
         <div class="nf-crop nf-crop--tl"></div>

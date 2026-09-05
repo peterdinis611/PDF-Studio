@@ -37,16 +37,12 @@
       <span class="status-chip" x-show="saveState === 'saving'">Saving…</span>
       <span class="status-chip accent" x-show="saveState === 'saved'">Saved</span>
     </div>
-    <p class="hidden text-[11px] text-slate-muted lg:block">
-      <span class="opacity-70">Space</span> pan
-      <span class="mx-2 opacity-30">·</span>
-      <span class="opacity-70">⌘ scroll</span> zoom
-      <span class="mx-2 opacity-30">·</span>
-      <span class="opacity-70">/</span> search
-      <span class="mx-2 opacity-30">·</span>
-      <button type="button" class="opacity-70 hover:text-fg hover:opacity-100" @click="showShortcuts = true">? shortcuts</button>
-      <span class="mx-2 opacity-30">·</span>
-      <button type="button" class="opacity-70 hover:text-fg hover:opacity-100" @click="startTour()">Tour</button>
+    <p class="status-hints hidden lg:flex">
+      <span><kbd>Space</kbd> pan</span>
+      <span><kbd>⌘</kbd> scroll zoom</span>
+      <span><kbd>/</kbd> search</span>
+      <button type="button" @click="showShortcuts = true"><kbd>?</kbd> shortcuts</button>
+      <button type="button" class="status-tour" @click="startTour()">Tour</button>
     </p>
     <div class="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
       <button type="button" class="status-action" @click="fitWidth()">

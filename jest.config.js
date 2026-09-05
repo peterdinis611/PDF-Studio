@@ -36,6 +36,7 @@ const config = {
     "src/server/auditAccess.ts",
     "!src/**/*.d.ts",
   ],
+  cache: true
 };
 
 export default config;
