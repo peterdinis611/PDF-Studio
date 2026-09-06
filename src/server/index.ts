@@ -136,10 +136,34 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ ok: true, service: "pdf-studio" });
 });
 
+/** Masthead furniture: the landing page is set as a daily broadsheet. */
+function currentEdition(now = new Date()): { dateline: string; edition: string; issued: string } {
+  const startOfYear = Date.UTC(now.getUTCFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now.getTime() - startOfYear) / 86_400_000);
+  return {
+    dateline: new Intl.DateTimeFormat("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(now),
+    edition: String(dayOfYear).padStart(3, "0"),
+    issued: new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(now),
+  };
+}
+
 app.get("/", noStoreHtml, (_req, res) => {
   res.render("home", {
     title: "PDF Studio",
     tagline: "Design and customize PDFs in the browser",
+    newsprint: true,
+    ...currentEdition(),
   });
 });
 

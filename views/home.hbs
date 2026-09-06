@@ -1,236 +1,472 @@
-<div class="site-page" x-data="themeToggle" data-home-scroll>
-  <div class="site-bg" aria-hidden="true">
-    <div class="site-bg-mesh" data-parallax-vibe></div>
-    <div class="site-bg-grain"></div>
-    <span class="site-bg-orb site-bg-orb--a" data-parallax-orb="a"></span>
-    <span class="site-bg-orb site-bg-orb--b" data-parallax-orb="b"></span>
-    <span class="site-bg-orb site-bg-orb--c" data-parallax-orb="c"></span>
+<div class="np-page" x-data="themeToggle" data-home-scroll>
+  <div class="np-stock" aria-hidden="true">
+    <div class="np-stock-wash" data-parallax-vibe></div>
+    <div class="np-stock-fiber"></div>
   </div>
 
-  <header class="site-nav" data-site-nav>
-    <div class="site-nav-inner">
-      <a href="/" class="site-brand-link" aria-current="page">
-        <span class="site-mark" aria-hidden="true"></span>
-        <span class="site-brand-name">PDF Studio</span>
-      </a>
-      <nav class="site-nav-actions">
-        <a href="#how" class="site-nav-link hidden sm:inline">How</a>
-        <a href="#templates" class="site-nav-link hidden md:inline">Templates</a>
+  <header class="np-utility" data-site-nav>
+    <div class="np-utility-inner">
+      <a href="/" class="np-utility-brand" aria-current="page"><i>The</i> PDF Studio</a>
+      <nav class="np-utility-nav" aria-label="Sections">
+        <a href="#movements" class="np-utility-link" data-np-navlink>Method</a>
+        <a href="#composing" class="np-utility-link" data-np-navlink>Composing room</a>
+        <a href="#oped" class="np-utility-link" data-np-navlink>Privacy</a>
+        <a href="#classifieds" class="np-utility-link" data-np-navlink>Classifieds</a>
+      </nav>
+      <div class="np-utility-side">
         <button
           type="button"
-          class="site-icon-btn"
+          class="np-toggle"
           @click="toggleTheme()"
-          :title="theme === 'dark' ? 'Light mode' : 'Dark mode'"
+          :aria-label="theme === 'dark' ? 'Switch to the day edition' : 'Switch to the night edition'"
         >
-          <svg x-show="theme === 'dark'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.4 6.4l-1.4-1.4M7 7L5.6 5.6m12.8 0L17 7M7 17l-1.4 1.4M12 8a4 4 0 100 8 4 4 0 000-8z" />
-          </svg>
-          <svg x-show="theme === 'light'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
-          </svg>
+          <span class="np-toggle-ink" aria-hidden="true"></span>
+          <span class="np-toggle-label"></span>
         </button>
-        <a href="/editor" class="site-nav-cta">Open editor</a>
-      </nav>
+        <a href="/editor" class="np-stamp">Open editor</a>
+      </div>
     </div>
   </header>
 
-  <section class="site-stage" id="build" data-home-pin>
-    <div class="site-stage-sticky">
-      <h1 class="site-display" aria-label="PDF Studio">
-        <span class="site-display-lockup">
-          <span class="site-display-pdf">PDF</span>
-          <span class="site-display-studio">Studio</span>
-        </span>
-      </h1>
-
-      <div class="site-stage-board">
-        <div class="site-board" data-home-board>
-          <div class="site-board-glow" aria-hidden="true"></div>
-          <div class="site-board-crop" aria-hidden="true">
-            <span class="site-crop site-crop--tl"></span>
-            <span class="site-crop site-crop--tr"></span>
-            <span class="site-crop site-crop--bl"></span>
-            <span class="site-crop site-crop--br"></span>
-          </div>
-          <article class="site-sheet" data-home-preview>
-            <header class="site-sheet-head">
-              <span class="site-sheet-logo" data-sheet-el="logo">PS</span>
-              <span class="site-sheet-meta" data-sheet-el="meta">Invoice 0042</span>
-            </header>
-            <div class="site-sheet-rule" data-sheet-el="rule"></div>
-            <p class="site-sheet-to" data-sheet-el="to">Acme Design Co.</p>
-            <p class="site-sheet-muted" data-sheet-el="muted">Net 14, due on receipt</p>
-            <ul class="site-sheet-lines">
-              <li data-sheet-el="line"><span>Brand guidelines</span><span>1 200</span></li>
-              <li data-sheet-el="line"><span>Print-ready PDF set</span><span>480</span></li>
-              <li data-sheet-el="line"><span>Revision pass</span><span>160</span></li>
-            </ul>
-            <div class="site-sheet-total" data-sheet-el="total">
-              <span>Total due</span>
-              <strong>1 840</strong>
-            </div>
-          </article>
-        </div>
+  <section class="np-masthead">
+    <div class="np-shell">
+      <div class="np-rule np-rule--hair" data-press aria-hidden="true"></div>
+      <div class="np-masthead-row">
+        <p class="np-flank np-flank--left" data-ink style="--press-delay: 260ms">
+          Vol. I<br />No. {{edition}}
+        </p>
+        <h1 class="np-nameplate" data-ink style="--press-delay: 120ms" aria-label="The PDF Studio">
+          <span class="np-nameplate-the" aria-hidden="true">The</span>
+          <span aria-hidden="true">PDF Studio</span>
+        </h1>
+        <p class="np-flank np-flank--right" data-ink style="--press-delay: 260ms">
+          Price: Free<br />No account
+        </p>
       </div>
+      <div class="np-rule np-rule--double" data-press style="--press-delay: 80ms" aria-hidden="true"></div>
+      <p class="np-dateline" data-ink style="--press-delay: 340ms">
+        <span>{{dateline}}</span>
+        <span class="np-dateline-sep" aria-hidden="true">&#9670;</span>
+        <span>Local-first edition</span>
+        <span class="np-dateline-sep" aria-hidden="true">&#9670;</span>
+        <span>Printed in your browser</span>
+      </p>
+      <div class="np-rule np-rule--hair" data-press style="--press-delay: 160ms" aria-hidden="true"></div>
+    </div>
+  </section>
 
-      <div class="site-stage-caption">
-        <div class="site-stage-panels">
-          <div class="site-stage-panel is-active" data-stage-panel="0">
-            <p class="site-lede">
-              Design in the browser. Export a real PDF. No account — scroll and watch this sheet fill.
+  <section class="np-lead" id="build">
+    <div class="np-shell">
+      <p class="np-kicker" data-ink style="--press-delay: 400ms">Dispatch from the composing room</p>
+      <h2 class="np-headline" data-ink style="--press-delay: 440ms">
+        Your browser now holds a complete <em>printing press</em>
+      </h2>
+      <p class="np-deck" data-ink style="--press-delay: 520ms">
+        PDF Studio composes invoices, letters, proposals and CVs on a true page grid — then exports a
+        genuine PDF with the fonts embedded. No account, no upload queue, no cloud lock-in.
+      </p>
+      <p class="np-byline" data-ink style="--press-delay: 580ms">
+        <span>By <b>the editors</b></span>
+        <span>Filed under Tools</span>
+        <span>Reading time 3 min</span>
+      </p>
+
+      <div class="np-lead-grid">
+        <div class="np-lead-copy" data-ink style="--press-delay: 640ms">
+          <div class="np-columns">
+            <p>
+              <span class="np-dropcap" aria-hidden="true">M</span>ost document tools ask for an email
+              address before they will let you draw a rectangle. This one asks for nothing. Open the
+              editor and a blank A4 sheet is already waiting, ruled and ready for copy.
             </p>
-            <div class="site-hero-cta">
-              <a href="/editor?new=1" class="site-cta-primary">Start blank</a>
-              <a href="/editor?template=invoice" class="site-cta-ghost">Open invoice</a>
-            </div>
+            <p>
+              Everything happens on the page itself. Text blocks, tables, images, shapes and
+              signatures sit against real page coordinates, with smart guides that snap to the margins
+              you actually care about. Zoom in to set a caption; zoom out to judge the whole spread.
+            </p>
+            <p>
+              When the layout is right, the export is not a screenshot of the screen. pdf-lib writes a
+              genuine file — correct page size, embedded fonts, selectable text — the kind of PDF a
+              printer or a client accepts without argument.
+            </p>
+            <p>
+              And the draft never leaves the machine it was typed on.
+              <b>Nothing is uploaded in order to start working.</b>
+            </p>
           </div>
-          <div class="site-stage-panel" data-stage-panel="1">
-            <h2 class="site-stage-title">Blank A4 lands</h2>
-            <p class="site-lede">Empty sheet. Text, shapes, images, signatures place here.</p>
-          </div>
-          <div class="site-stage-panel" data-stage-panel="2">
-            <h2 class="site-stage-title">Header locks brand</h2>
-            <p class="site-lede">Mark and invoice id sit first.</p>
-          </div>
-          <div class="site-stage-panel" data-stage-panel="3">
-            <h2 class="site-stage-title">Client lines ink in</h2>
-            <p class="site-lede">Recipient, terms, due date type onto the page.</p>
-          </div>
-          <div class="site-stage-panel" data-stage-panel="4">
-            <h2 class="site-stage-title">Line items stack</h2>
-            <p class="site-lede">Rows and amounts settle with honest spacing.</p>
-          </div>
-          <div class="site-stage-panel" data-stage-panel="5">
-            <h2 class="site-stage-title">Total. Then export.</h2>
-            <p class="site-lede">Sum ticks live. Export when it feels finished.</p>
-            <div class="site-hero-cta">
-              <a href="/editor?new=1" class="site-cta-primary">Open editor</a>
-            </div>
+
+          <div class="np-actions">
+            <a href="/editor?new=1" class="np-btn np-btn--ink">Start a blank sheet</a>
+            <a href="/editor?template=invoice" class="np-btn np-btn--outline">Open the invoice</a>
           </div>
         </div>
 
-        <div class="site-stage-progress" aria-hidden="true">
-          <div class="site-stage-progress-track">
-            <div class="site-stage-progress-bar" data-pin-progress></div>
+        <figure class="np-plate-fig" data-plate>
+          <div class="np-plate">
+            <header class="np-doc-top">
+              <div>
+                <span class="np-doc-mark">Northline Studio</span>
+                <p class="np-doc-tiny">Tax ID · SK212000000</p>
+              </div>
+              <div class="np-doc-right">
+                <p class="np-doc-label">Invoice</p>
+                <p class="np-doc-id"><span class="np-doc-hash">No.</span>0042</p>
+              </div>
+            </header>
+            <div class="np-doc-meta">
+              <div>
+                <p class="np-doc-label">Bill to</p>
+                <p class="np-doc-strong">Acme Design Co.</p>
+                <p class="np-doc-tiny">Net 14 · due on receipt</p>
+              </div>
+              <div>
+                <p class="np-doc-label">Issued</p>
+                <p class="np-doc-tiny">{{issued}}</p>
+              </div>
+            </div>
+            <table class="np-doc-table">
+              <thead>
+                <tr>
+                  <th scope="col">Description</th>
+                  <th scope="col">Qty</th>
+                  <th scope="col">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Brand guidelines</td><td>1</td><td>1 200</td></tr>
+                <tr class="is-live">
+                  <td>Print-ready PDF set<span class="np-caret" aria-hidden="true"></span></td>
+                  <td>1</td>
+                  <td>480</td>
+                </tr>
+                <tr><td>Revision pass</td><td>2</td><td>160</td></tr>
+              </tbody>
+            </table>
+            <footer class="np-doc-foot">
+              <span>Total due</span>
+              <strong>1 840 EUR</strong>
+            </footer>
           </div>
-          <div class="site-stage-steps" data-pin-steps>
-            <span class="site-stage-step is-active" data-step="0"></span>
-            <span class="site-stage-step" data-step="1"></span>
-            <span class="site-stage-step" data-step="2"></span>
-            <span class="site-stage-step" data-step="3"></span>
-            <span class="site-stage-step" data-step="4"></span>
-            <span class="site-stage-step" data-step="5"></span>
-          </div>
-        </div>
+          <figcaption class="np-figcaption">
+            <b>Fig. 1</b>
+            <span>An invoice composed in the editor, caught mid-edit. Every field is live text, not a
+              picture of text.</span>
+          </figcaption>
+        </figure>
       </div>
     </div>
   </section>
 
-  <section class="site-chapter" id="how" data-chapter>
-    <div class="site-chapter-inner">
-      <header class="site-chapter-head" data-reveal>
-        <h2 class="site-chapter-title">Three moves. Then you’re done.</h2>
-        <p class="site-lede">Open a tab, shape the page, ship the file.</p>
+  <div class="np-ticker" data-ink style="--press-delay: 720ms">
+    <div class="np-ticker-track">
+      <span class="np-ticker-item">Local-first</span>
+      <span class="np-ticker-item">Fonts embedded on export</span>
+      <span class="np-ticker-item">A4 · Letter · Legal</span>
+      <span class="np-ticker-item">No account required</span>
+      <span class="np-ticker-item">Multi-page documents</span>
+      <span class="np-ticker-item">Smart guides &amp; rulers</span>
+      <span class="np-ticker-item">Import an existing PDF</span>
+      <span class="np-ticker-item">Selectable text, not screenshots</span>
+    </div>
+    <div class="np-ticker-track" aria-hidden="true">
+      <span class="np-ticker-item">Local-first</span>
+      <span class="np-ticker-item">Fonts embedded on export</span>
+      <span class="np-ticker-item">A4 · Letter · Legal</span>
+      <span class="np-ticker-item">No account required</span>
+      <span class="np-ticker-item">Multi-page documents</span>
+      <span class="np-ticker-item">Smart guides &amp; rulers</span>
+      <span class="np-ticker-item">Import an existing PDF</span>
+      <span class="np-ticker-item">Selectable text, not screenshots</span>
+    </div>
+  </div>
+
+  <section class="np-section" id="movements">
+    <div class="np-shell">
+      <header class="np-section-head" data-reveal>
+        <span class="np-slug">Section A · Method</span>
+        <h2 class="np-section-title">Blank page to finished PDF, in three movements</h2>
+        <p class="np-standfirst">
+          Written for people with a deadline today — freelancers sending an invoice, offices sending a
+          letter, anyone who needs the paperwork to look like it was set properly.
+        </p>
       </header>
-      <ol class="site-how-rail">
-        <li class="site-how-step" data-reveal style="--reveal-delay: 0ms">
-          <span class="site-how-icon" aria-hidden="true">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg>
-          </span>
-          <h3>Pick a start</h3>
-          <p>Blank canvas or a template — invoice, CV, proposal, whatever you’re sending today.</p>
+      <ol class="np-movements">
+        <li class="np-movement" data-reveal style="--reveal-delay: 0ms">
+          <span class="np-movement-num" aria-hidden="true">I</span>
+          <h3>Choose a starting sheet</h3>
+          <p>
+            Open a blank A4 page, or lift a finished layout straight from the classifieds — invoice,
+            letter, CV, proposal, report, menu.
+          </p>
         </li>
-        <li class="site-how-connector" aria-hidden="true"></li>
-        <li class="site-how-step" data-reveal style="--reveal-delay: 70ms">
-          <span class="site-how-icon" aria-hidden="true">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M4 20l4.5-1L19 8.5a2.5 2.5 0 00-3.5-3.5L5 15.5 4 20z"/></svg>
-          </span>
-          <h3>Place and tweak</h3>
-          <p>Drag text, shapes, images, signatures. Guides keep the layout honest.</p>
+        <li class="np-movement" data-reveal style="--reveal-delay: 90ms">
+          <span class="np-movement-num" aria-hidden="true">II</span>
+          <h3>Set the page</h3>
+          <p>
+            Place text, tables, images, shapes and signatures. Guides, layers and page thumbnails keep
+            a long document in order while you work.
+          </p>
         </li>
-        <li class="site-how-connector" aria-hidden="true"></li>
-        <li class="site-how-step" data-reveal style="--reveal-delay: 140ms">
-          <span class="site-how-icon" aria-hidden="true">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4"/></svg>
-          </span>
-          <h3>Export the PDF</h3>
-          <p>Fonts embedded, pages sized — a file you can actually send.</p>
+        <li class="np-movement" data-reveal style="--reveal-delay: 180ms">
+          <span class="np-movement-num" aria-hidden="true">III</span>
+          <h3>Pull the proof</h3>
+          <p>
+            Export a real PDF with the fonts embedded and the page size intact. Send it, print it, or
+            file it away — the copy is yours.
+          </p>
         </li>
       </ol>
     </div>
   </section>
 
-  <section class="site-chapter site-chapter--templates" id="templates" data-chapter>
-    <div class="site-chapter-inner">
-      <header class="site-chapter-head" data-reveal>
-        <h2 class="site-chapter-title">Proofs on the rack</h2>
-        <p class="site-lede">Every layout opens editable. Pick one and finish it.</p>
-      </header>
-      <div class="site-tpl-wrap" data-reveal>
-        <div class="site-tpl-fade site-tpl-fade--left" aria-hidden="true"></div>
-        <div class="site-tpl-fade site-tpl-fade--right" aria-hidden="true"></div>
-        <button type="button" class="site-tpl-arrow site-tpl-arrow--prev" data-rack-prev aria-label="Scroll templates left">
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-        </button>
-        <button type="button" class="site-tpl-arrow site-tpl-arrow--next" data-rack-next aria-label="Scroll templates right">
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-        </button>
-        <ul class="site-tpl-rack" data-tpl-rack>
-          <li><a href="/editor?new=1" class="site-tpl-proof"><span class="site-tpl-thumb site-template-thumb--blank"></span><span class="site-tpl-name">Blank A4</span></a></li>
-          <li><a href="/editor?template=invoice" class="site-tpl-proof"><span class="site-tpl-thumb site-template-thumb--invoice"></span><span class="site-tpl-name">Invoice</span></a></li>
-          <li><a href="/editor?template=letter" class="site-tpl-proof"><span class="site-tpl-thumb site-template-thumb--letter"></span><span class="site-tpl-name">Letter</span></a></li>
-          <li><a href="/editor?template=cv" class="site-tpl-proof"><span class="site-tpl-thumb site-template-thumb--cv"></span><span class="site-tpl-name">CV</span></a></li>
-          <li><a href="/editor?template=report" class="site-tpl-proof"><span class="site-tpl-thumb site-template-thumb--report"></span><span class="site-tpl-name">Report</span></a></li>
-          <li><a href="/editor?template=proposal" class="site-tpl-proof"><span class="site-tpl-thumb site-template-thumb--proposal"></span><span class="site-tpl-name">Proposal</span></a></li>
-          <li><a href="/editor?template=flyer" class="site-tpl-proof"><span class="site-tpl-thumb site-template-thumb--flyer"></span><span class="site-tpl-name">Flyer</span></a></li>
-          <li><a href="/editor?template=certificate" class="site-tpl-proof"><span class="site-tpl-thumb site-template-thumb--cert"></span><span class="site-tpl-name">Certificate</span></a></li>
-          <li><a href="/editor?template=menu" class="site-tpl-proof"><span class="site-tpl-thumb site-template-thumb--menu"></span><span class="site-tpl-name">Menu</span></a></li>
+  <section class="np-section np-section--tint" id="composing">
+    <div class="np-shell np-split">
+      <div>
+        <header class="np-section-head" data-reveal style="margin-bottom: 0">
+          <span class="np-slug">Section B · Workspace</span>
+          <h2 class="np-section-title">The composing room</h2>
+          <p class="np-standfirst">
+            An editor arranged around the page rather than around a toolbar. Insert from the library,
+            adjust in the inspector, export when the layout reads right.
+          </p>
+        </header>
+        <ul class="np-toc" data-reveal style="--reveal-delay: 80ms">
+          <li>
+            <span class="np-toc-row">
+              <span class="np-toc-name">Page-aware canvas</span>
+              <span class="np-toc-leader" aria-hidden="true"></span>
+              <span class="np-toc-page">p. 01</span>
+            </span>
+            <p>A4, Letter and the common sizes, with zoom, rulers, smart guides and multi-page navigation.</p>
+          </li>
+          <li>
+            <span class="np-toc-row">
+              <span class="np-toc-name">Insert library</span>
+              <span class="np-toc-leader" aria-hidden="true"></span>
+              <span class="np-toc-page">p. 02</span>
+            </span>
+            <p>Text, tables, form fields, signatures and layout presets — searchable, one click from the page.</p>
+          </li>
+          <li>
+            <span class="np-toc-row">
+              <span class="np-toc-name">Honest export</span>
+              <span class="np-toc-leader" aria-hidden="true"></span>
+              <span class="np-toc-page">p. 03</span>
+            </span>
+            <p>pdf-lib writes the file. Fonts embedded, text selectable, page dimensions exact.</p>
+          </li>
+          <li>
+            <span class="np-toc-row">
+              <span class="np-toc-name">Import &amp; revise</span>
+              <span class="np-toc-leader" aria-hidden="true"></span>
+              <span class="np-toc-page">p. 04</span>
+            </span>
+            <p>Bring an existing PDF into the session and keep working on it without leaving the browser.</p>
+          </li>
         </ul>
-        <p class="site-tpl-hint" aria-hidden="true">Drag or scroll for more</p>
+      </div>
+
+      <figure class="np-figure" data-reveal style="--reveal-delay: 140ms" aria-hidden="true">
+        <div class="np-fig-chrome">
+          <span class="np-fig-dot"></span>
+          <span class="np-fig-dot"></span>
+          <span class="np-fig-dot"></span>
+          <span class="np-fig-title">Untitled document — PDF Studio</span>
+        </div>
+        <div class="np-fig-body">
+          <div class="np-fig-rail">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="np-fig-canvas">
+            <div class="np-fig-page"></div>
+          </div>
+          <div class="np-fig-inspector">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <section class="np-section" id="oped">
+    <div class="np-shell">
+      <div class="np-oped" data-reveal>
+        <p class="np-oped-slug">From the editors</p>
+        <h2 class="np-oped-title">Your documents do not leave this machine</h2>
+        <div class="np-oped-body">
+          <p>
+            <span class="np-dropcap" aria-hidden="true">T</span>here is a quiet assumption in modern
+            software that your work belongs on somebody else's server. We do not share it. PDF Studio
+            is local-first, and it stays that way by default.
+          </p>
+          <p>
+            Drafts are held in this browser session. There is no account to create, no workspace to
+            join, and no upload step standing between you and a finished page. Close the tab and the
+            work is where you left it, on your own disk.
+          </p>
+          <p>
+            The PDF you export is a file, not a link. It is yours to send, print or archive, with the
+            fonts travelling inside it so the document renders the same on whatever machine opens it
+            next.
+          </p>
+        </div>
+        <p class="np-oped-sign">— The editors, PDF Studio</p>
       </div>
     </div>
   </section>
 
-  <section class="site-finale" id="cta" data-chapter>
-    <div class="site-finale-band" data-reveal>
-      <div class="site-finale-copy">
-        <h2 class="site-finale-title">Finish a page today.</h2>
-        <p class="site-lede">Local session. No signup. Make the PDF.</p>
+  <section class="np-section np-section--tint" id="classifieds">
+    <div class="np-shell">
+      <header class="np-section-head" data-reveal>
+        <span class="np-slug">Section C · Classifieds</span>
+        <h2 class="np-section-title">Layouts, ready to be taken over</h2>
+        <p class="np-standfirst">
+          Each notice opens fully editable in the editor. Replace the copy, adjust the layout, export.
+        </p>
+      </header>
+
+      <ul class="np-classifieds" data-reveal style="--reveal-delay: 80ms">
+        <li>
+          <a href="/editor?new=1" class="np-ad">
+            <span class="np-ad-mini np-mini--blank">
+              <span class="np-mini-lines"><i></i><i></i><i></i><i></i></span>
+            </span>
+            <span class="np-ad-name">Blank A4</span>
+            <span class="np-ad-desc">An empty page, ruled and waiting.</span>
+            <span class="np-ad-open">Open &rarr;</span>
+          </a>
+        </li>
+        <li>
+          <a href="/editor?template=invoice" class="np-ad">
+            <span class="np-ad-mini np-mini--invoice">
+              <span class="np-mini-head"></span>
+              <span class="np-mini-block"></span>
+              <span class="np-mini-rows"><i></i><i></i><i></i></span>
+              <span class="np-mini-total"></span>
+            </span>
+            <span class="np-ad-name">Invoice</span>
+            <span class="np-ad-desc">Billing layout with totals.</span>
+            <span class="np-ad-open">Open &rarr;</span>
+          </a>
+        </li>
+        <li>
+          <a href="/editor?template=letter" class="np-ad">
+            <span class="np-ad-mini np-mini--letter">
+              <span class="np-mini-addr"></span>
+              <span class="np-mini-lines"><i></i><i></i><i></i><i></i><i></i></span>
+            </span>
+            <span class="np-ad-name">Letter</span>
+            <span class="np-ad-desc">Formal correspondence.</span>
+            <span class="np-ad-open">Open &rarr;</span>
+          </a>
+        </li>
+        <li>
+          <a href="/editor?template=cv" class="np-ad">
+            <span class="np-ad-mini np-mini--cv">
+              <span class="np-mini-sidebar"></span>
+              <span class="np-mini-col"><i></i><i></i><i></i><i></i></span>
+            </span>
+            <span class="np-ad-name">CV</span>
+            <span class="np-ad-desc">Two-column résumé.</span>
+            <span class="np-ad-open">Open &rarr;</span>
+          </a>
+        </li>
+        <li>
+          <a href="/editor?template=report" class="np-ad">
+            <span class="np-ad-mini np-mini--report">
+              <span class="np-mini-band"></span>
+              <span class="np-mini-lines"><i></i><i></i><i></i><i></i></span>
+            </span>
+            <span class="np-ad-name">Report</span>
+            <span class="np-ad-desc">Cover page plus body.</span>
+            <span class="np-ad-open">Open &rarr;</span>
+          </a>
+        </li>
+        <li>
+          <a href="/editor?template=proposal" class="np-ad">
+            <span class="np-ad-mini np-mini--proposal">
+              <span class="np-mini-hero"></span>
+              <span class="np-mini-lines"><i></i><i></i><i></i></span>
+            </span>
+            <span class="np-ad-name">Proposal</span>
+            <span class="np-ad-desc">Client pitch with a hero.</span>
+            <span class="np-ad-open">Open &rarr;</span>
+          </a>
+        </li>
+        <li>
+          <a href="/editor?template=certificate" class="np-ad">
+            <span class="np-ad-mini np-mini--cert">
+              <span class="np-mini-seal"></span>
+              <span class="np-mini-lines"><i></i><i></i></span>
+            </span>
+            <span class="np-ad-name">Certificate</span>
+            <span class="np-ad-desc">Centred, with a seal.</span>
+            <span class="np-ad-open">Open &rarr;</span>
+          </a>
+        </li>
+        <li>
+          <a href="/editor?template=menu" class="np-ad">
+            <span class="np-ad-mini np-mini--menu">
+              <span class="np-mini-titlebar"></span>
+              <span class="np-mini-rows"><i></i><i></i><i></i><i></i></span>
+            </span>
+            <span class="np-ad-name">Menu</span>
+            <span class="np-ad-desc">Price list for a room.</span>
+            <span class="np-ad-open">Open &rarr;</span>
+          </a>
+        </li>
+      </ul>
+      <p class="np-classifieds-note" data-reveal>
+        Notices are free to answer. No reply address required.
+      </p>
+    </div>
+  </section>
+
+  <section class="np-lastcall" id="lastcall">
+    <div class="np-shell np-lastcall-inner" data-reveal>
+      <div>
+        <p class="np-lastcall-slug">Last call</p>
+        <h2 class="np-lastcall-title">The press is warm. Go and finish a page.</h2>
+        <p class="np-lastcall-copy">
+          No signup, no queue. Work in the local session and export the moment the layout reads right.
+        </p>
       </div>
-      <div class="site-hero-cta">
-        <a href="/editor?new=1" class="site-cta-primary">Start blank</a>
-        <a href="/editor?template=proposal" class="site-cta-ghost">Open proposal</a>
+      <div class="np-actions">
+        <a href="/editor?new=1" class="np-btn np-btn--ink">Start blank</a>
+        <a href="/editor?template=invoice" class="np-btn np-btn--outline">Open the invoice</a>
       </div>
     </div>
   </section>
 
-  <footer class="site-footer">
-    <div class="site-footer-inner">
-      <div class="site-footer-brand">
-        <a href="/" class="site-brand-link">
-          <span class="site-mark" aria-hidden="true"></span>
-          <span class="site-brand-name">PDF Studio</span>
-        </a>
-        <p>Design pages in the browser. Export real PDFs.</p>
-      </div>
-      <div class="site-footer-cols">
+  <footer class="np-colophon">
+    <div class="np-shell">
+      <div class="np-colophon-grid">
         <div>
-          <p class="site-footer-label">Product</p>
+          <p class="np-colophon-name">The PDF Studio</p>
+          <p class="np-colophon-note">
+            Set in Bodoni Moda and Newsreader, with the wire copy in Courier Prime. Composed with
+            Express, Handlebars and pdf-lib. Printed on demand, in your browser.
+          </p>
+        </div>
+        <div class="np-colophon-col">
+          <p class="np-colophon-label">Product</p>
           <a href="/editor">Editor</a>
           <a href="/editor?new=1">Blank document</a>
-          <a href="#templates">Templates</a>
+          <a href="#classifieds">Classifieds</a>
+          <a href="#oped">Privacy</a>
         </div>
-        <div>
-          <p class="site-footer-label">Resources</p>
-          <a href="#how">How it works</a>
+        <div class="np-colophon-col">
+          <p class="np-colophon-label">Resources</p>
+          <a href="#movements">How it works</a>
+          <a href="#composing">Composing room</a>
           <a href="/sitemap.xml">Sitemap</a>
-          <a href="/audit-logs">Audit logs</a>
         </div>
       </div>
-    </div>
-    <div class="site-footer-bar">
-      <p>© PDF Studio</p>
-      <p>Local-first. No account required.</p>
+      <div class="np-colophon-bar">
+        <span>&copy; PDF Studio</span>
+        <span>Local-first · No account · Browser export</span>
+        <span>Vol. I — No. {{edition}}</span>
+      </div>
     </div>
   </footer>
 </div>
