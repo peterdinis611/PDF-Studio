@@ -9,43 +9,51 @@
   display: none !important;
 }
 
+/*
+ * Editor chrome is coloured off the broadsheet landing page: newsprint stock,
+ * ink, and a single press-red spot colour. `warn` stays its own crimson so
+ * destructive actions never read as just another accent.
+ *
+ * Night edition.
+ */
 :root,
 [data-theme="dark"] {
-  --color-canvas: 22 26 36;
-  --color-ink: 26 26 26;
-  --color-paper: 250 249 246;
-  --color-fg: 244 245 248;
-  --color-panel: 28 32 44;
-  --color-rail: 24 28 38;
-  --color-muted: 160 168 186;
-  --color-line: 48 54 72;
-  --color-hover: 38 44 60;
-  --color-accent: 20 184 166;
-  --color-accent-soft: 45 212 191;
-  --color-accent-dim: 13 148 136;
-  --color-warn: 244 63 94;
-  --shadow-page: 0 24px 64px rgba(0, 0, 0, 0.45), 0 4px 16px rgba(0, 0, 0, 0.25);
-  --preload-bg: #12151c;
-  --color-accent-hex: #14b8a6;
+  --color-canvas: 12 11 10;
+  --color-ink: 26 24 21;
+  --color-paper: 243 239 231;
+  --color-fg: 235 231 222;
+  --color-panel: 26 24 22;
+  --color-rail: 21 20 18;
+  --color-muted: 138 132 121;
+  --color-line: 54 50 45;
+  --color-hover: 40 37 33;
+  --color-accent: 226 82 58;
+  --color-accent-soft: 243 133 110;
+  --color-accent-dim: 186 58 38;
+  --color-warn: 226 60 92;
+  --shadow-page: 0 24px 64px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.3);
+  --preload-bg: #111010;
+  --color-accent-hex: #e2523a;
 }
 
+/* Day edition. Canvas sits darker than the panels so the sheet lifts off it. */
 [data-theme="light"] {
-  --color-canvas: 226 222 214;
-  --color-ink: 26 26 26;
-  --color-paper: 255 252 247;
-  --color-fg: 26 26 26;
-  --color-panel: 245 242 236;
-  --color-rail: 250 248 244;
-  --color-muted: 107 114 128;
-  --color-line: 220 214 204;
-  --color-hover: 234 229 220;
-  --color-accent: 15 118 110;
-  --color-accent-soft: 13 148 136;
-  --color-accent-dim: 17 94 89;
-  --color-warn: 190 18 60;
-  --shadow-page: 0 18px 48px rgba(40, 30, 10, 0.14), 0 4px 12px rgba(40, 30, 10, 0.08);
-  --preload-bg: #f3f0ea;
-  --color-accent-hex: #0f766e;
+  --color-canvas: 206 199 186;
+  --color-ink: 26 24 21;
+  --color-paper: 252 250 245;
+  --color-fg: 23 21 19;
+  --color-panel: 243 239 230;
+  --color-rail: 248 245 238;
+  --color-muted: 116 108 98;
+  --color-line: 210 203 190;
+  --color-hover: 232 227 215;
+  --color-accent: 176 40 27;
+  --color-accent-soft: 140 30 20;
+  --color-accent-dim: 150 33 22;
+  --color-warn: 168 22 52;
+  --shadow-page: 0 18px 48px rgba(40, 30, 10, 0.18), 0 4px 12px rgba(40, 30, 10, 0.1);
+  --preload-bg: #eae5da;
+  --color-accent-hex: #b0281b;
 }
 
 @layer base {
@@ -65,7 +73,7 @@
   }
 
   .tool-btn[aria-pressed="true"] {
-    @apply bg-accent/20 text-accent-soft shadow-[0_0_0_1px_rgba(13,148,136,0.35)];
+    @apply bg-accent/20 text-accent-soft shadow-[0_0_0_1px_rgb(var(--color-accent)/0.35)];
   }
 
   .tool-group {
@@ -296,7 +304,7 @@
 
   .panel-select {
     @apply panel-input appearance-none bg-[length:12px] bg-[right_0.6rem_center] bg-no-repeat pr-8;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238b93a7'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238a8479'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
   }
 
   .doc-title-input {
@@ -308,7 +316,7 @@
   }
 
   .page-thumb[aria-current="true"] {
-    @apply border-accent shadow-[0_0_0_1px_rgba(13,148,136,0.4)];
+    @apply border-accent shadow-[0_0_0_1px_rgb(var(--color-accent)/0.4)];
   }
 
   .canvas-element {
@@ -615,7 +623,6 @@
     --np-plate-ink: 26 24 21;
     --np-fiber-blend: soft-light;
     --np-fiber-opacity: 0.14;
-    --preload-bg: #111010;
     --np-display: "Bodoni Moda", "Bodoni MT", Didot, "Times New Roman", serif;
     --np-text: "Newsreader", "Source Serif 4", Georgia, serif;
     --np-wire: "Courier Prime", "Courier New", monospace;
@@ -636,7 +643,6 @@
     --np-plate-ink: 26 24 21;
     --np-fiber-blend: multiply;
     --np-fiber-opacity: 0.2;
-    --preload-bg: #eae5da;
   }
 
   @media (min-width: 768px) {
@@ -2630,22 +2636,22 @@
 
 @keyframes element-pop {
   0% {
-    box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.55);
+    box-shadow: 0 0 0 0 rgb(var(--color-accent) / 0.55);
     filter: brightness(1.15);
   }
   100% {
-    box-shadow: 0 0 0 14px rgba(13, 148, 136, 0);
+    box-shadow: 0 0 0 14px rgb(var(--color-accent) / 0);
     filter: brightness(1);
   }
 }
 
 @keyframes select-pulse {
   0% {
-    outline-color: rgba(13, 148, 136, 0.2);
+    outline-color: rgb(var(--color-accent) / 0.2);
     outline-offset: 4px;
   }
   100% {
-    outline-color: #0d9488;
+    outline-color: rgb(var(--color-accent));
     outline-offset: 1px;
   }
 }

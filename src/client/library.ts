@@ -1294,35 +1294,35 @@ export const LIBRARY_ITEMS: LibraryItem[] = [
 function createPreset(id: string, x: number, y: number): PdfElement {
   switch (id) {
     case "divider-dash":
-      return createDivider(x, y, { style: "dashed", stroke: "#64748b" });
+      return createDivider(x, y, { style: "dashed", stroke: "#746c62" });
     case "divider-thick":
-      return createDivider(x, y, { strokeWidth: 5, stroke: "#1a1a1a", height: 12 });
+      return createDivider(x, y, { strokeWidth: 5, stroke: "#1a1815", height: 12 });
     case "spacer":
       return createRect(x, y, {
         width: 200,
         height: 40,
         fill: "#ffffff",
-        stroke: "#e2e8f0",
+        stroke: "#e4ddd1",
         strokeWidth: 1,
         opacity: 0.35,
         cornerRadius: 4,
       });
     case "rounded":
-      return createRect(x, y, { cornerRadius: 16, fill: "#14b8a6", strokeWidth: 0 });
+      return createRect(x, y, { cornerRadius: 16, fill: "#e2523a", strokeWidth: 0 });
     case "frame":
       return createRect(x, y, {
         fill: "#ffffff",
-        stroke: "#0f766e",
+        stroke: "#b0281b",
         strokeWidth: 2,
         cornerRadius: 4,
       });
     case "circle":
-      return createEllipse(x, y, { width: 120, height: 120, fill: "#0d9488" });
+      return createEllipse(x, y, { width: 120, height: 120, fill: "#c43a24" });
     case "wedge":
       return createRect(x, y, {
         width: 80,
         height: 180,
-        fill: "#0f766e",
+        fill: "#b0281b",
         strokeWidth: 0,
         rotation: -8,
       });
@@ -1331,12 +1331,12 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         width: 280,
         height: 160,
         fill: "#ffffff",
-        stroke: "#cbd5e1",
+        stroke: "#cfc7ba",
         strokeWidth: 1,
         cornerRadius: 12,
       });
     case "arrow-down":
-      return createArrow(x, y, { width: 20, height: 140, rotation: 90, stroke: "#0f766e" });
+      return createArrow(x, y, { width: 20, height: 140, rotation: 90, stroke: "#b0281b" });
     case "sticky-pink":
       return createSticky(x, y, { fill: "#fbcfe8", color: "#831843" });
     case "sticky-mint":
@@ -1363,7 +1363,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontSize: 12,
         width: 400,
         height: 120,
-        color: "#334155",
+        color: "#3e3933",
         lineHeight: 1.4,
       });
     case "markdown":
@@ -1373,7 +1373,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontSize: 12,
         width: 360,
         height: 200,
-        color: "#1e293b",
+        color: "#2b2721",
         lineHeight: 1.4,
       });
     case "subhead":
@@ -1391,14 +1391,14 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontFamily: "Times-Roman",
         width: 360,
         height: 70,
-        color: "#334155",
+        color: "#3e3933",
       });
     case "callout":
       return createRect(x, y, {
         width: 360,
         height: 72,
-        fill: "#ecfdf5",
-        stroke: "#0d9488",
+        fill: "#f7ece7",
+        stroke: "#c43a24",
         strokeWidth: 1.5,
         cornerRadius: 8,
       });
@@ -1415,7 +1415,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createText(x, y, {
         content: "Figure caption or footnote",
         fontSize: 10,
-        color: "#64748b",
+        color: "#746c62",
         width: 280,
         height: 20,
       });
@@ -1431,7 +1431,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createText(x, y, {
         content: "Page footer · PDF Studio",
         fontSize: 10,
-        color: "#94a3b8",
+        color: "#a39a8e",
         width: 400,
         height: 18,
         align: "center",
@@ -1444,7 +1444,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
           year: "numeric",
         }),
         fontSize: 12,
-        color: "#475569",
+        color: "#544d45",
         width: 220,
         height: 22,
       });
@@ -1468,7 +1468,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         width: 160,
         height: 40,
         fontSize: 13,
-        fill: "#0f766e",
+        fill: "#b0281b",
       });
     case "signature":
       return createText(x, y, {
@@ -1481,7 +1481,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createText(x, y, {
         content: "Company Name\n123 Design Avenue\nBerlin, Germany",
         fontSize: 11,
-        color: "#475569",
+        color: "#544d45",
         width: 200,
         height: 60,
       });
@@ -1489,7 +1489,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createRect(x, y, {
         width: 595,
         height: 72,
-        fill: "#0f766e",
+        fill: "#b0281b",
         strokeWidth: 0,
         cornerRadius: 0,
       });
@@ -1497,7 +1497,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createRect(x, y, {
         width: 36,
         height: 842,
-        fill: "#134e4a",
+        fill: "#6d1710",
         strokeWidth: 0,
       });
     case "two-col":
@@ -1519,7 +1519,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createText(x, y, {
         content: "— 1 —",
         fontSize: 11,
-        color: "#94a3b8",
+        color: "#a39a8e",
         width: 80,
         height: 20,
         align: "center",
@@ -1531,7 +1531,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontWeight: "bold",
         width: 480,
         height: 22,
-        color: "#0f766e",
+        color: "#b0281b",
       });
     case "form-name":
       return createText(x, y, {
@@ -1571,8 +1571,8 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createRect(x, y, {
         width: 280,
         height: 16,
-        fill: "#ccfbf1",
-        stroke: "#0d9488",
+        fill: "#f2d9d1",
+        stroke: "#c43a24",
         strokeWidth: 1,
         cornerRadius: 8,
       });
@@ -1581,7 +1581,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         width: 96,
         height: 96,
         fill: "#ffffff",
-        stroke: "#1a1a1a",
+        stroke: "#1a1815",
         strokeWidth: 2,
         cornerRadius: 4,
       });
@@ -1589,7 +1589,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createEllipse(x, y, {
         width: 64,
         height: 64,
-        fill: "#0d9488",
+        fill: "#c43a24",
         strokeWidth: 0,
       });
     case "brand-name":
@@ -1604,7 +1604,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createText(x, y, {
         content: "Design documents that feel finished.",
         fontSize: 12,
-        color: "#64748b",
+        color: "#746c62",
         width: 280,
         height: 24,
       });
@@ -1613,7 +1613,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         content: "DRAFT",
         fontSize: 64,
         fontWeight: "bold",
-        color: "#94a3b8",
+        color: "#a39a8e",
         opacity: 0.25,
         rotation: -24,
         width: 280,
@@ -1623,7 +1623,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createRect(x, y, {
         width: 180,
         height: 40,
-        fill: "#0d9488",
+        fill: "#c43a24",
         strokeWidth: 0,
         cornerRadius: 6,
       });
@@ -1681,7 +1681,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontWeight: "bold",
         width: 200,
         height: 70,
-        color: "#0f766e",
+        color: "#b0281b",
       });
     case "timeline":
       return createText(x, y, {
@@ -1695,14 +1695,14 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         width: 120,
         height: 120,
         fill: "#ffffff",
-        stroke: "#0f766e",
+        stroke: "#b0281b",
         strokeWidth: 4,
       });
     case "pill":
       return createRect(x, y, {
         width: 160,
         height: 40,
-        fill: "#0d9488",
+        fill: "#c43a24",
         strokeWidth: 0,
         cornerRadius: 20,
       });
@@ -1710,7 +1710,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createRect(x, y, {
         width: 8,
         height: 160,
-        fill: "#0f766e",
+        fill: "#b0281b",
         strokeWidth: 0,
         cornerRadius: 4,
       });
@@ -1718,16 +1718,16 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createEllipse(x, y, {
         width: 72,
         height: 72,
-        fill: "#e2e8f0",
-        stroke: "#94a3b8",
+        fill: "#e4ddd1",
+        stroke: "#a39a8e",
         strokeWidth: 1,
       });
     case "arrow-left":
-      return createArrow(x, y, { width: 140, height: 20, rotation: 180, stroke: "#0f766e" });
+      return createArrow(x, y, { width: 140, height: 20, rotation: 180, stroke: "#b0281b" });
     case "sticky-amber":
       return createSticky(x, y, { fill: "#fde68a", color: "#78350f" });
     case "badge-todo":
-      return createBadge(x, y, { label: "TODO", fill: "#475569", color: "#f8fafc" });
+      return createBadge(x, y, { label: "TODO", fill: "#544d45", color: "#fcfaf5" });
     case "badge-done":
       return createBadge(x, y, { label: "DONE", fill: "#16a34a", color: "#f0fdf4" });
     case "body":
@@ -1736,7 +1736,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontSize: 12,
         width: 420,
         height: 110,
-        color: "#334155",
+        color: "#3e3933",
         lineHeight: 1.45,
       });
     case "code-block":
@@ -1746,7 +1746,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontFamily: "Courier",
         width: 400,
         height: 56,
-        color: "#0f172a",
+        color: "#1a1815",
         lineHeight: 1.35,
       });
     case "success-box":
@@ -1765,7 +1765,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontFamily: "Times-Roman",
         width: 360,
         height: 70,
-        color: "#334155",
+        color: "#3e3933",
         lineHeight: 1.4,
       });
     case "faq":
@@ -1774,7 +1774,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontSize: 12,
         width: 400,
         height: 56,
-        color: "#1e293b",
+        color: "#2b2721",
         lineHeight: 1.4,
       });
     case "contact-card":
@@ -1783,7 +1783,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontSize: 12,
         width: 220,
         height: 64,
-        color: "#334155",
+        color: "#3e3933",
         lineHeight: 1.45,
       });
     case "hours":
@@ -1793,7 +1793,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontFamily: "Courier",
         width: 240,
         height: 64,
-        color: "#334155",
+        color: "#3e3933",
       });
     case "invoice-meta":
       return createText(x, y, {
@@ -1801,7 +1801,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontSize: 12,
         width: 220,
         height: 64,
-        color: "#475569",
+        color: "#544d45",
         align: "right",
       });
     case "small-print":
@@ -1809,7 +1809,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         content:
           "By signing this document you acknowledge the terms of service. Prices exclude applicable tax unless stated otherwise.",
         fontSize: 8,
-        color: "#94a3b8",
+        color: "#a39a8e",
         width: 480,
         height: 36,
         lineHeight: 1.35,
@@ -1821,7 +1821,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontWeight: "bold",
         width: 140,
         height: 80,
-        color: "#0f766e",
+        color: "#b0281b",
         align: "center",
       });
     case "checklist":
@@ -1838,14 +1838,14 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontSize: 11,
         width: 300,
         height: 56,
-        color: "#475569",
+        color: "#544d45",
         lineHeight: 1.4,
       });
     case "byline":
       return createText(x, y, {
         content: "By Maya Chen · 4 min read",
         fontSize: 11,
-        color: "#64748b",
+        color: "#746c62",
         width: 260,
         height: 20,
       });
@@ -1855,7 +1855,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontSize: 10,
         fontWeight: "bold",
         letterSpacing: 2,
-        color: "#0f766e",
+        color: "#b0281b",
         width: 200,
         height: 18,
       });
@@ -1867,13 +1867,13 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontFamily: "Times-Roman",
         width: 64,
         height: 80,
-        color: "#0f766e",
+        color: "#b0281b",
       });
     case "footer-legal":
       return createText(x, y, {
         content: "© 2026 PDF Studio · All rights reserved · privacy@pdfstudio.app",
         fontSize: 9,
-        color: "#94a3b8",
+        color: "#a39a8e",
         width: 500,
         height: 18,
         align: "center",
@@ -1882,7 +1882,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createRect(x, y, {
         width: 595,
         height: 48,
-        fill: "#134e4a",
+        fill: "#6d1710",
         strokeWidth: 0,
       });
     case "cover-kicker":
@@ -1891,7 +1891,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         fontSize: 12,
         fontWeight: "bold",
         letterSpacing: 3,
-        color: "#0f766e",
+        color: "#b0281b",
         width: 360,
         height: 22,
       });
@@ -1914,7 +1914,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       return createText(x, y, {
         content: "@pdfstudio",
         fontSize: 14,
-        color: "#0f766e",
+        color: "#b0281b",
         width: 160,
         height: 24,
       });
@@ -1925,7 +1925,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         width: 320,
         height: 48,
         align: "center",
-        color: "#334155",
+        color: "#3e3933",
       });
     case "schedule-row":
       return createText(x, y, {
@@ -1990,12 +1990,12 @@ export function createFromLibrary(
       APPROVED: "#16a34a",
       PAID: "#2563eb",
       URGENT: "#ea580c",
-      COPY: "#475569",
-      VOID: "#64748b",
+      COPY: "#544d45",
+      VOID: "#746c62",
       DRAFT: "#dc2626",
       CONFIDENTIAL: "#dc2626",
       SAMPLE: "#7c3aed",
-      FINAL: "#0f766e",
+      FINAL: "#b0281b",
       REJECTED: "#b91c1c",
       RECEIVED: "#0369a1",
       ORIGINAL: "#7c2d12",

@@ -161,7 +161,7 @@ function normalizeTextElement(el: PdfElement): PdfElement {
 function normalizeDoc(doc: PdfDocument): PdfDocument {
   const normalized: PdfDocument = {
     ...doc,
-    pageBackground: doc.pageBackground || "#faf9f6",
+    pageBackground: doc.pageBackground || "#fcfaf5",
     marginGuide: typeof doc.marginGuide === "number" ? doc.marginGuide : 40,
     guides: doc.guides || [],
     comments: doc.comments || [],
@@ -274,7 +274,7 @@ function pdfEditor() {
     pendingLibraryKind: null as LibraryItem["kind"] | null,
     placeHint: false,
     signatureTab: "draw" as "draw" | "type" | "upload",
-    signatureInk: "#1a1a1a",
+    signatureInk: "#1a1815",
     signatureTyped: "",
     signatureBusy: false,
     signatureHasInk: false,
@@ -311,7 +311,7 @@ function pdfEditor() {
     findMatches: [] as { pageIndex: number; elId: string; field: string }[],
     findIndex: -1,
     brand: {
-      colors: ["#0d9488", "#0f766e", "#1a1a1a", "#faf9f6"],
+      colors: ["#b0281b", "#e2523a", "#1a1815", "#f3efe7"],
       logoUrl: "",
       logoName: "",
       defaultFont: "Helvetica",
@@ -402,7 +402,7 @@ function pdfEditor() {
       return {
         width: `${width * this.zoom}px`,
         height: `${height * this.zoom}px`,
-        backgroundColor: this.doc.pageBackground || "#faf9f6",
+        backgroundColor: this.doc.pageBackground || "#fcfaf5",
         transform: `translate(${this.panX}px, ${this.panY}px)`,
       };
     },
@@ -1393,13 +1393,13 @@ function pdfEditor() {
         return `<span style="font-size:10px">${"checked" in el && el.checked ? "☑" : "☐"} ${escapeHtml(("label" in el ? el.label : "").slice(0, 16))}</span>`;
       }
       if (el.type === "formText" || el.type === "formSelect") {
-        return `<span style="font-size:10px;border:1px solid #94a3b8;padding:2px">${escapeHtml(el.name)}</span>`;
+        return `<span style="font-size:10px;border:1px solid #a39a8e;padding:2px">${escapeHtml(el.name)}</span>`;
       }
       if (el.type === "icon") {
         return iconSvg(el.icon, el.color, 16);
       }
       if (el.type === "table") {
-        return `<div style="width:100%;height:100%;background:#e2e8f0;border:1px solid #94a3b8"></div>`;
+        return `<div style="width:100%;height:100%;background:#e4ddd1;border:1px solid #a39a8e"></div>`;
       }
       if (el.type === "rect" || el.type === "ellipse") {
         const radius = el.type === "ellipse" ? "50%" : `${el.cornerRadius || 0}px`;
@@ -1939,7 +1939,7 @@ function pdfEditor() {
       const el = createText(this.pageSize.width / 2 - 40, this.pageSize.height - 48, {
         content: "Page {{page}} / {{pages}}",
         fontSize: 10,
-        color: "#64748b",
+        color: "#746c62",
         width: 80,
         height: 20,
         align: "center",
@@ -1955,7 +1955,7 @@ function pdfEditor() {
         opacity: 0.12,
         rotation: -30,
         fontSize: 56,
-        color: "#94a3b8",
+        color: "#a39a8e",
       };
       this.commit();
     },

@@ -1,20 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="PDF Studio">
   <defs>
     <linearGradient id="g" x1="6" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2dd4bf"/>
-      <stop offset="0.55" stop-color="#14b8a6"/>
-      <stop offset="1" stop-color="#0f766e"/>
+      <stop stop-color="#e2523a"/>
+      <stop offset="0.55" stop-color="#c43a24"/>
+      <stop offset="1" stop-color="#b0281b"/>
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="8" fill="url(#g)"/>
-  <rect x="1" y="1" width="30" height="30" rx="7" fill="none" stroke="#042f2e" stroke-opacity="0.22"/>
+  <rect width="32" height="32" fill="url(#g)"/>
+  <rect x="0.6" y="0.6" width="30.8" height="30.8" fill="none" stroke="#3d0d06" stroke-opacity="0.3" stroke-width="1.2"/>
   <!-- paper -->
-  <path fill="#faf9f6" d="M9.2 6.4h10.2l3.4 3.4V25.2a1.4 1.4 0 0 1-1.4 1.4H9.2A1.4 1.4 0 0 1 7.8 25.2V7.8a1.4 1.4 0 0 1 1.4-1.4z"/>
-  <path fill="#d2ebe7" d="M19.4 6.4v2.6c0 .44.36.8.8.8h2.6L19.4 6.4z"/>
+  <path fill="#f3efe7" d="M9.2 6.4h10.2l3.4 3.4V25.2a1.4 1.4 0 0 1-1.4 1.4H9.2A1.4 1.4 0 0 1 7.8 25.2V7.8a1.4 1.4 0 0 1 1.4-1.4z"/>
+  <path fill="#d6cfc1" d="M19.4 6.4v2.6c0 .44.36.8.8.8h2.6L19.4 6.4z"/>
   <!-- type rules -->
-  <rect x="10.4" y="13.2" width="9.2" height="1.35" rx="0.5" fill="#0d9488" opacity="0.55"/>
-  <rect x="10.4" y="16.4" width="7.2" height="1.35" rx="0.5" fill="#0d9488" opacity="0.35"/>
-  <rect x="10.4" y="19.6" width="8.2" height="1.35" rx="0.5" fill="#0d9488" opacity="0.28"/>
+  <rect x="10.4" y="13.2" width="9.2" height="1.35" fill="#1a1815" opacity="0.78"/>
+  <rect x="10.4" y="16.4" width="7.2" height="1.35" fill="#1a1815" opacity="0.45"/>
+  <rect x="10.4" y="19.6" width="8.2" height="1.35" fill="#1a1815" opacity="0.32"/>
   <!-- crop marks -->
-  <path fill="none" stroke="#ecfdf8" stroke-width="1.15" stroke-linecap="square" d="M5.2 9.2V5.2H9.2M22.8 5.2h4v4M26.8 22.8v4h-4M9.2 26.8H5.2v-4"/>
+  <path fill="none" stroke="#f3efe7" stroke-width="1.15" stroke-linecap="square" d="M5.2 9.2V5.2H9.2M22.8 5.2h4v4M26.8 22.8v4h-4M9.2 26.8H5.2v-4"/>
 </svg>

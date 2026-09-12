@@ -71,7 +71,7 @@ export async function importPdfInBrowser(file: File): Promise<PdfDocument> {
           lineHeight: 1.3,
           letterSpacing: 0,
           listStyle: "none",
-          color: "#64748b",
+          color: "#746c62",
           align: "left",
         },
       ],

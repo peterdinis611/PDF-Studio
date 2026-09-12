@@ -597,7 +597,7 @@ function drawFormTextPreview(page: PDFPage, el: FormTextElement, pageHeight: num
     y: y + (el.height - el.fontSize) / 2,
     size: el.fontSize,
     font: fonts.helvetica,
-    color: hexToRgb("#94a3b8"),
+    color: hexToRgb("#a39a8e"),
     opacity: el.opacity * 0.8,
     maxWidth: el.width - 8,
   });
@@ -698,7 +698,7 @@ async function drawWatermark(
       y: pageHeight / 2,
       size,
       font: fonts.helveticaBold,
-      color: hexToRgb(watermark.color || "#94a3b8"),
+      color: hexToRgb(watermark.color || "#a39a8e"),
       opacity: watermark.opacity ?? 0.15,
       rotate: degrees(watermark.rotation || -30),
     });
