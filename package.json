@@ -7,8 +7,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "concurrently -k -n server,css,client -c blue,magenta,green \"tsx watch src/server/index.ts\" \"npm run build:css -- --watch\" \"npm run build:client -- --watch\"",
-    "build": "npm run build:css && npm run build:client && npm run build:assets && tsc -p tsconfig.server.json",
+    "dev": "npm run build:fonts && concurrently -k -n server,css,client -c blue,magenta,green \"tsx watch src/server/index.ts\" \"npm run build:css -- --watch\" \"npm run build:client -- --watch\"",
+    "build": "npm run build:fonts && npm run build:css && npm run build:client && npm run build:assets && tsc -p tsconfig.server.json",
+    "build:fonts": "node scripts/build-fonts.mjs",
     "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/css/app.css --minify",
     "build:client": "esbuild src/client/main.ts --bundle --outfile=public/js/app.js --format=esm --target=es2020 --minify",
     "build:assets": "node scripts/hash-assets.mjs",
@@ -44,6 +45,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.4",
+    "@fontsource-variable/bodoni-moda": "^5.3.0",
+    "@fontsource-variable/newsreader": "^5.3.0",
+    "@fontsource/courier-prime": "^5.3.0",
     "@types/alpinejs": "^3.13.11",
     "@types/express": "^5.0.3",
     "@types/image-size": "^0.7.0",

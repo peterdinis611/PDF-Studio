@@ -1,78 +1,63 @@
-<div class="nf-page nf-page--error relative flex h-full flex-col overflow-y-auto" x-data="themeToggle">
-  <div class="nf-atmosphere pointer-events-none absolute inset-0" aria-hidden="true"></div>
-  <div class="nf-grain pointer-events-none absolute inset-0" aria-hidden="true"></div>
-  <div class="nf-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>
+<div class="np-page np-page--notice" x-data="themeToggle">
+  <a class="np-skip" href="#notice">Skip to content</a>
 
-  <header class="nf-header relative z-30 flex items-center justify-between px-5 py-4 md:px-10">
-    <a href="/" class="site-brand-link">
-      <span class="site-mark" aria-hidden="true"></span>
-      <span class="site-brand-name">PDF Studio</span>
-    </a>
-    <div class="flex items-center gap-2">
-      <button
-        type="button"
-        class="site-icon-btn"
-        @click="toggleTheme()"
-        :title="theme === 'dark' ? 'Light mode' : 'Dark mode'"
-      >
-        <svg x-show="theme === 'dark'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.4 6.4l-1.4-1.4M7 7L5.6 5.6m12.8 0L17 7M7 17l-1.4 1.4M12 8a4 4 0 100 8 4 4 0 000-8z" />
-        </svg>
-        <svg x-show="theme === 'light'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
-        </svg>
-      </button>
-      <a href="/editor" class="site-nav-cta">Open editor</a>
+  <div class="np-stock" aria-hidden="true">
+    <div class="np-stock-wash"></div>
+    <div class="np-stock-fiber"></div>
+  </div>
+
+  <header class="np-utility np-utility--static">
+    <div class="np-utility-inner">
+      <a href="/" class="np-utility-brand"><i>The</i> PDF Studio</a>
+      <div class="np-utility-side">
+        <button
+          type="button"
+          class="np-toggle"
+          @click="toggleTheme()"
+          :aria-label="theme === 'dark' ? 'Switch to the day edition' : 'Switch to the night edition'"
+        >
+          <span class="np-toggle-ink" aria-hidden="true"></span>
+          <span class="np-toggle-label"></span>
+        </button>
+        <a href="/editor" class="np-stamp">Open editor</a>
+      </div>
     </div>
   </header>
 
-  <main class="relative z-20 flex min-h-0 flex-1 flex-col lg:flex-row lg:items-stretch">
-    <section class="nf-copy relative flex flex-1 flex-col justify-center px-6 pb-10 pt-4 md:px-10 lg:max-w-[48%] lg:pb-16 lg:pt-0">
-      <h1 class="nf-brand mt-0 font-display text-[clamp(2.75rem,8vw,5.5rem)] font-semibold leading-[0.92] tracking-tight">
-        PDF Studio
-      </h1>
-      <p class="nf-headline mt-6 max-w-md text-xl font-medium leading-snug md:text-2xl" style="color: rgb(var(--mk-fg) / 0.88)">
-        Something broke while loading this page.
-      </p>
-      <p class="nf-support mt-3 max-w-sm text-[15px] leading-relaxed" style="color: rgb(var(--mk-muted))">
-        Reload to try again, or go home and open the editor from there.
-      </p>
-      {{#if detail}}
-      <pre class="nf-detail mt-5 max-w-md overflow-x-auto rounded border px-3 py-2.5 text-[11px] leading-relaxed" style="border-color: rgb(var(--mk-reg) / 0.35); background: rgb(var(--mk-rail) / 0.85); color: rgb(var(--mk-reg))">{{detail}}</pre>
-      {{/if}}
-      <div class="nf-cta mt-10 flex flex-wrap gap-3">
-        <a href="/" class="site-cta-primary">Back home</a>
-        <button type="button" class="site-cta-ghost" onclick="window.location.reload()">
-          Try again
-        </button>
+  <main class="np-notice" id="notice">
+    <div class="np-shell np-notice-grid">
+      <div>
+        <p class="np-kicker">Stop press &middot; Error 500</p>
+        <h1 class="np-notice-title">The press jammed on this one</h1>
+        <p class="np-notice-lede">
+          Something broke while setting this page. Pull the proof again, or head back to the front
+          page and open the editor from there.
+        </p>
+        {{#if detail}}
+        <pre class="np-notice-detail">{{detail}}</pre>
+        {{/if}}
+        <div class="np-actions">
+          <button type="button" class="np-btn np-btn--ink" onclick="window.location.reload()">
+            Run it again
+          </button>
+          <a href="/" class="np-btn np-btn--outline">Back to the front page</a>
+        </div>
+        <p class="np-notice-meta">500 &mdash; server error</p>
       </div>
-      <p class="nf-meta mt-12 text-sm" style="color: rgb(var(--mk-muted) / 0.85)">
-        500 — server error
-      </p>
-    </section>
 
-    <section class="nf-press relative min-h-[52vh] flex-1 lg:min-h-0" aria-hidden="true">
-      <div class="nf-press-frame">
-        <div class="nf-crop nf-crop--tl"></div>
-        <div class="nf-crop nf-crop--tr"></div>
-        <div class="nf-crop nf-crop--bl"></div>
-        <div class="nf-crop nf-crop--br"></div>
-        <div class="nf-reg nf-reg--fault" title="registration fault"></div>
-
-        <div class="nf-stack">
-          <div class="nf-leaf nf-leaf--3 nf-leaf--skew"></div>
-          <div class="nf-leaf nf-leaf--2 nf-leaf--skew"></div>
-          <div class="nf-leaf nf-leaf--1 nf-leaf--fault">
-            <div class="nf-rule-lines"></div>
-            <div class="nf-smear"></div>
-            <div class="nf-missing nf-missing--fault">
-              <span class="nf-missing-code">500</span>
-              <span class="nf-missing-label">server error</span>
-            </div>
-            <div class="nf-folio">ERR / RUN</div>
+      <div class="np-sheet-wrap" aria-hidden="true">
+        <div class="np-sheet">
+          <p class="np-sheet-head">Proof spoiled</p>
+          <div class="np-sheet-lines">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
           </div>
+          <div class="np-stamp-mark">
+            <span class="np-stamp-code">500</span>
+            <span class="np-stamp-label">Press jammed</span>
+          </div>
+          <span class="np-sheet-folio">ERR / RUN</span>
         </div>
       </div>
-    </section>
+    </div>
   </main>
 </div>

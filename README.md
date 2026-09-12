@@ -21,10 +21,35 @@ Open [http://localhost:3847](http://localhost:3847).
 | Script | Description |
 |--------|-------------|
 | `npm run dev` | Server + CSS + client watchers |
-| `npm run build` | Production CSS, minified client, compiled server |
+| `npm run build` | Fonts, production CSS, minified client, compiled server |
+| `npm run build:fonts` | Copy self-hosted UI fonts out of `@fontsource` |
 | `npm start` | Run production server (`dist/`) |
 | `npm run typecheck` | TypeScript check |
 | `npm run format` | Format with Biome |
+
+## Fonts
+
+The marketing and error pages are set in Bodoni Moda, Newsreader and Courier
+Prime, self-hosted. `npm run build:fonts` copies the woff2 files out of the
+`@fontsource` packages into `public/fonts/` and regenerates
+`src/styles/fonts.generated.css` with the packages' own `unicode-range`
+declarations, so a browser only fetches `latin-ext` when the page needs it.
+Both outputs are generated — they are gitignored and rebuilt by `npm run build`.
+
+The editor still loads its document font catalogue from Google Fonts. Those are
+fonts the user picks for their PDF, not app chrome, and there are fourteen of
+them; `@fontsource/{inter,roboto,open-sans,lora,playfair-display}` stay in
+`dependencies` as the offline fallback used by `fontEmbed.ts` during export.
+
+## Social card
+
+`public/og.png` is the 1200×630 Open Graph image, rendered from the masthead.
+It is committed and **not** part of `npm run build`. Regenerate it only when the
+masthead design changes:
+
+```bash
+npm i -D puppeteer && node scripts/build-og.mjs && npm uninstall puppeteer
+```
 
 ## Production deploy
 

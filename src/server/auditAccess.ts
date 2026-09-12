@@ -1,4 +1,5 @@
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
+import { NOTICE_PAGE } from "./pageMeta.js";
 
 function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
@@ -41,7 +42,10 @@ export function requireAuditAccess(req: Request, res: Response, next: NextFuncti
       if (isApiRequest(req)) {
         res.status(404).json({ error: "Not found" });
       } else {
-        res.status(404).render("not-found", { title: "Page not found — PDF Studio" });
+        res.status(404).render("not-found", {
+          title: "Page not found — PDF Studio",
+          ...NOTICE_PAGE,
+        });
       }
       return;
     }

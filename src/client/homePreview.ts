@@ -3,7 +3,7 @@ function prefersReducedMotion(): boolean {
 }
 
 function initNavScroll(page: HTMLElement): void {
-  const nav = document.querySelector<HTMLElement>("[data-site-nav]");
+  const nav = document.querySelector<HTMLElement>("[data-np-nav]");
   if (!nav) return;
   const onScrollPage = () => {
     nav.classList.toggle("is-scrolled", page.scrollTop > 12);

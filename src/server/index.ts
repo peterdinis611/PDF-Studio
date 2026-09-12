@@ -1,12 +1,13 @@
-import express, { type Request, type Response, type NextFunction } from "express";
-import { engine } from "express-handlebars";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import express, { type NextFunction, type Request, type Response } from "express";
+import { engine } from "express-handlebars";
 import { pinoHttp } from "pino-http";
 import { getAssetUrls, publicCacheControl } from "./assets.js";
 import { audit, requestContext } from "./audit.js";
 import { auditTokenConfigured, requireAuditAccess } from "./auditAccess.js";
 import { logger } from "./logger.js";
+import { currentEdition, NOTICE_PAGE, seo } from "./pageMeta.js";
 import { apiRouter } from "./routes/api.js";
 import { pruneExpiredUploads, sessionMiddleware, uploadsRoot } from "./session.js";
 
@@ -44,11 +45,7 @@ app.use(
     autoLogging: {
       ignore: (req) => {
         const url = req.url ?? "";
-        return (
-          url.startsWith("/public") ||
-          url.startsWith("/uploads") ||
-          url.startsWith("/health")
-        );
+        return url.startsWith("/public") || url.startsWith("/uploads") || url.startsWith("/health");
       },
     },
     customLogLevel: (_req, res, err) => {
@@ -91,19 +88,21 @@ function siteOrigin(req: Request): string {
 
 app.get("/robots.txt", (req, res) => {
   const origin = siteOrigin(req);
-  res.type("text/plain").send(
-    [
-      "User-agent: *",
-      "Allow: /",
-      "Disallow: /api/",
-      "Disallow: /uploads/",
-      "Disallow: /audit-logs",
-      "Disallow: /health",
-      "",
-      `Sitemap: ${origin}/sitemap.xml`,
-      "",
-    ].join("\n"),
-  );
+  res
+    .type("text/plain")
+    .send(
+      [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /uploads/",
+        "Disallow: /audit-logs",
+        "Disallow: /health",
+        "",
+        `Sitemap: ${origin}/sitemap.xml`,
+        "",
+      ].join("\n"),
+    );
 });
 
 app.get("/sitemap.xml", (req, res) => {
@@ -136,32 +135,16 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ ok: true, service: "pdf-studio" });
 });
 
-/** Masthead furniture: the landing page is set as a daily broadsheet. */
-function currentEdition(now = new Date()): { dateline: string; edition: string; issued: string } {
-  const startOfYear = Date.UTC(now.getUTCFullYear(), 0, 0);
-  const dayOfYear = Math.floor((now.getTime() - startOfYear) / 86_400_000);
-  return {
-    dateline: new Intl.DateTimeFormat("en-GB", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      timeZone: "UTC",
-    }).format(now),
-    edition: String(dayOfYear).padStart(3, "0"),
-    issued: new Intl.DateTimeFormat("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      timeZone: "UTC",
-    }).format(now),
-  };
-}
+const HOME_DESCRIPTION =
+  "Design invoices, letters, CVs and proposals on a real page grid, then export a genuine PDF with the fonts embedded. Runs in your browser — no account, no upload.";
 
-app.get("/", noStoreHtml, (_req, res) => {
+app.get("/", noStoreHtml, (req, res) => {
   res.render("home", {
-    title: "PDF Studio",
-    tagline: "Design and customize PDFs in the browser",
+    ...seo(siteOrigin(req), {
+      title: "PDF Studio — a local-first PDF editor in your browser",
+      description: HOME_DESCRIPTION,
+      path: "/",
+    }),
     newsprint: true,
     ...currentEdition(),
   });
@@ -203,16 +186,18 @@ app.use(noStoreHtml, (req, res) => {
   });
   res.status(404).render("not-found", {
     title: "Page not found — PDF Studio",
+    ...NOTICE_PAGE,
   });
 });
 
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const message = err instanceof Error ? err.message : "Internal server error";
-  const status = typeof (err as { status?: number })?.status === "number"
-    ? (err as { status: number }).status
-    : typeof (err as { statusCode?: number })?.statusCode === "number"
-      ? (err as { statusCode: number }).statusCode
-      : 500;
+  const status =
+    typeof (err as { status?: number })?.status === "number"
+      ? (err as { status: number }).status
+      : typeof (err as { statusCode?: number })?.statusCode === "number"
+        ? (err as { statusCode: number }).statusCode
+        : 500;
   const code = status >= 400 && status < 600 ? status : 500;
 
   logger.error({ err, path: req.originalUrl, method: req.method }, message);
@@ -227,9 +212,7 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   res.setHeader("Cache-Control", "no-store");
 
   const wantsJson =
-    req.path.startsWith("/api") ||
-    req.xhr ||
-    req.accepts(["html", "json"]) === "json";
+    req.path.startsWith("/api") || req.xhr || req.accepts(["html", "json"]) === "json";
 
   if (wantsJson) {
     res.status(code).json({
@@ -241,6 +224,7 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (code === 404) {
     res.status(404).render("not-found", {
       title: "Page not found — PDF Studio",
+      ...NOTICE_PAGE,
     });
     return;
   }
@@ -248,6 +232,7 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   res.status(code).render("error", {
     title: "Something went wrong — PDF Studio",
     detail: isProd ? null : message,
+    ...NOTICE_PAGE,
   });
 });
 
