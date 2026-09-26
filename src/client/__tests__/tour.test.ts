@@ -86,5 +86,14 @@ describe("editor tour", () => {
       jest.runAllTimers();
       expect(drive).toHaveBeenCalledTimes(1);
     });
+
+    it("runs onBeforeStart before drive()", () => {
+      const onBeforeStart = jest.fn();
+      scheduleEditorTour({ force: true, onBeforeStart });
+      jest.runAllTimers();
+      expect(onBeforeStart).toHaveBeenCalledTimes(1);
+      expect(drive).toHaveBeenCalledTimes(1);
+      expect(onBeforeStart.mock.invocationCallOrder[0]).toBeLessThan(drive.mock.invocationCallOrder[0]);
+    });
   });
 });

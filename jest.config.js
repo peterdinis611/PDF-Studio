@@ -31,6 +31,7 @@ const config = {
     "src/client/tour.ts",
     "src/server/services/fontEmbed.ts",
     "src/server/services/pdfImport.ts",
+    "src/server/services/pdfExport.ts",
     "src/server/routes/googleFonts.ts",
     "src/server/audit.ts",
     "src/server/auditAccess.ts",

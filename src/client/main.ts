@@ -591,9 +591,13 @@ function pdfEditor() {
           this.showShortcuts = false;
         },
       });
-      this.$watch("activePageIndex", () => {
-        void this.refreshPdfUnderlay();
-      });
+      // Alpine injects $watch at runtime
+      (this as unknown as { $watch: (key: string, cb: () => void) => void }).$watch(
+        "activePageIndex",
+        () => {
+          void this.refreshPdfUnderlay();
+        },
+      );
       void this.refreshPdfUnderlay();
     },
 

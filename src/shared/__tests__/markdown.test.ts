@@ -1,4 +1,4 @@
-import { markdownToHtml, markdownToPlainText, MARKDOWN_SAMPLE } from "../markdown.js";
+import { markdownToHtml, markdownToPlainText, markdownToStyledLines, MARKDOWN_SAMPLE } from "../markdown.js";
 
 describe("markdownToHtml", () => {
   describe("positive", () => {
@@ -68,6 +68,36 @@ describe("markdownToPlainText", () => {
     it("returns empty string for empty markdown", () => {
       expect(markdownToPlainText("")).toBe("");
       expect(markdownToPlainText("   ")).toBe("");
+    });
+  });
+});
+
+describe("markdownToStyledLines", () => {
+  describe("positive", () => {
+    it("preserves bold and italic runs", () => {
+      const lines = markdownToStyledLines("Hello **world** and _italics_");
+      const flat = lines.flatMap((l) => l.runs);
+      expect(flat.some((r) => r.text === "world" && r.bold)).toBe(true);
+      expect(flat.some((r) => r.text.includes("italics") && r.italic)).toBe(true);
+    });
+
+    it("marks headings with a level", () => {
+      const lines = markdownToStyledLines("# Title\n\nbody");
+      expect(lines[0].headingLevel).toBe(1);
+      expect(lines[0].runs.some((r) => r.text.includes("Title"))).toBe(true);
+    });
+
+    it("uses code runs for inline code", () => {
+      const lines = markdownToStyledLines("Use `pdf-lib` here");
+      expect(lines.flatMap((l) => l.runs).some((r) => r.text === "pdf-lib" && r.code)).toBe(true);
+    });
+  });
+
+  describe("negative", () => {
+    it("returns a single empty run for blank input", () => {
+      const lines = markdownToStyledLines("");
+      expect(lines).toHaveLength(1);
+      expect(lines[0].runs).toEqual([{ text: "" }]);
     });
   });
 });

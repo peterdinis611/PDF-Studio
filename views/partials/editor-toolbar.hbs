@@ -376,7 +376,7 @@
           <button type="button" class="btn-ghost" :class="editingMaster && masterZone === 'footer' && 'bg-accent/15 text-accent-soft'" @click="setMasterZone('footer')">Footer</button>
           <button type="button" class="btn-ghost" @click="addMasterPageNumber()">Page #</button>
           <button type="button" class="btn-ghost" @click="togglePageApplyMaster()" x-text="activePage.applyMaster === false ? 'Apply master: off' : 'Apply master: on'"></button>
-          <button type="button" class="btn-ghost" @click="setWatermarkText(prompt('Watermark text') || 'DRAFT')">Watermark</button>
+          <button type="button" class="btn-ghost" @click="openWatermarkModal()">Watermark…</button>
           <button type="button" class="btn-ghost" @click="clearWatermark()">Clear</button>
         </div>
       </div>
@@ -387,6 +387,10 @@
           <button type="button" class="btn-ghost" @click="insertFormField('formCheck')">Checkbox</button>
           <button type="button" class="btn-ghost" @click="insertFormField('formSelect')">Dropdown</button>
         </div>
+        <label class="settings-row mt-2">
+          <span>Try filling on canvas</span>
+          <input type="checkbox" class="accent-accent" x-model="formPreviewMode" />
+        </label>
       </div>
       <div>
         <label class="panel-label">Reviewer name</label>

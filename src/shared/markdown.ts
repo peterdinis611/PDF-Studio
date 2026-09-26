@@ -212,7 +212,7 @@ function blocksToStyledLines(nodes: BlockNode[]): StyledLine[] {
   for (const n of nodes) {
     switch (n.type) {
       case "heading":
-        lines.push({ runs: inlineToRuns(n.children), headingLevel: n.level });
+        lines.push({ runs: inlineToRuns(n.children), headingLevel: n.depth });
         blank();
         break;
       case "paragraph":

@@ -37,3 +37,13 @@ for (const { dir, base, ext, key } of targets) {
 const manifestPath = path.join(root, "public/asset-manifest.json");
 fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(`wrote ${path.relative(root, manifestPath)}`);
+
+// pdf.js worker for imported-PDF canvas underlays (not hashed — stable URL for GlobalWorkerOptions)
+const workerSrc = path.join(root, "node_modules/pdfjs-dist/build/pdf.worker.min.mjs");
+const workerDest = path.join(root, "public/js/pdf.worker.min.mjs");
+if (fs.existsSync(workerSrc)) {
+  fs.copyFileSync(workerSrc, workerDest);
+  console.log("copied pdf.worker.min.mjs → public/js/");
+} else {
+  console.warn("pdfjs worker missing — PDF underlay preview will fail until pdfjs-dist is installed");
+}

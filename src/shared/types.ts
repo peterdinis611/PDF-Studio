@@ -81,7 +81,7 @@ export interface TextElement extends PdfElementBase {
   listStyle: ListStyle;
   color: string;
   align: "left" | "center" | "right";
-  /** When true, content is Markdown (TanStack Markdown) on canvas; export uses plain text. */
+  /** When true, content is Markdown (TanStack Markdown) on canvas; export draws styled runs. */
   markdown?: boolean;
 }
 

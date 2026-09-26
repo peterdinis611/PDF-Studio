@@ -23,9 +23,9 @@ export default {
         warn: "rgb(var(--color-warn) / <alpha-value>)",
       },
       fontFamily: {
-        display: ['"Fraunces"', '"Source Serif 4"', "Georgia", "serif"],
-        sans: ['"Figtree"', '"DM Sans"', "system-ui", "sans-serif"],
-        mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
+        display: ['"Bodoni Moda"', '"Bodoni MT"', "Didot", "Georgia", "serif"],
+        sans: ['"Newsreader"', '"Source Serif 4"', "Georgia", "serif"],
+        mono: ['"Courier Prime"', '"Courier New"', "monospace"],
       },
       boxShadow: {
         page: "var(--shadow-page)",

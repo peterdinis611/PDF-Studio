@@ -49,7 +49,7 @@ export async function renderPdfPagePreview(
       await pdf.destroy();
       return null;
     }
-    await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+    await page.render({ canvasContext: ctx, viewport }).promise;
     const url = canvas.toDataURL("image/jpeg", 0.88);
     pageCache.set(pageIndex, url);
     await pdf.destroy();

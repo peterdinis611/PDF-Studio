@@ -3,10 +3,13 @@
     x-show="showExportModal"
     x-cloak
     class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="export-modal-title"
     @keydown.escape.window="showExportModal = false"
   >
     <div class="modal-panel" @click.outside="showExportModal = false">
-      <h3 class="modal-title">Export PDF</h3>
+      <h3 id="export-modal-title" class="modal-title">Export PDF</h3>
       <p class="mt-1 text-xs text-slate-muted">Choose quality options, then download.</p>
       <div class="mt-5 space-y-4 text-sm">
         <div>
@@ -253,6 +256,77 @@
           </ul>
         </div>
       </template>
+    </div>
+  </div>
+</div>
+
+<div
+  x-show="showWatermarkModal"
+  x-cloak
+  class="modal-backdrop"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="watermark-modal-title"
+  @keydown.escape.window="showWatermarkModal = false"
+>
+  <div class="modal-panel" @click.outside="showWatermarkModal = false">
+    <h3 id="watermark-modal-title" class="modal-title">Watermark</h3>
+    <p class="mt-1 text-xs text-slate-muted">Shown on every page. Image uploads use the session upload API.</p>
+    <div class="mt-4 flex gap-1 rounded-xl border border-slate-line bg-black/5 p-1 dark:bg-white/5">
+      <button
+        type="button"
+        class="flex-1 rounded-lg px-3 py-1.5 text-xs font-medium"
+        :class="watermarkDraft.type === 'text' ? 'bg-slate-panel text-fg shadow-sm' : 'text-slate-muted'"
+        @click="watermarkDraft.type = 'text'"
+      >Text</button>
+      <button
+        type="button"
+        class="flex-1 rounded-lg px-3 py-1.5 text-xs font-medium"
+        :class="watermarkDraft.type === 'image' ? 'bg-slate-panel text-fg shadow-sm' : 'text-slate-muted'"
+        @click="watermarkDraft.type = 'image'"
+      >Image</button>
+    </div>
+    <div class="mt-4 space-y-3 text-sm" x-show="watermarkDraft.type === 'text'">
+      <div>
+        <label class="panel-label" for="wm-text">Text</label>
+        <input id="wm-text" type="text" class="panel-input" x-model="watermarkDraft.text" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="panel-label" for="wm-size">Size</label>
+          <input id="wm-size" type="number" min="12" max="160" class="panel-input" x-model.number="watermarkDraft.fontSize" />
+        </div>
+        <div>
+          <label class="panel-label" for="wm-color">Color</label>
+          <input id="wm-color" type="color" class="h-9 w-full cursor-pointer rounded-lg border border-slate-line bg-transparent" x-model="watermarkDraft.color" />
+        </div>
+      </div>
+    </div>
+    <div class="mt-4 space-y-3 text-sm" x-show="watermarkDraft.type === 'image'">
+      <div>
+        <label class="panel-label">Image</label>
+        <div class="mt-1 flex flex-wrap items-center gap-2">
+          <button type="button" class="btn-ghost" @click="$refs.watermarkImageInput.click()">Upload…</button>
+          <span class="truncate text-xs text-slate-muted" x-text="watermarkDraft.src ? 'Image ready' : 'No image yet'"></span>
+        </div>
+        <input type="file" accept="image/png,image/jpeg" class="hidden" x-ref="watermarkImageInput" @change="onWatermarkImageSelected($event)" />
+      </div>
+    </div>
+    <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+      <div>
+        <label class="panel-label">Opacity</label>
+        <input type="range" min="0.04" max="0.6" step="0.01" class="w-full accent-accent" x-model.number="watermarkDraft.opacity" />
+        <p class="mt-1 text-xs text-slate-muted" x-text="Math.round(watermarkDraft.opacity * 100) + '%'"></p>
+      </div>
+      <div>
+        <label class="panel-label" for="wm-rot">Rotation°</label>
+        <input id="wm-rot" type="number" min="-180" max="180" class="panel-input" x-model.number="watermarkDraft.rotation" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" @click="showWatermarkModal = false">Cancel</button>
+      <button type="button" class="btn-ghost" @click="clearWatermark(); showWatermarkModal = false">Remove</button>
+      <button type="button" class="btn-primary" @click="applyWatermarkDraft()">Apply</button>
     </div>
   </div>
 </div>
