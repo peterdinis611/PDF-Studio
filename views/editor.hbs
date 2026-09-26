@@ -1,3 +1,4 @@
+<a class="np-skip" href="#editor-main">Skip to editor</a>
 <div
   x-data="pdfEditor"
   @keydown.window="onKeydown($event)"
@@ -10,7 +11,7 @@
 >
   {{> editor-toolbar}}
 
-  <div class="editor-workspace relative flex min-h-0 flex-1 overflow-hidden">
+  <main id="editor-main" class="editor-workspace relative flex min-h-0 flex-1 overflow-hidden">
     <div
       class="editor-scrim"
       x-show="isCompact && (showLeftPanel || showInspectorPanel)"
@@ -25,7 +26,7 @@
     {{> editor-canvas}}
 
     {{> editor-inspector}}
-  </div>
+  </main>
 
   <footer class="status-bar">
     <div class="flex min-w-0 items-center gap-1.5 overflow-hidden sm:gap-2.5">
@@ -58,6 +59,8 @@
     x-show="toast"
     x-cloak
     x-transition.opacity.duration.200ms
+    role="status"
+    aria-live="polite"
     class="pointer-events-none fixed bottom-16 left-1/2 z-[80] -translate-x-1/2 rounded-full border border-slate-line bg-rail/95 px-4 py-2 text-xs font-medium text-fg shadow-lg backdrop-blur"
     x-text="toast"
   ></div>

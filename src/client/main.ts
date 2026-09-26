@@ -52,6 +52,7 @@ import {
   getSessionImportedPdfBytes,
   importPdfInBrowser,
 } from "./pdfImport.js";
+import { invalidatePdfPreviewCache, renderPdfPagePreview } from "./pdfPagePreview.js";
 import { computeSmartGuides, type SmartGuide } from "./smartGuides.js";
 import { TEMPLATE_LIST, buildTemplate } from "./templates.js";
 import { initHomePreview } from "./homePreview.js";
@@ -261,8 +262,21 @@ function pdfEditor() {
     showBrandKit: false,
     showDocLibrary: false,
     showComments: false,
+    showWatermarkModal: false,
     editingMaster: false,
     reviewMode: false,
+    formPreviewMode: false,
+    formPreviewValues: {} as Record<string, string | boolean>,
+    pdfUnderlaySrc: null as string | null,
+    watermarkDraft: {
+      type: "text" as "text" | "image",
+      text: "DRAFT",
+      opacity: 0.12,
+      rotation: -30,
+      fontSize: 56,
+      color: "#a39a8e",
+      src: "",
+    },
     libraryCategory: "all" as LibraryCategory,
     libraryItems: LIBRARY_ITEMS,
     libraryCategories: LIBRARY_CATEGORIES,
@@ -567,7 +581,30 @@ function pdfEditor() {
       });
 
       this.bindLayoutMedia();
-      scheduleEditorTour();
+      scheduleEditorTour({
+        onBeforeStart: () => {
+          this.leftRail = "insert";
+          this.showLeftPanel = true;
+          this.showFileMenu = false;
+          this.showTemplates = false;
+          this.showSettings = false;
+          this.showShortcuts = false;
+        },
+      });
+      this.$watch("activePageIndex", () => {
+        void this.refreshPdfUnderlay();
+      });
+      void this.refreshPdfUnderlay();
+    },
+
+    async refreshPdfUnderlay() {
+      const bytes = getSessionImportedPdfBytes();
+      const page = this.doc.pages[this.activePageIndex];
+      if (!bytes || typeof page?.sourcePageIndex !== "number") {
+        this.pdfUnderlaySrc = null;
+        return;
+      }
+      this.pdfUnderlaySrc = await renderPdfPagePreview(bytes, page.sourcePageIndex, 1.5);
     },
 
     bindLayoutMedia() {
@@ -1960,6 +1997,77 @@ function pdfEditor() {
       this.commit();
     },
 
+    openWatermarkModal() {
+      const w = this.doc.watermark;
+      this.watermarkDraft = {
+        type: w?.type === "image" ? "image" : "text",
+        text: w?.text || "DRAFT",
+        opacity: w?.opacity ?? 0.12,
+        rotation: w?.rotation ?? -30,
+        fontSize: w?.fontSize ?? 56,
+        color: w?.color || "#a39a8e",
+        src: w?.src || "",
+      };
+      this.showWatermarkModal = true;
+    },
+
+    applyWatermarkDraft() {
+      const d = this.watermarkDraft;
+      if (d.type === "image") {
+        if (!d.src) {
+          alert("Upload a watermark image first.");
+          return;
+        }
+        this.doc.watermark = {
+          type: "image",
+          src: d.src,
+          opacity: d.opacity,
+          rotation: d.rotation,
+        };
+      } else {
+        this.doc.watermark = {
+          type: "text",
+          text: (d.text || "DRAFT").trim() || "DRAFT",
+          opacity: d.opacity,
+          rotation: d.rotation,
+          fontSize: d.fontSize,
+          color: d.color,
+        };
+      }
+      this.showWatermarkModal = false;
+      this.commit();
+    },
+
+    async onWatermarkImageSelected(event: Event) {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await apiFetch("/api/upload", { method: "POST", body: form });
+        if (!res.ok) throw new Error("Upload failed");
+        const data = (await res.json()) as { url: string };
+        this.watermarkDraft.type = "image";
+        this.watermarkDraft.src = data.url;
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Could not upload image");
+      } finally {
+        input.value = "";
+      }
+    },
+
+    formPreviewValue(name: string, fallback: string | boolean = "") {
+      if (Object.prototype.hasOwnProperty.call(this.formPreviewValues, name)) {
+        return this.formPreviewValues[name];
+      }
+      return fallback;
+    },
+
+    setFormPreviewValue(name: string, value: string | boolean) {
+      this.formPreviewValues = { ...this.formPreviewValues, [name]: value };
+    },
+
     clearWatermark() {
       this.doc.watermark = null;
       this.commit();
@@ -2152,8 +2260,15 @@ function pdfEditor() {
         history.reset(this.doc);
         this.syncHistoryFlags();
         this.commit(false);
+        await this.refreshPdfUnderlay();
+        this.toast = "PDF imported — overlays stay in this tab until export";
+        setTimeout(() => {
+          if (this.toast?.startsWith("PDF imported")) this.toast = "";
+        }, 3200);
       } catch (err) {
         clearSessionImportedPdf();
+        invalidatePdfPreviewCache();
+        this.pdfUnderlaySrc = null;
         alert(err instanceof Error ? err.message : "Could not import PDF");
       } finally {
         input.value = "";

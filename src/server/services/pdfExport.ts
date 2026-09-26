@@ -25,7 +25,7 @@ import {
   type TextElement,
   type DocWatermark,
 } from "../../shared/types.js";
-import { markdownToPlainText } from "../../shared/markdown.js";
+import { markdownToPlainText, markdownToStyledLines } from "../../shared/markdown.js";
 import { resolveUploadPath, base64ToBytes } from "./pdfImport.js";
 import { embedGoogleFonts, pickGoogleFont, type FontNeed } from "./fontEmbed.js";
 
@@ -48,7 +48,8 @@ type Fonts = {
   google: Map<string, PDFFont>;
 };
 
-function hexToRgb(hex: string) {
+/** Exported for unit tests. */
+export function hexToRgb(hex: string) {
   const cleaned = (hex || "#000000").replace("#", "");
   const full =
     cleaned.length === 3
@@ -159,7 +160,8 @@ function collectFontNeeds(payload: ExportPayload): FontNeed[] {
   return needs;
 }
 
-function substituteTokens(text: string, pageIndex: number, pageCount: number) {
+/** Exported for unit tests. */
+export function substituteTokens(text: string, pageIndex: number, pageCount: number) {
   return text
     .replace(/\{\{page\}\}/g, String(pageIndex + 1))
     .replace(/\{\{pages\}\}/g, String(pageCount));
@@ -189,6 +191,11 @@ async function drawText(
   pageIndex: number,
   pageCount: number,
 ) {
+  if (el.markdown) {
+    await drawMarkdownText(page, el, pageHeight, fonts, pageIndex, pageCount);
+    return;
+  }
+
   const font = pickFont(fonts, el.fontFamily, el.fontWeight === "bold", el.fontStyle === "italic");
   const lines = formatTextLines(el, pageIndex, pageCount);
   const lineHeight = el.fontSize * (el.lineHeight || 1.25);
@@ -238,6 +245,68 @@ async function drawText(
         opacity: el.opacity,
       });
     }
+    cursorY -= lineHeight;
+  }
+}
+
+async function drawMarkdownText(
+  page: PDFPage,
+  el: TextElement,
+  pageHeight: number,
+  fonts: Fonts,
+  pageIndex: number,
+  pageCount: number,
+) {
+  const source = substituteTokens(el.content || "", pageIndex, pageCount);
+  const styled = markdownToStyledLines(source);
+  let cursorY = toPdfY(pageHeight, el.y, el.fontSize);
+  const baseSize = el.fontSize;
+  const baseLh = el.lineHeight || 1.25;
+
+  for (const line of styled) {
+    const size =
+      line.headingLevel === 1
+        ? baseSize * 1.55
+        : line.headingLevel === 2
+          ? baseSize * 1.35
+          : line.headingLevel === 3
+            ? baseSize * 1.18
+            : baseSize;
+    const lineHeight = size * baseLh;
+
+    // Measure full line width for alignment
+    let textWidth = 0;
+    for (const run of line.runs) {
+      const bold = Boolean(run.bold) || el.fontWeight === "bold" || Boolean(line.headingLevel);
+      const italic = Boolean(run.italic) || el.fontStyle === "italic";
+      const family = run.code ? "Courier" : el.fontFamily;
+      const font = pickFont(fonts, family, bold, italic);
+      textWidth += font.widthOfTextAtSize(run.text, size);
+    }
+
+    let x = el.x;
+    if (el.align === "center") x = el.x + (el.width - textWidth) / 2;
+    if (el.align === "right") x = el.x + el.width - textWidth;
+    let cx = Math.max(0, x);
+
+    for (const run of line.runs) {
+      if (!run.text) continue;
+      const bold = Boolean(run.bold) || el.fontWeight === "bold" || Boolean(line.headingLevel);
+      const italic = Boolean(run.italic) || el.fontStyle === "italic";
+      const family = run.code ? "Courier" : el.fontFamily;
+      const font = pickFont(fonts, family, bold, italic);
+      page.drawText(run.text, {
+        x: cx,
+        y: cursorY,
+        size,
+        font,
+        color: hexToRgb(el.color),
+        opacity: el.opacity,
+        rotate: degrees(el.rotation || 0),
+      });
+      cx += font.widthOfTextAtSize(run.text, size);
+    }
+
     cursorY -= lineHeight;
   }
 }

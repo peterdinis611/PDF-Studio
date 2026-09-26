@@ -183,7 +183,11 @@ function clearSchedule(): void {
 }
 
 /** Start tour after preload fades, once per browser unless forced. */
-export function scheduleEditorTour(options?: { force?: boolean }): void {
+export function scheduleEditorTour(options?: {
+  force?: boolean;
+  /** Open rails / panels before drive() — needed on compact layouts. */
+  onBeforeStart?: () => void;
+}): void {
   const force =
     options?.force ||
     (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("tour"));
@@ -197,6 +201,11 @@ export function scheduleEditorTour(options?: { force?: boolean }): void {
     clearSchedule();
     if (!force && hasSeenEditorTour()) return;
     if (activeTour?.isActive()) return;
+    try {
+      options?.onBeforeStart?.();
+    } catch {
+      /* ignore panel prep failures */
+    }
     startEditorTour();
   };
 

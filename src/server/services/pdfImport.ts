@@ -48,34 +48,9 @@ export async function importPdfFromBytes(
 
   const pages: PdfPage[] = [];
   for (let i = 0; i < pageCount; i++) {
-    const page = src.getPage(i);
-    const size = page.getSize();
     pages.push({
       id: randomUUID(),
-      elements: [
-        {
-          id: randomUUID(),
-          type: "text",
-          x: 40,
-          y: 40,
-          width: Math.min(400, size.width - 80),
-          height: 48,
-          rotation: 0,
-          opacity: 0.55,
-          locked: true,
-          content: `Imported PDF page ${i + 1} of ${pageCount}\nAdd overlays above this background`,
-          fontSize: 12,
-          fontFamily: "Helvetica",
-          fontWeight: "normal",
-          fontStyle: "normal",
-          underline: false,
-          lineHeight: 1.3,
-          letterSpacing: 0,
-          listStyle: "none",
-          color: "#746c62",
-          align: "left",
-        },
-      ],
+      elements: [],
       applyMaster: false,
       sourcePageIndex: i,
     });
