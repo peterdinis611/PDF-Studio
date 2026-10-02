@@ -1,8 +1,47 @@
 <section class="relative flex min-w-0 flex-1 flex-col">
   <div
+    x-show="pdfNeedsReattach()"
+    x-cloak
+    class="pointer-events-auto absolute left-1/2 top-4 z-40 flex max-w-[min(92vw,28rem)] -translate-x-1/2 flex-col items-center gap-2 rounded-2xl border border-accent/30 bg-rail/95 px-4 py-3 text-center shadow-page backdrop-blur-md sm:flex-row sm:text-left"
+    role="status"
+  >
+    <p class="text-xs text-fg">
+      Imported PDF was cleared after refresh. Re-attach the same file to restore the underlay and export.
+    </p>
+    <button type="button" class="btn-primary shrink-0 px-3 py-1.5 text-xs" @click="requestPdfReattach()">
+      Re-attach PDF
+    </button>
+  </div>
+
+  <div
+    x-show="commentPlacement"
+    x-cloak
+    class="pointer-events-auto absolute left-1/2 top-16 z-40 w-[min(92vw,20rem)] -translate-x-1/2 rounded-2xl border border-slate-line bg-rail/95 p-3 shadow-page backdrop-blur-md"
+    role="dialog"
+    aria-label="Add comment"
+  >
+    <label class="panel-label" for="comment-draft">Comment</label>
+    <textarea
+      id="comment-draft"
+      class="panel-input mt-1 min-h-[4.5rem]"
+      x-model="commentDraft"
+      x-ref="commentDraftInput"
+      @keydown.meta.enter.prevent="submitCommentDraft()"
+      @keydown.ctrl.enter.prevent="submitCommentDraft()"
+      @keydown.escape.prevent="cancelCommentDraft()"
+      placeholder="Review note…"
+    ></textarea>
+    <div class="mt-2 flex justify-end gap-1.5">
+      <button type="button" class="btn-ghost text-xs" @click="cancelCommentDraft()">Cancel</button>
+      <button type="button" class="btn-primary text-xs" @click="submitCommentDraft()">Add</button>
+    </div>
+  </div>
+
+  <div
     x-show="placeHint || editingMaster"
     x-transition.opacity.duration.200ms
     class="place-banner pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-full border border-accent/25 bg-rail/95 px-4 py-1.5 text-xs font-medium text-accent-soft shadow-page backdrop-blur-md"
+    :class="pdfNeedsReattach() || commentPlacement ? 'top-24' : ''"
     x-text="editingMaster ? ('Editing master ' + masterZone + ' · Esc to exit') : 'Click the page to place · Esc to cancel'"
   ></div>
 

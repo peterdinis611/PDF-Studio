@@ -3,7 +3,7 @@ import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 /** Served from /public/js — copied during `build:assets`. */
 GlobalWorkerOptions.workerSrc = "/public/js/pdf.worker.min.mjs";
 
-const pageCache = new Map<number, string>();
+const pageCache = new Map<string, string>();
 let bytesFingerprint = "";
 
 function fingerprint(bytes: Uint8Array): string {
@@ -12,12 +12,16 @@ function fingerprint(bytes: Uint8Array): string {
   return `${n}:${bytes[0]}:${bytes[Math.floor(n / 2)]}:${bytes[n - 1]}`;
 }
 
+function cacheKey(pageIndex: number, scale: number): string {
+  return `${pageIndex}@${scale}`;
+}
+
 export function invalidatePdfPreviewCache(): void {
   pageCache.clear();
   bytesFingerprint = "";
 }
 
-/** Rasterize one PDF page to a JPEG data URL for the canvas underlay. */
+/** Rasterize one PDF page to a JPEG data URL for canvas / rail underlays. */
 export async function renderPdfPagePreview(
   bytes: Uint8Array,
   pageIndex: number,
@@ -29,7 +33,8 @@ export async function renderPdfPagePreview(
     bytesFingerprint = fp;
   }
 
-  const cached = pageCache.get(pageIndex);
+  const key = cacheKey(pageIndex, scale);
+  const cached = pageCache.get(key);
   if (cached) return cached;
 
   try {
@@ -51,7 +56,7 @@ export async function renderPdfPagePreview(
     }
     await page.render({ canvasContext: ctx, viewport }).promise;
     const url = canvas.toDataURL("image/jpeg", 0.88);
-    pageCache.set(pageIndex, url);
+    pageCache.set(key, url);
     await pdf.destroy();
     return url;
   } catch {

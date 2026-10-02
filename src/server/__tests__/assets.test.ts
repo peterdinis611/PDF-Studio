@@ -48,12 +48,14 @@ describe("getAssetUrls", () => {
         JSON.stringify({
           css: "/public/css/app.aaaaaaaa.css",
           js: "/public/js/app.bbbbbbbb.js",
+          alpine: "/public/js/alpine.cccccccc.js",
         }),
       );
 
       expect(getAssetUrls(tmp, true)).toEqual({
         css: "/public/css/app.aaaaaaaa.css",
         js: "/public/js/app.bbbbbbbb.js",
+        alpine: "/public/js/alpine.cccccccc.js",
       });
     });
   });
@@ -62,6 +64,18 @@ describe("getAssetUrls", () => {
     it("falls back in development and when the manifest is missing", () => {
       expect(getAssetUrls(tmp, false)).toEqual(FALLBACK_ASSETS);
       expect(getAssetUrls(tmp, true)).toEqual(FALLBACK_ASSETS);
+    });
+
+    it("fills missing alpine from fallback when manifest is partial", () => {
+      fs.mkdirSync(path.join(tmp, "public"), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmp, "public", "asset-manifest.json"),
+        JSON.stringify({
+          css: "/public/css/app.aaaaaaaa.css",
+          js: "/public/js/app.bbbbbbbb.js",
+        }),
+      );
+      expect(getAssetUrls(tmp, true).alpine).toBe(FALLBACK_ASSETS.alpine);
     });
   });
 });

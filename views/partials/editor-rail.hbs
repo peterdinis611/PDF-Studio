@@ -215,13 +215,23 @@
               class="pointer-events-none absolute inset-0 origin-top-left scale-[0.32] overflow-hidden"
               :style="`width: ${pageSize.width}px; height: ${pageSize.height}px;`"
             >
+              <img
+                x-show="pageThumbUnderlays[index]"
+                class="absolute inset-0 h-full w-full object-fill"
+                :src="pageThumbUnderlays[index]"
+                alt=""
+                draggable="false"
+              />
               <template x-for="el in page.elements" :key="el.id">
                 <div class="absolute" :style="thumbElementStyle(el)" x-html="thumbPreview(el)"></div>
               </template>
             </span>
             <span class="absolute bottom-1.5 left-1.5 rounded-md bg-ink/80 px-1.5 py-0.5 font-mono text-[10px] text-white" x-text="index + 1"></span>
           </button>
-          <div class="mt-1.5 flex justify-center gap-0.5 opacity-0 transition group-hover:opacity-100">
+          <div
+            class="mt-1.5 flex justify-center gap-0.5 transition"
+            :class="isCompact ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'"
+          >
             <button type="button" class="tool-btn h-7 w-7" @click="movePage(index, -1)" :disabled="index === 0">↑</button>
             <button type="button" class="tool-btn h-7 w-7" @click="movePage(index, 1)" :disabled="index === doc.pages.length - 1">↓</button>
             <button type="button" class="tool-btn h-7 w-7" @click="duplicatePage(index)" title="Duplicate">⧉</button>

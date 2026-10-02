@@ -439,6 +439,7 @@ export interface ExportPayload {
   pages: PdfPage[];
   master?: DocMaster;
   watermark?: DocWatermark | null;
+  comments?: DocComment[];
   importedPdf?: ImportedPdfRef | null;
   /** Base64 of the original PDF — sent only for export, never persisted. */
   importedPdfData?: string;

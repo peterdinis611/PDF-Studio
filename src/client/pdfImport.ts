@@ -86,3 +86,12 @@ export function bytesToBase64(bytes: Uint8Array): string {
   }
   return btoa(binary);
 }
+
+/** Decode plain or data-URL base64 (browser-safe, no Node Buffer). */
+export function base64ToBytes(data: string): Uint8Array {
+  const cleaned = data.includes(",") ? data.split(",").pop()! : data;
+  const binary = atob(cleaned);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}

@@ -8,10 +8,9 @@ import {
   type BadgeElement,
   type CheckboxElement,
   type DividerElement,
+  type DocComment,
   type ExportPayload,
   type EllipseElement,
-  type FormCheckElement,
-  type FormSelectElement,
   type FormTextElement,
   type IconElement,
   type ImageElement,
@@ -587,6 +586,30 @@ async function drawStamp(page: PDFPage, el: StampElement, pageHeight: number, fo
   });
 }
 
+async function loadImageBytes(src: string): Promise<{ bytes: Uint8Array; isJpg: boolean } | null> {
+  if (src.startsWith("data:image/")) {
+    try {
+      const isJpg = /data:image\/jpe?g/i.test(src);
+      const cleaned = src.includes(",") ? src.split(",").pop()! : src;
+      const bytes = Uint8Array.from(Buffer.from(cleaned, "base64"));
+      return { bytes, isJpg };
+    } catch {
+      return null;
+    }
+  }
+  const filePath = resolveUploadPath(src);
+  if (!filePath) return null;
+  try {
+    const bytes = await fs.readFile(filePath);
+    const isJpg = /\.jpe?g$/i.test(filePath);
+    const isPng = /\.png$/i.test(filePath);
+    if (!isJpg && !isPng) return null;
+    return { bytes, isJpg };
+  } catch {
+    return null;
+  }
+}
+
 async function drawImage(
   doc: PDFDocument,
   page: PDFPage,
@@ -594,17 +617,9 @@ async function drawImage(
   pageHeight: number,
   quality = 0.85,
 ) {
-  const filePath = resolveUploadPath(el.src);
-  if (!filePath) return;
-  let bytes: Buffer;
-  try {
-    bytes = await fs.readFile(filePath);
-  } catch {
-    return;
-  }
-  const isJpg = /\.jpe?g$/i.test(filePath);
-  const isPng = /\.png$/i.test(filePath);
-  if (!isJpg && !isPng) return;
+  const loaded = await loadImageBytes(el.src);
+  if (!loaded) return;
+  const { bytes, isJpg } = loaded;
   const image = isJpg ? await doc.embedJpg(bytes) : await doc.embedPng(bytes);
   void quality;
 
@@ -774,12 +789,12 @@ async function drawWatermark(
     return;
   }
   if (watermark.type === "image" && watermark.src) {
-    const filePath = resolveUploadPath(watermark.src);
-    if (!filePath) return;
+    const loaded = await loadImageBytes(watermark.src);
+    if (!loaded) return;
     try {
-      const bytes = await fs.readFile(filePath);
-      const isJpg = /\.jpe?g$/i.test(filePath);
-      const image = isJpg ? await doc.embedJpg(bytes) : await doc.embedPng(bytes);
+      const image = loaded.isJpg
+        ? await doc.embedJpg(loaded.bytes)
+        : await doc.embedPng(loaded.bytes);
       const w = pageWidth * 0.5;
       const h = (image.height / image.width) * w;
       page.drawImage(image, {
@@ -793,6 +808,41 @@ async function drawWatermark(
     } catch {
       /* ignore */
     }
+  }
+}
+
+async function drawDocComment(page: PDFPage, c: DocComment, pageHeight: number, fonts: Fonts) {
+  const w = 148;
+  const h = 58;
+  const y = toPdfY(pageHeight, c.y, h);
+  page.drawRectangle({
+    x: c.x,
+    y,
+    width: w,
+    height: h,
+    color: rgb(1, 0.95, 0.82),
+    borderColor: rgb(0.85, 0.65, 0.2),
+    borderWidth: 0.8,
+    opacity: c.resolved ? 0.45 : 0.92,
+  });
+  const label = `${c.author}: ${c.body}`.slice(0, 140);
+  page.drawText(label, {
+    x: c.x + 6,
+    y: y + h - 14,
+    size: 8,
+    font: fonts.helvetica,
+    color: rgb(0.2, 0.15, 0.1),
+    maxWidth: w - 12,
+    opacity: c.resolved ? 0.55 : 1,
+  });
+  if (c.resolved) {
+    page.drawText("resolved", {
+      x: c.x + 6,
+      y: y + 6,
+      size: 7,
+      font: fonts.helveticaOblique,
+      color: rgb(0.4, 0.45, 0.35),
+    });
   }
 }
 
@@ -964,6 +1014,11 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
         pageCount,
         settings.imageQuality,
       );
+    }
+
+    const pageComments = (payload.comments || []).filter((c) => c.pageId === pdfPage.id);
+    for (const c of pageComments) {
+      drawDocComment(page, c, size.height, fonts);
     }
   }
 

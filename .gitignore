@@ -10,6 +10,8 @@ public/asset-manifest.json
 public/js/app.*.js
 !public/js/app.js
 public/js/pdf.worker.min.mjs
+public/js/alpine.min.js
+public/js/alpine.*.js
 public/css/app.*.css
 !public/css/app.css
 

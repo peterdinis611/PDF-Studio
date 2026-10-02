@@ -52,7 +52,13 @@ import {
   getSessionImportedPdfBytes,
   importPdfInBrowser,
 } from "./pdfImport.js";
+import { docNeedsPdfReattach, reattachPdfSession } from "./pdfReattach.js";
 import { invalidatePdfPreviewCache, renderPdfPagePreview } from "./pdfPagePreview.js";
+import {
+  buildPortableStudioFile,
+  hydratePortableStudioFile,
+  persistErrorMessage,
+} from "./studioJson.js";
 import { computeSmartGuides, type SmartGuide } from "./smartGuides.js";
 import { TEMPLATE_LIST, buildTemplate } from "./templates.js";
 import { initHomePreview } from "./homePreview.js";
@@ -268,6 +274,9 @@ function pdfEditor() {
     formPreviewMode: false,
     formPreviewValues: {} as Record<string, string | boolean>,
     pdfUnderlaySrc: null as string | null,
+    pageThumbUnderlays: {} as Record<number, string | null>,
+    pdfImportMode: "import" as "import" | "reattach",
+    commentPlacement: null as { x: number; y: number } | null,
     watermarkDraft: {
       type: "text" as "text" | "image",
       text: "DRAFT",
@@ -357,6 +366,15 @@ function pdfEditor() {
 
     hasSessionPdf() {
       return Boolean(getSessionImportedPdfBytes());
+    },
+
+    pdfNeedsReattach() {
+      return docNeedsPdfReattach(this.doc.pages) && !this.hasSessionPdf();
+    },
+
+    requestPdfReattach() {
+      this.pdfImportMode = "reattach";
+      (this as unknown as { $refs: { pdfInput?: HTMLInputElement } }).$refs.pdfInput?.click();
     },
 
     get activePage(): PdfPage {
@@ -599,6 +617,7 @@ function pdfEditor() {
         },
       );
       void this.refreshPdfUnderlay();
+      void this.refreshPageThumbUnderlays();
     },
 
     async refreshPdfUnderlay() {
@@ -609,6 +628,21 @@ function pdfEditor() {
         return;
       }
       this.pdfUnderlaySrc = await renderPdfPagePreview(bytes, page.sourcePageIndex, 1.5);
+    },
+
+    async refreshPageThumbUnderlays() {
+      const bytes = getSessionImportedPdfBytes();
+      const next: Record<number, string | null> = {};
+      await Promise.all(
+        this.doc.pages.map(async (page, index) => {
+          if (!bytes || typeof page.sourcePageIndex !== "number") {
+            next[index] = null;
+            return;
+          }
+          next[index] = await renderPdfPagePreview(bytes, page.sourcePageIndex, 0.35);
+        }),
+      );
+      this.pageThumbUnderlays = next;
     },
 
     bindLayoutMedia() {
@@ -705,6 +739,7 @@ function pdfEditor() {
         } catch (err) {
           console.warn("Could not persist document", err);
           this.saveState = "idle";
+          this.showToast(persistErrorMessage(err), 4500);
         }
       }, 220);
     },
@@ -730,6 +765,7 @@ function pdfEditor() {
         } catch (err) {
           console.warn("Could not persist document", err);
           this.saveState = "idle";
+          this.showToast(persistErrorMessage(err), 4500);
         }
       }, 160);
     },
@@ -768,7 +804,7 @@ function pdfEditor() {
         this.syncDocumentFonts();
         storeSet(STORAGE_KEY, JSON.stringify(this.doc));
       } catch {
-        alert("Could not open document.");
+        this.showToast("Could not open document.", 4000);
       }
     },
 
@@ -783,14 +819,21 @@ function pdfEditor() {
       this.commit(false);
     },
 
-    downloadStudioJson() {
-      const blob = new Blob([JSON.stringify(this.doc, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${this.doc.name.replace(/[^\w.-]+/g, "_") || "document"}.pdfstudio.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+    async downloadStudioJson() {
+      try {
+        this.showToast("Preparing portable JSON…", 1800);
+        const portable = await buildPortableStudioFile(this.doc, (url, init) => apiFetch(url, init));
+        const blob = new Blob([JSON.stringify(portable, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${this.doc.name.replace(/[^\w.-]+/g, "_") || "document"}.pdfstudio.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.showToast("JSON downloaded (assets inlined)");
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Could not export JSON", 4000);
+      }
     },
 
     async onStudioJsonSelected(event: Event) {
@@ -799,15 +842,24 @@ function pdfEditor() {
       if (!file) return;
       try {
         const text = await file.text();
-        this.doc = normalizeDoc(JSON.parse(text) as PdfDocument);
+        const raw = JSON.parse(text) as unknown;
+        clearSessionImportedPdf();
+        invalidatePdfPreviewCache();
+        this.doc = await hydratePortableStudioFile(raw, {
+          apiFetch: (url, init) => apiFetch(url, init),
+          normalizeDoc,
+        });
         this.activePageIndex = 0;
         this.selectedIds = [];
         history.reset(this.doc);
         this.syncHistoryFlags();
         this.syncDocumentFonts();
         this.commit(false);
+        await this.refreshPdfUnderlay();
+        await this.refreshPageThumbUnderlays();
+        this.showToast("Document imported");
       } catch {
-        alert("Invalid .pdfstudio.json file");
+        this.showToast("Invalid .pdfstudio.json file", 4000);
       } finally {
         input.value = "";
       }
@@ -2019,7 +2071,7 @@ function pdfEditor() {
       const d = this.watermarkDraft;
       if (d.type === "image") {
         if (!d.src) {
-          alert("Upload a watermark image first.");
+          this.showToast("Upload a watermark image first.", 3200);
           return;
         }
         this.doc.watermark = {
@@ -2048,14 +2100,14 @@ function pdfEditor() {
       if (!file) return;
       try {
         const form = new FormData();
-        form.append("file", file);
+        form.append("image", file);
         const res = await apiFetch("/api/upload", { method: "POST", body: form });
         if (!res.ok) throw new Error("Upload failed");
         const data = (await res.json()) as { url: string };
         this.watermarkDraft.type = "image";
         this.watermarkDraft.src = data.url;
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Could not upload image");
+        this.showToast(err instanceof Error ? err.message : "Could not upload image", 4000);
       } finally {
         input.value = "";
       }
@@ -2166,22 +2218,34 @@ function pdfEditor() {
     },
 
     addCommentAt(x: number, y: number) {
-      const body = this.commentDraft.trim() || prompt("Comment") || "";
-      if (!body.trim()) return;
+      this.commentPlacement = { x, y };
+      this.commentDraft = "";
+    },
+
+    submitCommentDraft() {
+      const body = this.commentDraft.trim();
+      const place = this.commentPlacement;
+      if (!body || !place) return;
       if (!this.doc.comments) this.doc.comments = [];
       this.doc.comments.push({
         id: uid(),
         pageId: this.activePage.id,
-        x,
-        y,
-        body: body.trim(),
+        x: place.x,
+        y: place.y,
+        body,
         author: this.authorName || "Reviewer",
         resolved: false,
         createdAt: new Date().toISOString(),
       });
       this.commentDraft = "";
+      this.commentPlacement = null;
       this.tool = "select";
       this.commit();
+    },
+
+    cancelCommentDraft() {
+      this.commentPlacement = null;
+      this.commentDraft = "";
     },
 
     toggleCommentResolved(id: string) {
@@ -2230,7 +2294,7 @@ function pdfEditor() {
         this.brand.logoName = payload.name;
         this.saveBrand();
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Logo upload failed");
+        this.showToast(err instanceof Error ? err.message : "Logo upload failed", 4000);
       } finally {
         input.value = "";
       }
@@ -2252,11 +2316,24 @@ function pdfEditor() {
       const file = input.files?.[0];
       if (!file) return;
       if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
-        alert("Please choose a PDF file.");
+        this.showToast("Please choose a PDF file.", 3200);
         input.value = "";
+        this.pdfImportMode = "import";
         return;
       }
+      const mode = this.pdfImportMode;
+      this.pdfImportMode = "import";
       try {
+        if (mode === "reattach") {
+          const { pageCount, name } = await reattachPdfSession(file, this.doc.pages.length);
+          this.doc.importedPdf = { pageCount, name, ephemeral: true };
+          invalidatePdfPreviewCache();
+          this.commit(false);
+          await this.refreshPdfUnderlay();
+          await this.refreshPageThumbUnderlays();
+          this.showToast("PDF re-attached — underlay restored");
+          return;
+        }
         const document = await importPdfInBrowser(file);
         this.doc = normalizeDoc(document);
         this.activePageIndex = 0;
@@ -2265,15 +2342,16 @@ function pdfEditor() {
         this.syncHistoryFlags();
         this.commit(false);
         await this.refreshPdfUnderlay();
-        this.toast = "PDF imported — overlays stay in this tab until export";
-        setTimeout(() => {
-          if (this.toast?.startsWith("PDF imported")) this.toast = "";
-        }, 3200);
+        await this.refreshPageThumbUnderlays();
+        this.showToast("PDF imported — overlays stay in this tab until export", 3200);
       } catch (err) {
-        clearSessionImportedPdf();
-        invalidatePdfPreviewCache();
-        this.pdfUnderlaySrc = null;
-        alert(err instanceof Error ? err.message : "Could not import PDF");
+        if (mode !== "reattach") {
+          clearSessionImportedPdf();
+          invalidatePdfPreviewCache();
+          this.pdfUnderlaySrc = null;
+          this.pageThumbUnderlays = {};
+        }
+        this.showToast(err instanceof Error ? err.message : "Could not import PDF", 4000);
       } finally {
         input.value = "";
       }
@@ -2358,8 +2436,9 @@ function pdfEditor() {
           storeSet(docKey(this.doc.id), snapshot);
           this.saveState = "saved";
           this.showToast("Saved");
-        } catch {
+        } catch (err) {
           this.saveState = "idle";
+          this.showToast(persistErrorMessage(err), 4500);
         }
         return;
       }
@@ -2376,6 +2455,10 @@ function pdfEditor() {
       }
 
       if (event.key === "Escape") {
+        if (this.commentPlacement) {
+          this.cancelCommentDraft();
+          return;
+        }
         if (this.showShortcuts) {
           this.showShortcuts = false;
           return;
@@ -2497,7 +2580,7 @@ function pdfEditor() {
         }
       } catch (err) {
         console.error(err);
-        alert(err instanceof Error ? err.message : "Could not upload image.");
+        this.showToast(err instanceof Error ? err.message : "Could not upload image.", 4000);
       } finally {
         this.replaceImageId = null;
         input.value = "";
@@ -2687,7 +2770,7 @@ function pdfEditor() {
         }
         const canvas = this.signaturePad();
         if (!canvas || !this.signatureHasInk) {
-          alert("Draw or type a signature first.");
+          this.showToast("Draw or type a signature first.", 3200);
           return;
         }
         const trimmed = trimSignatureCanvas(canvas);
@@ -2701,7 +2784,7 @@ function pdfEditor() {
           name: this.signatureTyped.trim() || "Signature",
         });
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Could not add signature");
+        this.showToast(err instanceof Error ? err.message : "Could not add signature", 4000);
       } finally {
         this.signatureBusy = false;
       }
@@ -2716,7 +2799,7 @@ function pdfEditor() {
         const payload = await this.uploadSignatureBlob(file, file.name);
         await this.placeSignatureFromPayload(payload);
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Could not upload signature");
+        this.showToast(err instanceof Error ? err.message : "Could not upload signature", 4000);
       } finally {
         this.signatureBusy = false;
         input.value = "";
@@ -2745,6 +2828,7 @@ function pdfEditor() {
             pages: this.doc.pages,
             master: this.doc.master,
             watermark: this.doc.watermark,
+            comments: this.doc.comments || [],
             importedPdf: this.doc.importedPdf,
             importedPdfData: sessionBytes ? bytesToBase64(sessionBytes) : undefined,
             exportSettings: this.exportSettings,
@@ -2765,7 +2849,7 @@ function pdfEditor() {
         URL.revokeObjectURL(url);
       } catch (err) {
         console.error(err);
-        alert(err instanceof Error ? err.message : "Could not export PDF.");
+        this.showToast(err instanceof Error ? err.message : "Could not export PDF.", 4000);
       } finally {
         this.exporting = false;
       }

@@ -1,11 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export type AssetUrls = { css: string; js: string };
+export type AssetUrls = { css: string; js: string; alpine: string };
 
 export const FALLBACK_ASSETS: AssetUrls = {
   css: "/public/css/app.css",
   js: "/public/js/app.js",
+  alpine: "/public/js/alpine.min.js",
 };
 
 /** Matches content-hashed build outputs like `app.a1b2c3d4.js`. */
@@ -27,6 +28,7 @@ export function getAssetUrls(root: string, isProd: boolean): AssetUrls {
     cached = {
       css: typeof raw.css === "string" ? raw.css : FALLBACK_ASSETS.css,
       js: typeof raw.js === "string" ? raw.js : FALLBACK_ASSETS.js,
+      alpine: typeof raw.alpine === "string" ? raw.alpine : FALLBACK_ASSETS.alpine,
     };
     return cached;
   } catch {

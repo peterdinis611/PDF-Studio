@@ -47,3 +47,23 @@ if (fs.existsSync(workerSrc)) {
 } else {
   console.warn("pdfjs worker missing — PDF underlay preview will fail until pdfjs-dist is installed");
 }
+
+// Self-hosted Alpine (stable URL; also content-hash when present)
+const alpineSrc = path.join(root, "node_modules/alpinejs/dist/cdn.min.js");
+const alpineDest = path.join(root, "public/js/alpine.min.js");
+if (fs.existsSync(alpineSrc)) {
+  const buf = fs.readFileSync(alpineSrc);
+  fs.writeFileSync(alpineDest, buf);
+  const hash = crypto.createHash("sha256").update(buf).digest("hex").slice(0, 8);
+  const hashedName = `alpine.${hash}.js`;
+  const hashedRe = /^alpine\.[a-f0-9]{8}\.js$/i;
+  for (const name of fs.readdirSync(path.join(root, "public/js"))) {
+    if (hashedRe.test(name)) fs.unlinkSync(path.join(root, "public/js", name));
+  }
+  fs.writeFileSync(path.join(root, "public/js", hashedName), buf);
+  manifest.alpine = `/public/js/${hashedName}`;
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  console.log(`copied alpine.min.js → public/js/ (+ ${hashedName})`);
+} else {
+  console.warn("alpinejs missing — layouts will 404 until alpinejs is installed");
+}

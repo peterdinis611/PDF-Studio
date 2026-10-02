@@ -25,6 +25,8 @@ const config = {
     "src/client/factories.ts",
     "src/client/smartGuides.ts",
     "src/client/pdfImport.ts",
+    "src/client/studioJson.ts",
+    "src/client/pdfReattach.ts",
     "src/client/lorem.ts",
     "src/client/editorExtras.ts",
     "src/client/icons.ts",
