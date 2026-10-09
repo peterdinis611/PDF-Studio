@@ -957,7 +957,9 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
       color: hexToRgb(bg),
     });
 
-    if (sourcePdf && typeof pdfPage.sourcePageIndex === "number") {
+    // Editable imports already have extracted text as elements — skip source embed to avoid double text.
+    const skipSourceEmbed = payload.importedPdf?.mode === "editable";
+    if (!skipSourceEmbed && sourcePdf && typeof pdfPage.sourcePageIndex === "number") {
       try {
         const [embedded] = await doc.embedPdf(sourcePdf, [pdfPage.sourcePageIndex]);
         page.drawPage(embedded, {

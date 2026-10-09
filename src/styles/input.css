@@ -113,10 +113,20 @@
   }
 
   .editor-chrome {
-    @apply bg-rail/90 backdrop-blur-md;
+    @apply flex-nowrap bg-rail/95 backdrop-blur-md;
     padding-left: max(0.5rem, env(safe-area-inset-left));
     padding-right: max(0.5rem, env(safe-area-inset-right));
-    box-shadow: 0 1px 0 rgb(var(--color-line) / 0.6);
+    box-shadow:
+      0 1px 0 rgb(var(--color-line) / 0.7),
+      inset 0 -1px 0 rgb(var(--color-accent) / 0.1);
+  }
+
+  .chrome-nav-btn {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-[13px] font-medium text-slate-muted transition hover:bg-slate-hover hover:text-fg;
+  }
+
+  .chrome-nav-btn.is-active {
+    @apply bg-accent/15 text-accent-soft;
   }
 
   .editor-workspace {
@@ -332,7 +342,7 @@
   }
 
   .doc-title-input {
-    @apply rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm font-medium text-fg transition hover:border-slate-line focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent;
+    @apply truncate rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm font-medium text-fg transition hover:border-slate-line focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent;
   }
 
   .page-thumb {
@@ -393,7 +403,7 @@
   }
 
   .menu-popover {
-    @apply overflow-hidden rounded-xl border border-slate-line bg-rail shadow-page;
+    @apply z-[60] overflow-hidden rounded-xl border border-slate-line bg-rail shadow-page;
   }
 
   .menu-item {
@@ -586,7 +596,7 @@
   }
 
   .modal-backdrop {
-    @apply fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm;
+    @apply fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm;
   }
 
   .modal-panel {

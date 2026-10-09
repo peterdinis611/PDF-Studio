@@ -1,4 +1,77 @@
 {{!-- Shared modals --}}
+<div
+  x-show="showPdfImportModal"
+  x-cloak
+  class="modal-backdrop"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="pdf-import-modal-title"
+  @keydown.escape.window="closePdfImportModal()"
+>
+  <div class="modal-panel max-w-lg" @click.outside="closePdfImportModal()">
+    <h3 id="pdf-import-modal-title" class="modal-title">Import PDF</h3>
+    <p class="mt-1 text-xs text-slate-muted">Stays in this browser tab — nothing is uploaded to the server.</p>
+
+    <div class="mt-5 space-y-2">
+      <p class="panel-label">Import mode</p>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          class="rounded-xl border px-3 py-3 text-left transition"
+          :class="pdfImportChoice === 'overlay' ? 'border-accent bg-accent/10' : 'border-slate-line hover:border-accent/60'"
+          @click="pdfImportChoice = 'overlay'"
+        >
+          <span class="block text-sm font-medium text-fg">Overlay</span>
+          <span class="mt-1 block text-[11px] leading-snug text-slate-muted">Keep the PDF as a background and place notes, stamps, or shapes on top.</span>
+        </button>
+        <button
+          type="button"
+          class="rounded-xl border px-3 py-3 text-left transition"
+          :class="pdfImportChoice === 'editable' ? 'border-accent bg-accent/10' : 'border-slate-line hover:border-accent/60'"
+          @click="pdfImportChoice = 'editable'"
+        >
+          <span class="block text-sm font-medium text-fg">Editable text</span>
+          <span class="mt-1 block text-[11px] leading-snug text-slate-muted">Extract text into editable blocks. Best for PDFs with a real text layer.</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-5">
+      <p class="panel-label">File</p>
+      <div
+        class="mt-1.5 flex min-h-[7.5rem] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-line bg-black/[0.03] px-4 py-6 text-center transition hover:border-accent dark:bg-white/[0.03]"
+        :class="pdfImportDragOver && 'border-accent bg-accent/10'"
+        @click="$refs.pdfImportDialogInput.click()"
+        @dragover.prevent="pdfImportDragOver = true"
+        @dragleave.prevent="pdfImportDragOver = false"
+        @drop.prevent="onPdfImportDrop($event)"
+      >
+        <p class="text-sm font-medium text-fg" x-text="pdfImportFileName || 'Drop a PDF here'"></p>
+        <p class="mt-1 text-xs text-slate-muted" x-text="pdfImportFileName ? 'Click to choose a different file' : 'or click to browse'"></p>
+      </div>
+      <input
+        type="file"
+        accept="application/pdf,.pdf"
+        class="hidden"
+        x-ref="pdfImportDialogInput"
+        @change="onPdfImportDialogFile($event)"
+      />
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" :disabled="pdfImportBusy" @click="closePdfImportModal()">Cancel</button>
+      <button
+        type="button"
+        class="btn-primary"
+        :disabled="pdfImportBusy || !pdfImportFile"
+        @click="confirmPdfImport()"
+      >
+        <span x-text="pdfImportBusy ? 'Importing…' : 'Import'"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
   <div
     x-show="showExportModal"
     x-cloak
@@ -136,7 +209,7 @@
     <div class="mt-4 flex flex-wrap gap-2">
       <button type="button" class="btn-ghost" @click="newDocument()">New</button>
       <button type="button" class="btn-ghost" @click="$refs.jsonInput.click()">Open JSON</button>
-      <button type="button" class="btn-ghost" @click="$refs.pdfInput.click()">Open PDF</button>
+      <button type="button" class="btn-ghost" @click="showDocLibrary = false; openPdfImportModal()">Open PDF</button>
       <button type="button" class="btn-ghost" @click="downloadStudioJson()">Share JSON</button>
       <button type="button" class="btn-ghost" @click="duplicateDocInLibrary()">Duplicate</button>
     </div>

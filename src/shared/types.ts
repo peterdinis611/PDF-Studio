@@ -279,11 +279,18 @@ export interface DocMaster {
   footer: PdfElement[];
 }
 
+export type PdfImportMode = "overlay" | "editable";
+
 export interface ImportedPdfRef {
   pageCount: number;
   name?: string;
   /** True when the source PDF lives only in the open browser tab (not on disk). */
   ephemeral?: boolean;
+  /**
+   * overlay — raster underlay + empty pages (trace / annotate).
+   * editable — text extracted into TextElements; underlay hidden; source not re-embedded on export.
+   */
+  mode?: PdfImportMode;
   /** @deprecated Legacy server upload URL — unused for new imports. */
   url?: string;
 }

@@ -67,7 +67,9 @@ describe("importPdfInBrowser", () => {
       expect(doc.pages).toHaveLength(2);
       expect(doc.importedPdf?.pageCount).toBe(2);
       expect(doc.importedPdf?.ephemeral).toBe(true);
+      expect(doc.importedPdf?.mode).toBe("overlay");
       expect(doc.pages[0].sourcePageIndex).toBe(0);
+      expect(doc.pages[0].elements).toEqual([]);
       expect(getSessionImportedPdfBytes()?.byteLength).toBeGreaterThan(0);
     });
 

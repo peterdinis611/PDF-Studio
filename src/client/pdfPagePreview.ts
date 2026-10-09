@@ -1,7 +1,4 @@
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
-
-/** Served from /public/js — copied during `build:assets`. */
-GlobalWorkerOptions.workerSrc = "/public/js/pdf.worker.min.mjs";
+import { openPdfJsDocument } from "./pdfJsDocument.js";
 
 const pageCache = new Map<string, string>();
 let bytesFingerprint = "";
@@ -38,8 +35,7 @@ export async function renderPdfPagePreview(
   if (cached) return cached;
 
   try {
-    const loadingTask = getDocument({ data: bytes.slice() });
-    const pdf = await loadingTask.promise;
+    const pdf = await openPdfJsDocument(bytes);
     if (pageIndex < 0 || pageIndex >= pdf.numPages) {
       await pdf.destroy();
       return null;

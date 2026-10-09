@@ -189,9 +189,17 @@ function normalizeDoc(doc: PdfDocument): PdfDocument {
     };
   }
 
-  // Ephemeral imports live only in the open tab — drop stale refs after reload.
+  // Ephemeral overlay imports live only in the open tab — drop stale refs after reload.
+  // Editable imports keep mode metadata: text is already in elements, no underlay needed.
   if (normalized.importedPdf?.ephemeral && !getSessionImportedPdfBytes()) {
-    normalized.importedPdf = null;
+    if (normalized.importedPdf.mode === "editable") {
+      normalized.importedPdf = {
+        ...normalized.importedPdf,
+        ephemeral: false,
+      };
+    } else {
+      normalized.importedPdf = null;
+    }
   }
 
   return normalized;
@@ -263,19 +271,25 @@ function pdfEditor() {
     showLeftPanel: true,
     showInspectorPanel: true,
     showExportModal: false,
+    showPdfImportModal: false,
     showSignatureModal: false,
     showFindReplace: false,
     showBrandKit: false,
     showDocLibrary: false,
     showComments: false,
     showWatermarkModal: false,
+    pdfImportChoice: "overlay" as "overlay" | "editable",
+    pdfImportFile: null as File | null,
+    pdfImportFileName: "",
+    pdfImportBusy: false,
+    pdfImportDragOver: false,
     editingMaster: false,
     reviewMode: false,
     formPreviewMode: false,
     formPreviewValues: {} as Record<string, string | boolean>,
     pdfUnderlaySrc: null as string | null,
     pageThumbUnderlays: {} as Record<number, string | null>,
-    pdfImportMode: "import" as "import" | "reattach",
+    pdfImportMode: "overlay" as "overlay" | "editable" | "reattach",
     commentPlacement: null as { x: number; y: number } | null,
     watermarkDraft: {
       type: "text" as "text" | "image",
@@ -369,7 +383,65 @@ function pdfEditor() {
     },
 
     pdfNeedsReattach() {
+      if (this.doc.importedPdf?.mode === "editable") return false;
       return docNeedsPdfReattach(this.doc.pages) && !this.hasSessionPdf();
+    },
+
+    openPdfImportModal(mode: "overlay" | "editable" = "overlay") {
+      this.pdfImportChoice = mode;
+      this.pdfImportFile = null;
+      this.pdfImportFileName = "";
+      this.pdfImportBusy = false;
+      this.pdfImportDragOver = false;
+      this.showPdfImportModal = true;
+    },
+
+    closePdfImportModal() {
+      if (this.pdfImportBusy) return;
+      this.showPdfImportModal = false;
+      this.pdfImportFile = null;
+      this.pdfImportFileName = "";
+      this.pdfImportDragOver = false;
+    },
+
+    setPdfImportFile(file: File | null) {
+      if (!file) {
+        this.pdfImportFile = null;
+        this.pdfImportFileName = "";
+        return;
+      }
+      if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
+        this.showToast("Please choose a PDF file.", 3200);
+        return;
+      }
+      this.pdfImportFile = file;
+      this.pdfImportFileName = file.name;
+    },
+
+    onPdfImportDialogFile(event: Event) {
+      const input = event.target as HTMLInputElement;
+      this.setPdfImportFile(input.files?.[0] ?? null);
+      input.value = "";
+    },
+
+    onPdfImportDrop(event: DragEvent) {
+      this.pdfImportDragOver = false;
+      const file = event.dataTransfer?.files?.[0] ?? null;
+      this.setPdfImportFile(file);
+    },
+
+    async confirmPdfImport() {
+      const file = this.pdfImportFile;
+      if (!file || this.pdfImportBusy) return;
+      this.pdfImportBusy = true;
+      try {
+        await this.runPdfImport(file, this.pdfImportChoice);
+        this.showPdfImportModal = false;
+        this.pdfImportFile = null;
+        this.pdfImportFileName = "";
+      } finally {
+        this.pdfImportBusy = false;
+      }
     },
 
     requestPdfReattach() {
@@ -621,6 +693,10 @@ function pdfEditor() {
     },
 
     async refreshPdfUnderlay() {
+      if (this.doc.importedPdf?.mode === "editable") {
+        this.pdfUnderlaySrc = null;
+        return;
+      }
       const bytes = getSessionImportedPdfBytes();
       const page = this.doc.pages[this.activePageIndex];
       if (!bytes || typeof page?.sourcePageIndex !== "number") {
@@ -631,6 +707,10 @@ function pdfEditor() {
     },
 
     async refreshPageThumbUnderlays() {
+      if (this.doc.importedPdf?.mode === "editable") {
+        this.pageThumbUnderlays = {};
+        return;
+      }
       const bytes = getSessionImportedPdfBytes();
       const next: Record<number, string | null> = {};
       await Promise.all(
@@ -2311,30 +2391,9 @@ function pdfEditor() {
       this.pushElement(el);
     },
 
-    async onPdfImportSelected(event: Event) {
-      const input = event.target as HTMLInputElement;
-      const file = input.files?.[0];
-      if (!file) return;
-      if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
-        this.showToast("Please choose a PDF file.", 3200);
-        input.value = "";
-        this.pdfImportMode = "import";
-        return;
-      }
-      const mode = this.pdfImportMode;
-      this.pdfImportMode = "import";
+    async runPdfImport(file: File, importMode: "overlay" | "editable") {
       try {
-        if (mode === "reattach") {
-          const { pageCount, name } = await reattachPdfSession(file, this.doc.pages.length);
-          this.doc.importedPdf = { pageCount, name, ephemeral: true };
-          invalidatePdfPreviewCache();
-          this.commit(false);
-          await this.refreshPdfUnderlay();
-          await this.refreshPageThumbUnderlays();
-          this.showToast("PDF re-attached — underlay restored");
-          return;
-        }
-        const document = await importPdfInBrowser(file);
+        const document = await importPdfInBrowser(file, { mode: importMode });
         this.doc = normalizeDoc(document);
         this.activePageIndex = 0;
         this.selectedIds = [];
@@ -2343,15 +2402,54 @@ function pdfEditor() {
         this.commit(false);
         await this.refreshPdfUnderlay();
         await this.refreshPageThumbUnderlays();
-        this.showToast("PDF imported — overlays stay in this tab until export", 3200);
+        const textCount = document.pages.reduce((n, p) => n + p.elements.length, 0);
+        this.showToast(
+          importMode === "editable"
+            ? `PDF imported as editable text (${textCount} block${textCount === 1 ? "" : "s"})`
+            : "PDF imported — overlays stay in this tab until export",
+          3200,
+        );
       } catch (err) {
-        if (mode !== "reattach") {
-          clearSessionImportedPdf();
-          invalidatePdfPreviewCache();
-          this.pdfUnderlaySrc = null;
-          this.pageThumbUnderlays = {};
-        }
+        clearSessionImportedPdf();
+        invalidatePdfPreviewCache();
+        this.pdfUnderlaySrc = null;
+        this.pageThumbUnderlays = {};
         this.showToast(err instanceof Error ? err.message : "Could not import PDF", 4000);
+        throw err;
+      }
+    },
+
+    async onPdfImportSelected(event: Event) {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
+        this.showToast("Please choose a PDF file.", 3200);
+        input.value = "";
+        this.pdfImportMode = "overlay";
+        return;
+      }
+      const mode = this.pdfImportMode;
+      this.pdfImportMode = "overlay";
+      try {
+        if (mode === "reattach") {
+          const { pageCount, name } = await reattachPdfSession(file, this.doc.pages.length);
+          this.doc.importedPdf = {
+            pageCount,
+            name,
+            ephemeral: true,
+            mode: this.doc.importedPdf?.mode ?? "overlay",
+          };
+          invalidatePdfPreviewCache();
+          this.commit(false);
+          await this.refreshPdfUnderlay();
+          await this.refreshPageThumbUnderlays();
+          this.showToast("PDF re-attached — underlay restored");
+          return;
+        }
+        await this.runPdfImport(file, mode === "editable" ? "editable" : "overlay");
+      } catch {
+        /* toast already shown in runPdfImport / reattach path */
       } finally {
         input.value = "";
       }
@@ -2812,7 +2910,13 @@ function pdfEditor() {
       this.showExportModal = false;
       try {
         const sessionBytes = getSessionImportedPdfBytes();
-        if (this.doc.importedPdf && !sessionBytes && !this.doc.importedPdf.url) {
+        const editableImport = this.doc.importedPdf?.mode === "editable";
+        if (
+          this.doc.importedPdf &&
+          !editableImport &&
+          !sessionBytes &&
+          !this.doc.importedPdf.url
+        ) {
           throw new Error(
             "The imported PDF is only kept while this window is open. Please import the PDF again, then export.",
           );
@@ -2830,7 +2934,8 @@ function pdfEditor() {
             watermark: this.doc.watermark,
             comments: this.doc.comments || [],
             importedPdf: this.doc.importedPdf,
-            importedPdfData: sessionBytes ? bytesToBase64(sessionBytes) : undefined,
+            importedPdfData:
+              !editableImport && sessionBytes ? bytesToBase64(sessionBytes) : undefined,
             exportSettings: this.exportSettings,
           }),
         });

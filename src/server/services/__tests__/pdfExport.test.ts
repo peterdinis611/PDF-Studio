@@ -131,6 +131,32 @@ describe("exportPdf", () => {
       const doc = await PDFDocument.load(bytes);
       expect(doc.getPageCount()).toBe(1);
     });
+
+    it("skips source embed for editable imports", async () => {
+      const src = await PDFDocument.create();
+      const font = await src.embedFont(StandardFonts.Helvetica);
+      const p = src.addPage([595.28, 841.89]);
+      p.drawText("SOURCE", { x: 50, y: 750, size: 24, font });
+      const srcBytes = await src.save();
+      const text = createText(60, 80, { content: "EDITED", fontSize: 18, width: 200, height: 24 });
+      const withEmbed = await exportPdf(
+        payload({
+          pages: [{ id: uid(), elements: [text], applyMaster: false, sourcePageIndex: 0 }],
+          importedPdfData: Buffer.from(srcBytes).toString("base64"),
+          importedPdf: { pageCount: 1, ephemeral: true, mode: "overlay" },
+        }),
+      );
+      const editable = await exportPdf(
+        payload({
+          pages: [{ id: uid(), elements: [text], applyMaster: false, sourcePageIndex: 0 }],
+          importedPdfData: Buffer.from(srcBytes).toString("base64"),
+          importedPdf: { pageCount: 1, ephemeral: true, mode: "editable" },
+        }),
+      );
+      expect(editable.byteLength).toBeLessThan(withEmbed.byteLength);
+      const doc = await PDFDocument.load(editable);
+      expect(doc.getPageCount()).toBe(1);
+    });
   });
 
   describe("negative", () => {
