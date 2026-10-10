@@ -43,6 +43,8 @@ function closestPageSize(width: number, height: number): PageSize {
 
 export type ImportPdfOptions = {
   mode?: PdfImportMode;
+  /** Experimental OCR for scanned pages in editable mode. */
+  ocr?: boolean;
 };
 
 /** Parse a PDF file entirely in the browser — nothing is uploaded to the server. */
@@ -66,10 +68,15 @@ export async function importPdfInBrowser(
   if (mode === "editable") {
     const pdfjs = await openPdfJsDocument(bytes);
     try {
-      editableElements = await extractEditablePages(pdfjs, pageCount, {
-        studioWidth: studio.width,
-        studioHeight: studio.height,
-      });
+      editableElements = await extractEditablePages(
+        pdfjs,
+        pageCount,
+        {
+          studioWidth: studio.width,
+          studioHeight: studio.height,
+        },
+        { ocr: Boolean(options.ocr) },
+      );
     } finally {
       await pdfjs.destroy();
     }

@@ -9,6 +9,7 @@ import {
 /** Envelope for portable .pdfstudio.json downloads. */
 export type PortableStudioFile = {
   version: 1;
+  kind?: "document" | "template";
   doc: PdfDocument;
   importedPdfBase64?: string;
 };
@@ -82,8 +83,15 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
 async function dataUrlToFile(dataUrl: string, name = "asset.png"): Promise<File> {
   const res = await fetch(dataUrl);
   const blob = await res.blob();
-  const ext = blob.type.includes("jpeg") || blob.type.includes("jpg") ? "jpg" : "png";
-  return new File([blob], name.replace(/\.[^.]+$/, "") + `.${ext}`, { type: blob.type || "image/png" });
+  const mime = blob.type || "application/octet-stream";
+  let ext = "png";
+  if (mime.includes("jpeg") || mime.includes("jpg")) ext = "jpg";
+  else if (mime.includes("woff2")) ext = "woff2";
+  else if (mime.includes("woff")) ext = "woff";
+  else if (mime.includes("ttf") || mime.includes("sfnt")) ext = "ttf";
+  else if (mime.includes("otf") || mime.includes("opentype")) ext = "otf";
+  else if (name.includes(".")) ext = name.split(".").pop() || ext;
+  return new File([blob], name.replace(/\.[^.]+$/, "") + `.${ext}`, { type: mime });
 }
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -140,10 +148,23 @@ export async function hydratePortableStudioFile(
 
   const clone = structuredClone(doc) as PdfDocument;
 
-  const uploadDataUrl = async (dataUrl: string): Promise<string | null> => {
+  const uploadDataUrl = async (
+    dataUrl: string,
+    kind: "image" | "font",
+  ): Promise<string | null> => {
     try {
-      const file = await dataUrlToFile(dataUrl);
+      const file = await dataUrlToFile(
+        dataUrl,
+        kind === "font" ? "font.ttf" : "asset.png",
+      );
       const form = new FormData();
+      if (kind === "font") {
+        form.append("font", file);
+        const res = await deps.apiFetch("/api/upload/font", { method: "POST", body: form });
+        if (!res.ok) return null;
+        const data = (await res.json()) as { url: string; id: string; name: string };
+        return data.url;
+      }
       form.append("image", file);
       const res = await deps.apiFetch("/api/upload", { method: "POST", body: form });
       if (!res.ok) return null;
@@ -154,18 +175,31 @@ export async function hydratePortableStudioFile(
     }
   };
 
+  const fontUrlSet = new Set((clone.customFonts || []).map((f) => f.url));
   const jobs: Promise<void>[] = [];
   forEachAssetSrc(clone, (get, set) => {
     const src = get();
     if (!isDataUrl(src)) return;
+    const kind = fontUrlSet.has(src!) ? "font" : "image";
     jobs.push(
       (async () => {
-        const url = await uploadDataUrl(src!);
+        const url = await uploadDataUrl(src!, kind);
         if (url) set(url);
       })(),
     );
   });
   await Promise.all(jobs);
+
+  // Refresh custom font ids from new session filenames when urls changed
+  if (clone.customFonts?.length) {
+    for (const font of clone.customFonts) {
+      if (font.url.includes("/fonts/")) {
+        const base = font.url.split("/").pop() || "";
+        const id = base.replace(/\.[^.]+$/, "");
+        if (id) font.id = id;
+      }
+    }
+  }
 
   if (importedPdfBase64) {
     try {

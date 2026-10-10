@@ -31,9 +31,13 @@
           @click="pdfImportChoice = 'editable'"
         >
           <span class="block text-sm font-medium text-fg">Editable text</span>
-          <span class="mt-1 block text-[11px] leading-snug text-slate-muted">Extract text into editable blocks. Best for PDFs with a real text layer.</span>
+          <span class="mt-1 block text-[11px] leading-snug text-slate-muted">Extract text and images into editable blocks. Best for PDFs with a real text layer.</span>
         </button>
       </div>
+      <label class="settings-row mt-3" x-show="pdfImportChoice === 'editable'">
+        <span>OCR scanned pages (experimental)</span>
+        <input type="checkbox" class="accent-accent" x-model="pdfImportOcr" />
+      </label>
     </div>
 
     <div class="mt-5">
@@ -124,6 +128,25 @@
           <span>PDF/A-friendly metadata</span>
           <input type="checkbox" class="accent-accent" x-model="exportSettings.pdfaLite" @change="saveExportSettings()" />
         </label>
+        <label class="settings-row">
+          <span>Include review comments</span>
+          <input type="checkbox" class="accent-accent" x-model="exportSettings.includeComments" @change="saveExportSettings()" />
+        </label>
+        <label class="settings-row">
+          <span>Include watermark</span>
+          <input type="checkbox" class="accent-accent" x-model="exportSettings.includeWatermark" @change="saveExportSettings()" />
+        </label>
+        <div>
+          <label class="panel-label">Password (optional)</label>
+          <input
+            type="password"
+            class="panel-input"
+            autocomplete="new-password"
+            placeholder="Leave blank for no encryption"
+            x-model="exportPassword"
+          />
+          <p class="mt-1 text-[11px] text-slate-muted">Not saved. Requires encryption support on export.</p>
+        </div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn-ghost" @click="showExportModal = false">Cancel</button>
@@ -212,13 +235,20 @@
       <button type="button" class="btn-ghost" @click="showDocLibrary = false; openPdfImportModal()">Open PDF</button>
       <button type="button" class="btn-ghost" @click="downloadStudioJson()">Share JSON</button>
       <button type="button" class="btn-ghost" @click="duplicateDocInLibrary()">Duplicate</button>
+      <button type="button" class="btn-ghost" :disabled="!librarySelectedIds.length" @click="batchExportLibraryZip()">Export selected ZIP</button>
     </div>
     <ul class="mt-4 max-h-64 space-y-1.5 overflow-y-auto">
       <template x-for="d in docLibrary" :key="d.id">
-        <li>
+        <li class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            class="accent-accent"
+            :checked="librarySelectedIds.includes(d.id)"
+            @change="toggleLibrarySelect(d.id)"
+          />
           <button
             type="button"
-            class="doc-row"
+            class="doc-row min-w-0 flex-1"
             :class="d.id === doc.id && 'is-active'"
             @click="openDocFromLibrary(d.id)"
           >
@@ -231,6 +261,46 @@
     </ul>
     <div class="modal-actions">
       <button type="button" class="btn-ghost ml-auto" @click="showDocLibrary = false">Close</button>
+    </div>
+  </div>
+</div>
+
+{{!-- Mail merge modal --}}
+<div
+  x-show="showMailMerge"
+  x-cloak
+  class="modal-backdrop"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="mail-merge-title"
+  @keydown.escape.window="showMailMerge = false"
+>
+  <div class="modal-panel max-w-lg" @click.outside="showMailMerge = false">
+    <h3 id="mail-merge-title" class="modal-title">Mail merge</h3>
+    <p class="mt-1 text-xs text-slate-muted">
+      Upload a CSV (header row = field names). Insert field tokens into text, then generate one page set per row.
+    </p>
+    <div class="mt-4 space-y-3 text-sm">
+      <label class="btn-ghost flex cursor-pointer items-center justify-center">
+        <input type="file" class="sr-only" accept=".csv,text/csv" @change="onMailMergeCsvSelected($event)" />
+        <span x-text="mailMergeFileName ? ('CSV: ' + mailMergeFileName) : 'Upload CSV…'"></span>
+      </label>
+      <p class="text-xs text-slate-muted" x-show="mailMergeRows.length" x-text="mailMergeRows.length + ' row(s) · fields: ' + mailMergeHeaders.join(', ')"></p>
+      <div x-show="mailMergeHeaders.length" class="flex flex-wrap gap-1.5">
+        <template x-for="h in mailMergeHeaders" :key="h">
+          <button type="button" class="btn-ghost text-xs" @click="insertMergeToken(h)" x-text="'{{' + h + '}}'"></button>
+        </template>
+      </div>
+      <div x-show="mailMergePreview" class="rounded-md border border-slate-line bg-slate-hover/40 p-3 text-xs">
+        <p class="mb-1 font-medium text-fg">Preview (first row)</p>
+        <template x-for="h in mailMergeHeaders" :key="'pv-' + h">
+          <p class="text-slate-muted"><span class="text-fg" x-text="h"></span>: <span x-text="mailMergePreview?.[h] || ''"></span></p>
+        </template>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" @click="showMailMerge = false">Cancel</button>
+      <button type="button" class="btn-primary" :disabled="!mailMergeRows.length" @click="runMailMerge()">Generate pages</button>
     </div>
   </div>
 </div>

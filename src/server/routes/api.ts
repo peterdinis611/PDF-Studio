@@ -13,6 +13,7 @@ import { requireAuditAccess } from "../auditAccess.js";
 import { googleFontsRouter } from "./googleFonts.js";
 
 const ALLOWED_EXT = new Set([".png", ".jpg", ".jpeg"]);
+const ALLOWED_FONT_EXT = new Set([".ttf", ".otf", ".woff", ".woff2"]);
 
 function imageStorage() {
   return multer.diskStorage({
@@ -28,6 +29,20 @@ function imageStorage() {
   });
 }
 
+function fontStorage() {
+  return multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const { fonts } = ensureSessionDirs(req.sessionId);
+      cb(null, fonts);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const safe = ALLOWED_FONT_EXT.has(ext) ? ext : ".ttf";
+      cb(null, `${randomUUID()}${safe}`);
+    },
+  });
+}
+
 const upload = multer({
   storage: imageStorage(),
   limits: { fileSize: 8 * 1024 * 1024 },
@@ -36,6 +51,19 @@ const upload = multer({
       cb(null, true);
     } else {
       cb(new Error("Only PNG and JPEG images are allowed"));
+    }
+  },
+});
+
+const uploadFont = multer({
+  storage: fontStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_FONT_EXT.has(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only TTF, OTF, WOFF, or WOFF2 fonts are allowed"));
     }
   },
 });
@@ -110,6 +138,48 @@ apiRouter.post("/export", async (req, res) => {
     });
     res.status(500).json({ error: "Failed to export PDF" });
   }
+});
+
+apiRouter.post("/upload/font", (req, res) => {
+  uploadFont.single("font")(req, res, (err) => {
+    if (err) {
+      audit("warn", "font.upload.fail", err.message || "Font upload failed", {
+        sessionId: req.sessionId,
+        req: requestContext(req, 400),
+      });
+      res.status(400).json({ error: err.message || "Font upload failed" });
+      return;
+    }
+    if (!req.file) {
+      audit("warn", "font.upload.fail", "No font uploaded", {
+        sessionId: req.sessionId,
+        req: requestContext(req, 400),
+      });
+      res.status(400).json({ error: "No font uploaded" });
+      return;
+    }
+
+    const id = path.parse(req.file.filename).name;
+    const name = path.parse(req.file.originalname).name || id;
+
+    audit("info", "font.upload", `Uploaded font ${req.file.originalname}`, {
+      sessionId: req.sessionId,
+      req: requestContext(req, 200),
+      meta: {
+        name: req.file.originalname,
+        mime: req.file.mimetype,
+        storedAs: req.file.filename,
+        bytes: req.file.size,
+        id,
+      },
+    });
+
+    res.json({
+      id,
+      name,
+      url: sessionPublicUrl(req.sessionId, req.file.filename, "font"),
+    });
+  });
 });
 
 apiRouter.post("/upload", (req, res) => {

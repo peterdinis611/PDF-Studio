@@ -241,3 +241,85 @@ export function pickGoogleFont(
     null
   );
 }
+
+export type CustomFontAsset = { id: string; name: string; url: string };
+
+async function loadCustomFontBytes(
+  font: CustomFontAsset,
+  resolvePath: (url: string) => string | null,
+): Promise<Uint8Array | null> {
+  if (font.url.startsWith("data:")) {
+    try {
+      const cleaned = font.url.includes(",") ? font.url.split(",").pop()! : font.url;
+      if (typeof Buffer !== "undefined") {
+        return Uint8Array.from(Buffer.from(cleaned, "base64"));
+      }
+      const bin = atob(cleaned);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    } catch {
+      return null;
+    }
+  }
+  if (
+    (font.url.startsWith("/uploads/") || font.url.startsWith("http")) &&
+    typeof fetch !== "undefined"
+  ) {
+    try {
+      const res = await fetch(font.url);
+      if (res.ok) return new Uint8Array(await res.arrayBuffer());
+    } catch {
+      /* fall through */
+    }
+  }
+  const filePath = resolvePath(font.url);
+  if (!filePath) return null;
+  try {
+    return new Uint8Array(await fs.readFile(filePath));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Embed session-uploaded or portable custom fonts (TTF/OTF).
+ * Keys are `custom:<id>` (style variants share the same face).
+ */
+export async function embedCustomFonts(
+  doc: PDFDocument,
+  assets: CustomFontAsset[] | undefined,
+  needs: FontNeed[],
+  resolvePath: (url: string) => string | null,
+): Promise<Map<string, PDFFont>> {
+  const embedded = new Map<string, PDFFont>();
+  if (!assets?.length) return embedded;
+
+  const neededIds = new Set<string>();
+  for (const need of needs) {
+    if (need.family.startsWith("custom:")) {
+      neededIds.add(need.family.slice("custom:".length));
+    }
+  }
+  // Also embed all provided assets that match needs, or all if referenced
+  doc.registerFontkit(fontkit);
+
+  for (const asset of assets) {
+    if (neededIds.size && !neededIds.has(asset.id)) continue;
+    const bytes = await loadCustomFontBytes(asset, resolvePath);
+    if (!bytes) continue;
+    try {
+      const font = await doc.embedFont(bytes, { subset: true });
+      embedded.set(`custom:${asset.id}`, font);
+    } catch (err) {
+      console.warn(`Could not embed custom font ${asset.id}:`, err);
+    }
+  }
+
+  return embedded;
+}
+
+export function pickCustomFont(embedded: Map<string, PDFFont>, family: string): PDFFont | null {
+  if (!family.startsWith("custom:")) return null;
+  return embedded.get(family) || null;
+}

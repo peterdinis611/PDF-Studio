@@ -33,7 +33,13 @@ import {
 } from "./factories.js";
 import { scheduleEditorTour, startEditorTour } from "./tour.js";
 import { markdownToHtml } from "../shared/markdown.js";
-import { allFontOptions, ensureGoogleFontStylesheet, fontCssFamily, googleFamilyCssName } from "./fonts.js";
+import {
+  allFontOptions,
+  ensureCustomFontFace,
+  ensureGoogleFontStylesheet,
+  fontCssFamily,
+  googleFamilyCssName,
+} from "./fonts.js";
 import { HistoryStack } from "./history.js";
 import { iconSvg } from "./icons.js";
 import { loremIpsum, type LoremSize } from "./lorem.js";
@@ -61,7 +67,24 @@ import {
 } from "./studioJson.js";
 import { computeSmartGuides, type SmartGuide } from "./smartGuides.js";
 import { TEMPLATE_LIST, buildTemplate } from "./templates.js";
+import { applyMailMerge, appendToken, parseCsv, type MailMergeRow } from "./mailMerge.js";
+import {
+  deleteUserTemplate,
+  listUserTemplates,
+  loadUserTemplate,
+  renameUserTemplate,
+  saveUserTemplate,
+  type UserTemplateMeta,
+} from "./userTemplates.js";
+import {
+  extractPagesToDoc,
+  extractPagesToPdfBytes,
+  mergePdfFileIntoDoc,
+  rotatePageInDoc,
+} from "./pdfPageUtils.js";
+import { exportPdfBytes } from "./clientExport.js";
 import { initHomePreview } from "./homePreview.js";
+import JSZip from "jszip";
 import {
   MARGIN_PRESETS,
   SHORTCUT_GROUPS,
@@ -150,13 +173,9 @@ function normalizeTextElement(el: PdfElement): PdfElement {
     return withVisible;
   }
   const t = withVisible as TextElement;
-  let fontFamily = t.fontFamily || "Helvetica";
-  if (typeof fontFamily === "string" && fontFamily.startsWith("custom:")) {
-    fontFamily = "Helvetica";
-  }
   return {
     ...t,
-    fontFamily,
+    fontFamily: t.fontFamily || "Helvetica",
     fontStyle: t.fontStyle ?? "normal",
     underline: t.underline ?? false,
     lineHeight: t.lineHeight ?? 1.25,
@@ -276,9 +295,18 @@ function pdfEditor() {
     showFindReplace: false,
     showBrandKit: false,
     showDocLibrary: false,
+    showMailMerge: false,
     showComments: false,
     showWatermarkModal: false,
+    mailMergeHeaders: [] as string[],
+    mailMergeRows: [] as MailMergeRow[],
+    mailMergePreview: null as MailMergeRow | null,
+    mailMergeFileName: "",
+    userTemplates: [] as UserTemplateMeta[],
+    exportPassword: "",
+    librarySelectedIds: [] as string[],
     pdfImportChoice: "overlay" as "overlay" | "editable",
+    pdfImportOcr: false,
     pdfImportFile: null as File | null,
     pdfImportFileName: "",
     pdfImportBusy: false,
@@ -361,6 +389,8 @@ function pdfEditor() {
       pdfaLite: false,
       intent: "screen",
       compressImages: true,
+      includeComments: false,
+      includeWatermark: true,
     } as ExportSettings,
     authorName: "Reviewer",
     docLibrary: [] as DocIndexEntry[],
@@ -503,11 +533,12 @@ function pdfEditor() {
 
     get pageStyle() {
       const { width, height } = this.pageSize;
+      const rot = this.activePage?.rotation || 0;
       return {
         width: `${width * this.zoom}px`,
         height: `${height * this.zoom}px`,
         backgroundColor: this.doc.pageBackground || "#fcfaf5",
-        transform: `translate(${this.panX}px, ${this.panY}px)`,
+        transform: `translate(${this.panX}px, ${this.panY}px) rotate(${rot}deg)`,
       };
     },
 
@@ -606,6 +637,7 @@ function pdfEditor() {
 
       this.authorName = storeGet(AUTHOR_KEY) || "Reviewer";
       this.refreshDocLibrary();
+      this.refreshUserTemplates();
 
       if (templateId) {
         this.doc = normalizeDoc(buildTemplate(templateId));
@@ -923,6 +955,22 @@ function pdfEditor() {
       try {
         const text = await file.text();
         const raw = JSON.parse(text) as unknown;
+        const kind =
+          raw && typeof raw === "object" && "kind" in raw
+            ? (raw as { kind?: string }).kind
+            : undefined;
+
+        if (kind === "template") {
+          const hydrated = await hydratePortableStudioFile(raw, {
+            apiFetch: (url, init) => apiFetch(url, init),
+            normalizeDoc,
+          });
+          const meta = saveUserTemplate(hydrated, hydrated.name);
+          this.refreshUserTemplates();
+          this.showToast(`Template “${meta.name}” saved to My templates`);
+          return;
+        }
+
         clearSessionImportedPdf();
         invalidatePdfPreviewCache();
         this.doc = await hydratePortableStudioFile(raw, {
@@ -989,6 +1037,117 @@ function pdfEditor() {
       this.commit(false);
     },
 
+    refreshUserTemplates() {
+      this.userTemplates = listUserTemplates();
+    },
+
+    saveAsUserTemplate() {
+      const name = prompt("Template name", this.doc.name || "My template");
+      if (name === null) return;
+      const meta = saveUserTemplate(this.doc, name);
+      this.refreshUserTemplates();
+      this.showToast(`Saved template “${meta.name}”`);
+    },
+
+    applyUserTemplate(id: string) {
+      const tpl = loadUserTemplate(id);
+      if (!tpl) {
+        this.showToast("Template not found", 4000);
+        return;
+      }
+      clearSessionImportedPdf();
+      const doc = structuredClone(tpl) as PdfDocument;
+      doc.id = uid();
+      doc.updatedAt = new Date().toISOString();
+      this.doc = normalizeDoc(doc);
+      this.activePageIndex = 0;
+      this.selectedIds = [];
+      this.showTemplates = false;
+      history.reset(this.doc);
+      this.syncHistoryFlags();
+      this.syncDocumentFonts();
+      this.commit(false);
+      this.showToast(`Opened template “${tpl.name}”`);
+    },
+
+    removeUserTemplate(id: string) {
+      if (!confirm("Delete this template?")) return;
+      deleteUserTemplate(id);
+      this.refreshUserTemplates();
+    },
+
+    renameUserTemplatePrompt(id: string) {
+      const current = this.userTemplates.find((t: UserTemplateMeta) => t.id === id);
+      const name = prompt("Rename template", current?.name || "");
+      if (name === null || !name.trim()) return;
+      renameUserTemplate(id, name);
+      this.refreshUserTemplates();
+    },
+
+    async downloadAsTemplatePack() {
+      try {
+        const portable = await buildPortableStudioFile(this.doc, (url, init) => apiFetch(url, init));
+        portable.kind = "template";
+        portable.doc.importedPdf = null;
+        portable.importedPdfBase64 = undefined;
+        const blob = new Blob([JSON.stringify(portable, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${this.doc.name.replace(/[^\w.-]+/g, "_") || "template"}.pdfstudio.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.showToast("Template pack downloaded");
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Could not export template", 4000);
+      }
+    },
+
+    openMailMergeModal() {
+      this.showMailMerge = true;
+    },
+
+    onMailMergeCsvSelected(event: Event) {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0];
+      if (!file) return;
+      file.text().then((text) => {
+        const { headers, rows } = parseCsv(text);
+        this.mailMergeHeaders = headers;
+        this.mailMergeRows = rows;
+        this.mailMergePreview = rows[0] || null;
+        this.mailMergeFileName = file.name;
+        if (!rows.length) this.showToast("CSV has no data rows", 4000);
+      });
+      input.value = "";
+    },
+
+    insertMergeToken(field: string) {
+      const el = this.selected;
+      if (!el || el.type !== "text" || el.locked) {
+        this.showToast("Select a text element first");
+        return;
+      }
+      el.content = appendToken(el.content || "", field);
+      this.commit();
+    },
+
+    runMailMerge() {
+      if (!this.mailMergeRows.length) {
+        this.showToast("Upload a CSV with data rows first", 4000);
+        return;
+      }
+      const merged = applyMailMerge(this.doc, this.mailMergeRows);
+      this.doc = normalizeDoc(merged);
+      this.activePageIndex = 0;
+      this.selectedIds = [];
+      history.reset(this.doc);
+      this.syncHistoryFlags();
+      this.commit(false);
+      this.showMailMerge = false;
+      this.showToast(`Merged ${this.mailMergeRows.length} row(s) → ${this.doc.pages.length} pages`);
+    },
+
     setActivePage(index: number) {
       this.activePageIndex = index;
       this.selectedIds = [];
@@ -1008,6 +1167,9 @@ function pdfEditor() {
       const copy: PdfPage = {
         id: uid(),
         applyMaster: source.applyMaster,
+        sourcePageIndex: source.sourcePageIndex,
+        rotation: source.rotation,
+        mergeFields: source.mergeFields ? { ...source.mergeFields } : undefined,
         elements: source.elements.map((el) => {
           const c = structuredClone(el) as PdfElement;
           c.id = uid();
@@ -1018,6 +1180,90 @@ function pdfEditor() {
       this.activePageIndex = index + 1;
       this.selectedIds = [];
       this.commit();
+    },
+
+    rotateActivePage(delta: 90 | -90 | 180 = 90) {
+      this.doc = rotatePageInDoc(this.doc, this.activePageIndex, delta);
+      this.commit();
+    },
+
+    async mergePdfSelected(event: Event) {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        this.doc = normalizeDoc(await mergePdfFileIntoDoc(this.doc, file));
+        this.activePageIndex = this.doc.pages.length - 1;
+        this.selectedIds = [];
+        history.reset(this.doc);
+        this.syncHistoryFlags();
+        this.commit(false);
+        await this.refreshPdfUnderlay();
+        await this.refreshPageThumbUnderlays();
+        this.showToast(`Merged “${file.name}”`);
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Could not merge PDF", 4000);
+      } finally {
+        input.value = "";
+      }
+    },
+
+    extractPageRange() {
+      const raw = prompt(
+        `Extract pages (1–${this.doc.pages.length}), e.g. 1-2 or 3`,
+        `1-${this.doc.pages.length}`,
+      );
+      if (!raw) return;
+      const m = raw.trim().match(/^(\d+)(?:\s*[-–]\s*(\d+))?$/);
+      if (!m) {
+        this.showToast("Invalid range", 4000);
+        return;
+      }
+      const from = Number(m[1]) - 1;
+      const to = m[2] ? Number(m[2]) - 1 : from;
+      if (from < 0 || to >= this.doc.pages.length) {
+        this.showToast("Range out of bounds", 4000);
+        return;
+      }
+      clearSessionImportedPdf();
+      this.doc = normalizeDoc(extractPagesToDoc(this.doc, from, to));
+      this.activePageIndex = 0;
+      this.selectedIds = [];
+      history.reset(this.doc);
+      this.syncHistoryFlags();
+      this.commit(false);
+      this.showToast("Extracted pages into a new document");
+    },
+
+    async downloadExtractedPdf() {
+      const raw = prompt(
+        `Download PDF for pages (1–${this.doc.pages.length})`,
+        String(this.activePageIndex + 1),
+      );
+      if (!raw) return;
+      const m = raw.trim().match(/^(\d+)(?:\s*[-–]\s*(\d+))?$/);
+      if (!m) {
+        this.showToast("Invalid range", 4000);
+        return;
+      }
+      const from = Number(m[1]) - 1;
+      const to = m[2] ? Number(m[2]) - 1 : from;
+      const indices: number[] = [];
+      for (let i = Math.min(from, to); i <= Math.max(from, to); i++) indices.push(i);
+      try {
+        const bytes = await extractPagesToPdfBytes(this.doc, indices);
+        const blob = new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer], {
+          type: "application/pdf",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${this.doc.name.replace(/[^\w.-]+/g, "_") || "pages"}-extract.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Extract failed", 4000);
+      }
     },
 
     movePage(index: number, dir: -1 | 1) {
@@ -1523,7 +1769,7 @@ function pdfEditor() {
     textInnerStyle(el: TextElement) {
       return {
         fontSize: `${el.fontSize * this.zoom}px`,
-        fontFamily: fontCssFamily(el.fontFamily),
+        fontFamily: fontCssFamily(el.fontFamily, this.doc.customFonts),
         fontWeight: el.fontWeight,
         fontStyle: el.fontStyle || "normal",
         textDecoration: el.underline ? "underline" : "none",
@@ -1991,12 +2237,19 @@ function pdfEditor() {
     },
 
     syncDocumentFonts() {
-      const extras = this.collectDocFontExtras();
+      const customExtras = (this.doc.customFonts || []).map((f: { id: string; name: string }) => ({
+        id: `custom:${f.id}`,
+        label: f.name || f.id,
+      }));
+      const extras = [...this.collectDocFontExtras(), ...customExtras];
       this.fontOptions = allFontOptions(extras);
       for (const f of GOOGLE_FONTS) ensureGoogleFontStylesheet(f.googleFamily);
       for (const extra of extras) {
         const name = googleFamilyCssName(extra.id);
         if (name) ensureGoogleFontStylesheet(name);
+      }
+      for (const font of this.doc.customFonts || []) {
+        ensureCustomFontFace(font);
       }
     },
 
@@ -2005,8 +2258,58 @@ function pdfEditor() {
       if (el?.type === "text") {
         const name = googleFamilyCssName(el.fontFamily);
         if (name) ensureGoogleFontStylesheet(name);
+        if (typeof el.fontFamily === "string" && el.fontFamily.startsWith("custom:")) {
+          const id = el.fontFamily.slice("custom:".length);
+          const font = (this.doc.customFonts || []).find((f: { id: string }) => f.id === id);
+          if (font) ensureCustomFontFace(font);
+        }
       }
       this.persist();
+    },
+
+    async uploadCustomFont(event: Event) {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0];
+      if (!file) return;
+      const form = new FormData();
+      form.append("font", file);
+      try {
+        const res = await apiFetch("/api/upload/font", { method: "POST", body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Font upload failed");
+        if (!this.doc.customFonts) this.doc.customFonts = [];
+        const entry = { id: data.id as string, name: data.name as string, url: data.url as string };
+        const idx = this.doc.customFonts.findIndex((f: { id: string }) => f.id === entry.id);
+        if (idx >= 0) this.doc.customFonts[idx] = entry;
+        else this.doc.customFonts.push(entry);
+        ensureCustomFontFace(entry);
+        this.syncDocumentFonts();
+        if (this.selected?.type === "text") {
+          this.selected.fontFamily = `custom:${entry.id}`;
+        }
+        this.commit();
+        this.showToast(`Font “${entry.name}” added`);
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Font upload failed", 4000);
+      } finally {
+        input.value = "";
+      }
+    },
+
+    removeCustomFont(id: string) {
+      if (!this.doc.customFonts?.length) return;
+      this.doc.customFonts = this.doc.customFonts.filter((f: { id: string }) => f.id !== id);
+      const fontId = `custom:${id}`;
+      const reassign = (els: PdfElement[]) => {
+        for (const el of els) {
+          if (el.type === "text" && el.fontFamily === fontId) el.fontFamily = "Helvetica";
+        }
+      };
+      for (const page of this.doc.pages) reassign(page.elements);
+      reassign(this.doc.master?.header || []);
+      reassign(this.doc.master?.footer || []);
+      this.syncDocumentFonts();
+      this.commit();
     },
 
     fillLoremIpsum(size: LoremSize = "medium") {
@@ -2393,7 +2696,10 @@ function pdfEditor() {
 
     async runPdfImport(file: File, importMode: "overlay" | "editable") {
       try {
-        const document = await importPdfInBrowser(file, { mode: importMode });
+        const document = await importPdfInBrowser(file, {
+          mode: importMode,
+          ocr: importMode === "editable" && this.pdfImportOcr,
+        });
         this.doc = normalizeDoc(document);
         this.activePageIndex = 0;
         this.selectedIds = [];
@@ -2405,7 +2711,7 @@ function pdfEditor() {
         const textCount = document.pages.reduce((n, p) => n + p.elements.length, 0);
         this.showToast(
           importMode === "editable"
-            ? `PDF imported as editable text (${textCount} block${textCount === 1 ? "" : "s"})`
+            ? `PDF imported as editable (${textCount} element${textCount === 1 ? "" : "s"})`
             : "PDF imported — overlays stay in this tab until export",
           3200,
         );
@@ -2904,48 +3210,47 @@ function pdfEditor() {
       }
     },
 
+    buildExportPayload() {
+      const sessionBytes = getSessionImportedPdfBytes();
+      const editableImport = this.doc.importedPdf?.mode === "editable";
+      if (
+        this.doc.importedPdf &&
+        !editableImport &&
+        !sessionBytes &&
+        !this.doc.importedPdf.url
+      ) {
+        throw new Error(
+          "The imported PDF is only kept while this window is open. Please import the PDF again, then export.",
+        );
+      }
+      return {
+        name: this.doc.name,
+        pageSize: this.doc.pageSize,
+        pageBackground: this.doc.pageBackground,
+        pages: this.doc.pages,
+        master: this.doc.master,
+        watermark: this.doc.watermark,
+        comments: this.doc.comments || [],
+        importedPdf: this.doc.importedPdf,
+        importedPdfData:
+          !editableImport && sessionBytes ? bytesToBase64(sessionBytes) : undefined,
+        customFonts: this.doc.customFonts || [],
+        exportSettings: this.exportSettings,
+        userPassword: this.exportPassword?.trim() || undefined,
+      };
+    },
+
     async exportPdf() {
       this.saveExportSettings();
       this.exporting = true;
       this.showExportModal = false;
       try {
-        const sessionBytes = getSessionImportedPdfBytes();
-        const editableImport = this.doc.importedPdf?.mode === "editable";
-        if (
-          this.doc.importedPdf &&
-          !editableImport &&
-          !sessionBytes &&
-          !this.doc.importedPdf.url
-        ) {
-          throw new Error(
-            "The imported PDF is only kept while this window is open. Please import the PDF again, then export.",
-          );
-        }
-
-        const res = await apiFetch("/api/export", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: this.doc.name,
-            pageSize: this.doc.pageSize,
-            pageBackground: this.doc.pageBackground,
-            pages: this.doc.pages,
-            master: this.doc.master,
-            watermark: this.doc.watermark,
-            comments: this.doc.comments || [],
-            importedPdf: this.doc.importedPdf,
-            importedPdfData:
-              !editableImport && sessionBytes ? bytesToBase64(sessionBytes) : undefined,
-            exportSettings: this.exportSettings,
-          }),
+        const payload = this.buildExportPayload();
+        this.exportPassword = "";
+        const bytes = await exportPdfBytes(payload, (url, init) => apiFetch(url, init));
+        const blob = new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer], {
+          type: "application/pdf",
         });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "Export failed");
-        }
-
-        const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -2957,6 +3262,63 @@ function pdfEditor() {
         this.showToast(err instanceof Error ? err.message : "Could not export PDF.", 4000);
       } finally {
         this.exporting = false;
+      }
+    },
+
+    toggleLibrarySelect(id: string) {
+      const set = new Set(this.librarySelectedIds as string[]);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      this.librarySelectedIds = [...set];
+    },
+
+    async batchExportLibraryZip() {
+      const ids = this.librarySelectedIds as string[];
+      if (!ids.length) {
+        this.showToast("Select documents first");
+        return;
+      }
+      this.showToast("Building ZIP…", 2000);
+      try {
+        const zip = new JSZip();
+        const currentId = this.doc.id;
+        for (const id of ids) {
+          const raw = storeGet(docKey(id));
+          if (!raw) continue;
+          let doc: PdfDocument;
+          try {
+            doc = normalizeDoc(JSON.parse(raw) as PdfDocument);
+          } catch {
+            continue;
+          }
+          const payload = {
+            name: doc.name,
+            pageSize: doc.pageSize,
+            pageBackground: doc.pageBackground,
+            pages: doc.pages,
+            master: doc.master,
+            watermark: doc.watermark,
+            comments: doc.comments || [],
+            importedPdf: doc.importedPdf,
+            customFonts: doc.customFonts || [],
+            exportSettings: this.exportSettings,
+          };
+          // Library docs without session PDF bytes export elements only
+          const bytes = await exportPdfBytes(payload, (url, init) => apiFetch(url, init));
+          const filename = `${(doc.name || id).replace(/[^\w.-]+/g, "_")}.pdf`;
+          zip.file(filename, bytes);
+        }
+        void currentId;
+        const blob = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "pdf-studio-docs.zip";
+        a.click();
+        URL.revokeObjectURL(url);
+        this.showToast(`Exported ${ids.length} PDF(s) as ZIP`);
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "ZIP export failed", 4000);
       }
     },
   };

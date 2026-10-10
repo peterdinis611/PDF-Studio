@@ -1,6 +1,7 @@
 import { type PDFDocumentProxy, Util } from "pdfjs-dist";
-import type { FontFamily, TextElement } from "../shared/types.js";
+import type { FontFamily, PdfElement, TextElement } from "../shared/types.js";
 import { createText } from "./factories.js";
+import { extractImagesFromPage, ocrPageToTextElements } from "./pdfImageExtract.js";
 
 export type StudioPageTarget = {
   studioWidth: number;
@@ -165,16 +166,34 @@ export function textRunsToElements(runs: TextRun[]): TextElement[] {
   );
 }
 
-/** Extract + merge text for every page into TextElement arrays. */
+export type ExtractEditableOptions = {
+  /** When true and a page has no text, run experimental OCR (tesseract.js). */
+  ocr?: boolean;
+};
+
+/** Extract + merge text and embedded images for every page. */
 export async function extractEditablePages(
   pdf: PDFDocumentProxy,
   pageCount: number,
   target: StudioPageTarget,
-): Promise<TextElement[][]> {
-  const pages: TextElement[][] = [];
+  options: ExtractEditableOptions = {},
+): Promise<PdfElement[][]> {
+  const pages: PdfElement[][] = [];
   for (let i = 0; i < pageCount; i++) {
     const runs = await extractTextRunsFromPage(pdf, i, target);
-    pages.push(textRunsToElements(mergeRunsIntoLines(runs)));
+    const textEls = textRunsToElements(mergeRunsIntoLines(runs));
+    let images: PdfElement[] = [];
+    try {
+      images = await extractImagesFromPage(pdf, i, target);
+    } catch {
+      images = [];
+    }
+    let elements: PdfElement[] = [...images, ...textEls];
+    if (options.ocr && textEls.length === 0) {
+      const ocrEls = await ocrPageToTextElements(pdf, i, target);
+      elements = [...images, ...ocrEls];
+    }
+    pages.push(elements);
   }
   return pages;
 }

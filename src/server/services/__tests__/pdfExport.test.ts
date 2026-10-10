@@ -1,7 +1,13 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { createText, uid } from "../../../client/factories.js";
 import type { ExportPayload, PdfPage } from "../../../shared/types.js";
 import { exportPdf, hexToRgb, substituteTokens } from "../pdfExport.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(__dirname, "../../../../");
 
 function pageWith(...elements: PdfPage["elements"]): PdfPage {
   return { id: uid(), elements, applyMaster: true };
@@ -31,6 +37,10 @@ describe("substituteTokens", () => {
   it("replaces page counters", () => {
     expect(substituteTokens("Page {{page}} of {{pages}}", 1, 4)).toBe("Page 2 of 4");
   });
+
+  it("replaces custom merge fields", () => {
+    expect(substituteTokens("Hello {{meno}}", 0, 1, { meno: "Peter" })).toBe("Hello Peter");
+  });
 });
 
 describe("exportPdf", () => {
@@ -41,6 +51,15 @@ describe("exportPdf", () => {
       expect(doc.getPageCount()).toBe(1);
       const { width } = doc.getPage(0).getSize();
       expect(width).toBeCloseTo(595.28, 0);
+    });
+
+    it("encrypts export when userPassword is set", async () => {
+      const bytes = await exportPdf(
+        payload({ pages: [pageWith()], userPassword: "secret-pass" }),
+      );
+      await expect(PDFDocument.load(bytes)).rejects.toThrow();
+      const opened = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      expect(opened.getPageCount()).toBe(1);
     });
 
     it("exports markdown without raw markers", async () => {
@@ -67,6 +86,82 @@ describe("exportPdf", () => {
       );
       const blank = await exportPdf(payload({ pages: [pageWith()] }));
       expect(bytes.byteLength).toBeGreaterThan(blank.byteLength);
+    });
+
+    it("omits watermark when includeWatermark is false", async () => {
+      const withMark = await exportPdf(
+        payload({
+          pages: [pageWith()],
+          watermark: { type: "text", text: "DRAFTMARK", opacity: 0.2, rotation: -30, fontSize: 48 },
+        }),
+      );
+      const omitted = await exportPdf(
+        payload({
+          pages: [pageWith()],
+          watermark: { type: "text", text: "DRAFTMARK", opacity: 0.2, rotation: -30, fontSize: 48 },
+          exportSettings: {
+            margin: 0,
+            imageQuality: 0.85,
+            flatten: false,
+            pdfaLite: false,
+            includeWatermark: false,
+          },
+        }),
+      );
+      expect(omitted.byteLength).toBeLessThan(withMark.byteLength);
+    });
+
+    it("omits review comments by default (final export)", async () => {
+      const page = pageWith();
+      const withComments = await exportPdf(
+        payload({
+          pages: [page],
+          comments: [
+            {
+              id: uid(),
+              pageId: page.id,
+              x: 40,
+              y: 40,
+              body: "Please revise this section carefully",
+              author: "Reviewer",
+              resolved: false,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+          exportSettings: {
+            margin: 0,
+            imageQuality: 0.85,
+            flatten: false,
+            pdfaLite: false,
+            includeComments: true,
+          },
+        }),
+      );
+      const finalExport = await exportPdf(
+        payload({
+          pages: [page],
+          comments: [
+            {
+              id: uid(),
+              pageId: page.id,
+              x: 40,
+              y: 40,
+              body: "Please revise this section carefully",
+              author: "Reviewer",
+              resolved: false,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+          exportSettings: {
+            margin: 0,
+            imageQuality: 0.85,
+            flatten: false,
+            pdfaLite: false,
+            includeComments: false,
+          },
+        }),
+      );
+      expect(finalExport.byteLength).toBeLessThan(withComments.byteLength);
     });
 
     it("creates an AcroForm text field", async () => {

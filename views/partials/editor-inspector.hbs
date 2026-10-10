@@ -120,6 +120,27 @@
               </template>
             </select>
             <div class="mt-2">
+              <label class="panel-label">Custom font</label>
+              <label class="btn-ghost mt-1 flex cursor-pointer items-center justify-center text-xs">
+                <input type="file" class="sr-only" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2" @change="uploadCustomFont($event)" />
+                Upload TTF / OTF / WOFF
+              </label>
+              <ul class="mt-1.5 max-h-24 space-y-1 overflow-y-auto" x-show="doc.customFonts?.length">
+                <template x-for="cf in doc.customFonts" :key="cf.id">
+                  <li class="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-xs hover:bg-slate-hover">
+                    <button
+                      type="button"
+                      class="truncate text-left text-fg"
+                      :style="`font-family:'pdf-studio-custom-${cf.id}',sans-serif`"
+                      @click="selected.fontFamily = 'custom:' + cf.id; onFontFamilyChange()"
+                      x-text="cf.name"
+                    ></button>
+                    <button type="button" class="shrink-0 text-[10px] text-slate-muted hover:text-accent-soft" @click="removeCustomFont(cf.id)">Remove</button>
+                  </li>
+                </template>
+              </ul>
+            </div>
+            <div class="mt-2">
               <label class="panel-label">Google Fonts</label>
               <div class="flex gap-1.5">
                 <input

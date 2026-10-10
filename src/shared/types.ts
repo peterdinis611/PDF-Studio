@@ -244,6 +244,10 @@ export interface PdfPage {
   elements: PdfElement[];
   applyMaster?: boolean;
   sourcePageIndex?: number;
+  /** Mail-merge field values for this page (used with master + element tokens on export). */
+  mergeFields?: Record<string, string>;
+  /** Clockwise page rotation in degrees. */
+  rotation?: 0 | 90 | 180 | 270;
 }
 
 export interface GuideLine {
@@ -437,6 +441,10 @@ export interface ExportSettings {
   /** Screen = smaller files; print = higher quality / margins. */
   intent?: "screen" | "print";
   compressImages?: boolean;
+  /** When false (default), review comments are omitted from the PDF. */
+  includeComments?: boolean;
+  /** When false, document watermark is omitted from the PDF. */
+  includeWatermark?: boolean;
 }
 
 export interface ExportPayload {
@@ -452,4 +460,6 @@ export interface ExportPayload {
   importedPdfData?: string;
   customFonts?: { id: string; name: string; url: string }[];
   exportSettings?: ExportSettings;
+  /** Open-password for encrypted export (never persisted client-side). */
+  userPassword?: string;
 }

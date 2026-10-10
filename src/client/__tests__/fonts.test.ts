@@ -28,8 +28,18 @@ describe("fontCssFamily", () => {
       expect(fontCssFamily("UnknownFont" as never)).toBe(STANDARD_FONTS[0].css);
     });
 
-    it("falls back for custom: legacy ids", () => {
-      expect(fontCssFamily("custom:abc" as never)).toBe(STANDARD_FONTS[0].css);
+    it("returns a custom face name for unknown custom ids", () => {
+      expect(fontCssFamily("custom:abc" as never)).toContain("pdf-studio-custom-abc");
+    });
+  });
+
+  describe("custom fonts", () => {
+    it("uses uploaded custom font names when provided", () => {
+      const css = fontCssFamily("custom:abc" as never, [
+        { id: "abc", name: "Brand Sans", url: "/uploads/sessions/x/fonts/abc.ttf" },
+      ]);
+      expect(css).toContain("Brand Sans");
+      expect(css).toContain("pdf-studio-custom-abc");
     });
   });
 });

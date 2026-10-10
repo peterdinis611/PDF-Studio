@@ -25,8 +25,17 @@ import {
   type DocWatermark,
 } from "../../shared/types.js";
 import { markdownToPlainText, markdownToStyledLines } from "../../shared/markdown.js";
+import { substituteElementTokens, substituteTokens, type TokenContext } from "../../shared/tokens.js";
 import { resolveUploadPath, base64ToBytes } from "./pdfImport.js";
-import { embedGoogleFonts, pickGoogleFont, type FontNeed } from "./fontEmbed.js";
+import {
+  embedCustomFonts,
+  embedGoogleFonts,
+  pickCustomFont,
+  pickGoogleFont,
+  type FontNeed,
+} from "./fontEmbed.js";
+
+export { substituteTokens };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "../../..");
@@ -45,6 +54,7 @@ type Fonts = {
   courierOblique: PDFFont;
   courierBoldOblique: PDFFont;
   google: Map<string, PDFFont>;
+  custom: Map<string, PDFFont>;
 };
 
 /** Exported for unit tests. */
@@ -82,8 +92,13 @@ function roundedRectPath(x: number, y: number, w: number, h: number, r: number) 
   ].join(" ");
 }
 
-async function loadFonts(doc: PDFDocument, needs: FontNeed[] = []): Promise<Fonts> {
+async function loadFonts(
+  doc: PDFDocument,
+  needs: FontNeed[] = [],
+  customFonts?: { id: string; name: string; url: string }[],
+): Promise<Fonts> {
   const google = await embedGoogleFonts(doc, needs);
+  const custom = await embedCustomFonts(doc, customFonts, needs, resolveUploadPath);
   return {
     helvetica: await doc.embedFont(StandardFonts.Helvetica),
     helveticaBold: await doc.embedFont(StandardFonts.HelveticaBold),
@@ -98,6 +113,7 @@ async function loadFonts(doc: PDFDocument, needs: FontNeed[] = []): Promise<Font
     courierOblique: await doc.embedFont(StandardFonts.CourierOblique),
     courierBoldOblique: await doc.embedFont(StandardFonts.CourierBoldOblique),
     google,
+    custom,
   };
 }
 
@@ -105,7 +121,10 @@ function pickFont(fonts: Fonts, family: string, bold: boolean, italic: boolean):
   const google = pickGoogleFont(fonts.google, family, bold, italic);
   if (google) return google;
 
-  // Legacy custom uploads → fall back to Helvetica
+  const custom = pickCustomFont(fonts.custom, family);
+  if (custom) return custom;
+
+  // Missing custom upload → fall back to Helvetica
   if (family.startsWith("custom:")) {
     if (bold && italic) return fonts.helveticaBoldOblique;
     if (bold) return fonts.helveticaBold;
@@ -159,18 +178,16 @@ function collectFontNeeds(payload: ExportPayload): FontNeed[] {
   return needs;
 }
 
-/** Exported for unit tests. */
-export function substituteTokens(text: string, pageIndex: number, pageCount: number) {
-  return text
-    .replace(/\{\{page\}\}/g, String(pageIndex + 1))
-    .replace(/\{\{pages\}\}/g, String(pageCount));
-}
-
-function formatTextLines(el: TextElement, pageIndex: number, pageCount: number): string[] {
+function formatTextLines(
+  el: TextElement,
+  pageIndex: number,
+  pageCount: number,
+  fields?: TokenContext,
+): string[] {
   let content = el.markdown
     ? markdownToPlainText(el.content || "")
     : el.content || "";
-  content = substituteTokens(content, pageIndex, pageCount);
+  content = substituteTokens(content, pageIndex, pageCount, fields);
   const raw = content.split("\n");
   if (el.listStyle === "bullet") {
     return raw.map((line) => (line.trim() ? `• ${line}` : line));
@@ -586,17 +603,43 @@ async function drawStamp(page: PDFPage, el: StampElement, pageHeight: number, fo
   });
 }
 
+function decodeBase64Bytes(data: string): Uint8Array {
+  const cleaned = data.includes(",") ? data.split(",").pop()! : data;
+  if (typeof Buffer !== "undefined") {
+    return Uint8Array.from(Buffer.from(cleaned, "base64"));
+  }
+  const bin = atob(cleaned);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 async function loadImageBytes(src: string): Promise<{ bytes: Uint8Array; isJpg: boolean } | null> {
   if (src.startsWith("data:image/")) {
     try {
       const isJpg = /data:image\/jpe?g/i.test(src);
-      const cleaned = src.includes(",") ? src.split(",").pop()! : src;
-      const bytes = Uint8Array.from(Buffer.from(cleaned, "base64"));
-      return { bytes, isJpg };
+      return { bytes: decodeBase64Bytes(src), isJpg };
     } catch {
       return null;
     }
   }
+
+  // Browser / isomorphic: fetch session uploads and remote URLs
+  if (src.startsWith("/uploads/") || src.startsWith("http://") || src.startsWith("https://")) {
+    try {
+      if (typeof fetch !== "undefined") {
+        const res = await fetch(src);
+        if (res.ok) {
+          const bytes = new Uint8Array(await res.arrayBuffer());
+          const isJpg = /jpe?g/i.test(res.headers.get("content-type") || src);
+          return { bytes, isJpg };
+        }
+      }
+    } catch {
+      /* fall through to disk */
+    }
+  }
+
   const filePath = resolveUploadPath(src);
   if (!filePath) return null;
   try {
@@ -907,7 +950,7 @@ async function drawElement(
 
 export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  const fonts = await loadFonts(doc, collectFontNeeds(payload));
+  const fonts = await loadFonts(doc, collectFontNeeds(payload), payload.customFonts);
   const size = PAGE_SIZES[payload.pageSize] ?? PAGE_SIZES.a4;
   const settings = payload.exportSettings || {
     margin: 0,
@@ -973,7 +1016,11 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
       }
     }
 
-    if (payload.watermark) {
+    if (pdfPage.rotation) {
+      page.setRotation(degrees(pdfPage.rotation));
+    }
+
+    if (payload.watermark && settings.includeWatermark !== false) {
       await drawWatermark(doc, page, payload.watermark, size.width, size.height, fonts);
     }
 
@@ -982,12 +1029,12 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
       ? [...(payload.master?.header || []), ...(payload.master?.footer || [])]
       : [];
 
+    const mergeFields = pdfPage.mergeFields;
+
     for (const el of masterEls) {
       if (el.visible === false) continue;
       const cloned = structuredClone(el) as PdfElement;
-      if (cloned.type === "text") {
-        cloned.content = substituteTokens(cloned.content, pageIndex, pageCount);
-      }
+      substituteElementTokens(cloned, pageIndex, pageCount, mergeFields);
       await drawElement(
         doc,
         page,
@@ -1003,6 +1050,7 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
     for (const el of pdfPage.elements) {
       if (el.visible === false) continue;
       const offsetEl = structuredClone(el) as PdfElement;
+      substituteElementTokens(offsetEl, pageIndex, pageCount, mergeFields);
       if (settings.margin && offsetEl.type !== "image") {
         /* margin already applied to imported page; elements stay in page coords */
       }
@@ -1018,9 +1066,11 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
       );
     }
 
-    const pageComments = (payload.comments || []).filter((c) => c.pageId === pdfPage.id);
-    for (const c of pageComments) {
-      drawDocComment(page, c, size.height, fonts);
+    if (settings.includeComments) {
+      const pageComments = (payload.comments || []).filter((c) => c.pageId === pdfPage.id);
+      for (const c of pageComments) {
+        drawDocComment(page, c, size.height, fonts);
+      }
     }
   }
 
@@ -1032,5 +1082,11 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
     }
   }
 
-  return doc.save({ useObjectStreams: !settings.pdfaLite });
+  const bytes = await doc.save({ useObjectStreams: !settings.pdfaLite });
+  const password = payload.userPassword?.trim();
+  if (password) {
+    const { encryptPdfBytes } = await import("./pdfEncrypt.js");
+    return encryptPdfBytes(bytes, password);
+  }
+  return bytes;
 }
