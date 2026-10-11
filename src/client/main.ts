@@ -67,7 +67,26 @@ import {
 } from "./studioJson.js";
 import { computeSmartGuides, type SmartGuide } from "./smartGuides.js";
 import { TEMPLATE_LIST, buildTemplate } from "./templates.js";
-import { applyMailMerge, appendToken, parseCsv, type MailMergeRow } from "./mailMerge.js";
+import {
+  applyMailMerge,
+  applyMailMergePerRow,
+  appendToken,
+  parseMergeFile,
+  type MailMergeRow,
+  type MergeCondition,
+  type MergeOutputMode,
+} from "./mailMerge.js";
+import { auditMergeFields } from "./fieldAudit.js";
+import { exportPngProofZip } from "./pngProof.js";
+import { runPreflight } from "./preflight.js";
+import {
+  createESignPackage,
+  exportTrailText,
+  loadESignPackage,
+  markSignerSigned,
+  type ESignPackage,
+} from "./eSign.js";
+import { createLocalShare, loadShare } from "./shareLink.js";
 import {
   deleteUserTemplate,
   listUserTemplates,
@@ -296,12 +315,21 @@ function pdfEditor() {
     showBrandKit: false,
     showDocLibrary: false,
     showMailMerge: false,
+    showPreflight: false,
+    showESign: false,
     showComments: false,
     showWatermarkModal: false,
     mailMergeHeaders: [] as string[],
     mailMergeRows: [] as MailMergeRow[],
     mailMergePreview: null as MailMergeRow | null,
     mailMergeFileName: "",
+    mailMergeMode: "single" as MergeOutputMode,
+    mailMergeSkipWhen: null as MergeCondition | null,
+    mailMergeSeqStart: 1,
+    fieldAuditIssues: [] as { token: string; severity: string; message: string }[],
+    preflightIssues: [] as { level: string; code: string; message: string }[],
+    eSignPkg: null as ESignPackage | null,
+    eSignNames: "",
     userTemplates: [] as UserTemplateMeta[],
     exportPassword: "",
     librarySelectedIds: [] as string[],
@@ -638,6 +666,32 @@ function pdfEditor() {
       this.authorName = storeGet(AUTHOR_KEY) || "Reviewer";
       this.refreshDocLibrary();
       this.refreshUserTemplates();
+
+      const shareId = new URLSearchParams(window.location.search).get("share");
+      if (shareId) {
+        const rec = loadShare(shareId);
+        if (rec) {
+          try {
+            const raw = JSON.parse(rec.payload) as unknown;
+            void hydratePortableStudioFile(raw, {
+              apiFetch: (url, init) => apiFetch(url, init),
+              normalizeDoc,
+            }).then((doc) => {
+              clearSessionImportedPdf();
+              this.doc = doc;
+              this.activePageIndex = 0;
+              this.selectedIds = [];
+              history.reset(this.doc);
+              this.syncHistoryFlags();
+              this.syncDocumentFonts();
+              this.commit(false);
+              this.showToast(`Opened shared “${rec.name}”`);
+            });
+          } catch {
+            this.showToast("Could not open share link", 4000);
+          }
+        }
+      }
 
       if (templateId) {
         this.doc = normalizeDoc(buildTemplate(templateId));
@@ -1104,22 +1158,34 @@ function pdfEditor() {
     },
 
     openMailMergeModal() {
+      this.refreshFieldAudit();
       this.showMailMerge = true;
     },
 
-    onMailMergeCsvSelected(event: Event) {
+    async onMailMergeFileSelected(event: Event) {
       const input = event.target as HTMLInputElement;
       const file = input.files?.[0];
       if (!file) return;
-      file.text().then((text) => {
-        const { headers, rows } = parseCsv(text);
+      try {
+        const { headers, rows } = await parseMergeFile(file);
         this.mailMergeHeaders = headers;
         this.mailMergeRows = rows;
         this.mailMergePreview = rows[0] || null;
         this.mailMergeFileName = file.name;
-        if (!rows.length) this.showToast("CSV has no data rows", 4000);
-      });
+        this.refreshFieldAudit();
+        if (!rows.length) this.showToast("File has no data rows", 4000);
+        else this.showToast(`Loaded ${rows.length} row(s)`);
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Could not parse merge file", 4000);
+      }
       input.value = "";
+    },
+
+    refreshFieldAudit() {
+      this.fieldAuditIssues = auditMergeFields(this.doc, {
+        headers: this.mailMergeHeaders,
+        sampleRow: this.mailMergePreview,
+      });
     },
 
     insertMergeToken(field: string) {
@@ -1130,14 +1196,60 @@ function pdfEditor() {
       }
       el.content = appendToken(el.content || "", field);
       this.commit();
+      this.refreshFieldAudit();
     },
 
-    runMailMerge() {
+    insertSeqToken() {
+      this.insertMergeToken("seq");
+    },
+
+    async runMailMerge() {
       if (!this.mailMergeRows.length) {
-        this.showToast("Upload a CSV with data rows first", 4000);
+        this.showToast("Upload CSV / XLSX / JSON first", 4000);
         return;
       }
-      const merged = applyMailMerge(this.doc, this.mailMergeRows);
+      const opts = {
+        skipRowWhen: this.mailMergeSkipWhen,
+        expandTables: true,
+        seqStart: this.mailMergeSeqStart || 1,
+      };
+
+      if (this.mailMergeMode === "zip") {
+        this.showToast("Building ZIP…", 2000);
+        try {
+          const packages = applyMailMergePerRow(this.doc, this.mailMergeRows, opts);
+          const zip = new JSZip();
+          for (const { doc: merged } of packages) {
+            const payload = {
+              name: merged.name,
+              pageSize: merged.pageSize,
+              pageBackground: merged.pageBackground,
+              pages: merged.pages,
+              master: merged.master,
+              watermark: merged.watermark,
+              comments: [],
+              customFonts: merged.customFonts || [],
+              exportSettings: { ...this.exportSettings, includeComments: false },
+            };
+            const bytes = await exportPdfBytes(payload, (url, init) => apiFetch(url, init));
+            zip.file(`${merged.name}.pdf`, bytes);
+          }
+          const blob = await zip.generateAsync({ type: "blob" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${(this.doc.name || "merge").replace(/[^\w.-]+/g, "_")}-merge.zip`;
+          a.click();
+          URL.revokeObjectURL(url);
+          this.showMailMerge = false;
+          this.showToast(`ZIP with ${packages.length} PDF(s)`);
+        } catch (err) {
+          this.showToast(err instanceof Error ? err.message : "ZIP merge failed", 4000);
+        }
+        return;
+      }
+
+      const merged = applyMailMerge(this.doc, this.mailMergeRows, opts);
       this.doc = normalizeDoc(merged);
       this.activePageIndex = 0;
       this.selectedIds = [];
@@ -1145,7 +1257,109 @@ function pdfEditor() {
       this.syncHistoryFlags();
       this.commit(false);
       this.showMailMerge = false;
-      this.showToast(`Merged ${this.mailMergeRows.length} row(s) → ${this.doc.pages.length} pages`);
+      this.showToast(`Merged → ${this.doc.pages.length} pages`);
+    },
+
+    openPreflight() {
+      this.preflightIssues = runPreflight(this.doc);
+      this.showPreflight = true;
+    },
+
+    async exportPngProof() {
+      try {
+        this.showToast("Rendering PNG proof…", 2000);
+        const blob = await exportPngProofZip(this.doc, (url, init) => apiFetch(url, init), this.exportSettings);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${(this.doc.name || "proof").replace(/[^\w.-]+/g, "_")}-pages.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.showToast("PNG proof ZIP downloaded");
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "PNG export failed", 4000);
+      }
+    },
+
+    toggleRedactOnSelected() {
+      const el = this.selected;
+      if (!el || el.type !== "rect" || el.locked) {
+        this.showToast("Select a rectangle to mark as redaction");
+        return;
+      }
+      el.redact = !el.redact;
+      if (el.redact) {
+        el.fill = "#000000";
+        el.stroke = "#000000";
+        el.opacity = 1;
+      }
+      this.commit();
+      this.showToast(el.redact ? "Redaction on" : "Redaction off");
+    },
+
+    setMergeHideWhenOnSelected() {
+      const el = this.selected;
+      if (!el || el.locked) return;
+      const field = prompt("Hide when field name equals… (field)", this.mailMergeHeaders[0] || "");
+      if (field === null) return;
+      const value = prompt("Value (leave empty + use op empty/notEmpty via cancel next)", "");
+      if (value === null) {
+        el.mergeHideWhen = { field, op: "empty" };
+      } else {
+        el.mergeHideWhen = { field, op: "equals", value };
+      }
+      this.commit();
+      this.showToast("Merge hide condition set");
+    },
+
+    openESign() {
+      this.eSignPkg = loadESignPackage(this.doc.id);
+      this.showESign = true;
+    },
+
+    startESign() {
+      const names = (this.eSignNames || "")
+        .split(/[,\n]/)
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+      if (!names.length) {
+        this.showToast("Enter signer names (comma-separated)");
+        return;
+      }
+      this.eSignPkg = createESignPackage(this.doc.id, names);
+      this.showToast("E-sign package created (local)");
+    },
+
+    signAs(signerId: string) {
+      if (!this.eSignPkg) return;
+      try {
+        this.eSignPkg = markSignerSigned(this.eSignPkg, signerId);
+        this.showToast("Signed");
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Cannot sign yet", 4000);
+      }
+    },
+
+    downloadESignTrail() {
+      if (!this.eSignPkg) return;
+      const text = exportTrailText(this.eSignPkg);
+      const blob = new Blob([text], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `esign-trail-${this.doc.id.slice(0, 8)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+
+    async createShareLink() {
+      try {
+        const { url } = await createLocalShare(this.doc, (u, init) => apiFetch(u, init));
+        await navigator.clipboard?.writeText(url);
+        this.showToast("Local review link copied (same browser profile)");
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Share failed", 4000);
+      }
     },
 
     setActivePage(index: number) {
@@ -1192,7 +1406,25 @@ function pdfEditor() {
       const file = input.files?.[0];
       if (!file) return;
       try {
-        this.doc = normalizeDoc(await mergePdfFileIntoDoc(this.doc, file));
+        const buf = await file.arrayBuffer();
+        const { PDFDocument } = await import("pdf-lib");
+        const src = await PDFDocument.load(buf, { ignoreEncryption: true });
+        const count = src.getPageCount();
+        const range = prompt(
+          `Pages to merge from “${file.name}” (1–${count}), e.g. 1-3 or leave blank for all`,
+          `1-${count}`,
+        );
+        let fromIndex = 0;
+        let toIndex = count - 1;
+        if (range?.trim()) {
+          const m = range.trim().match(/^(\d+)(?:\s*[-–]\s*(\d+))?$/);
+          if (!m) throw new Error("Invalid page range");
+          fromIndex = Number(m[1]) - 1;
+          toIndex = m[2] ? Number(m[2]) - 1 : fromIndex;
+        }
+        // Re-wrap file because arrayBuffer consumed — recreate File
+        const again = new File([buf], file.name, { type: file.type || "application/pdf" });
+        this.doc = normalizeDoc(await mergePdfFileIntoDoc(this.doc, again, { fromIndex, toIndex }));
         this.activePageIndex = this.doc.pages.length - 1;
         this.selectedIds = [];
         history.reset(this.doc);
@@ -1200,7 +1432,7 @@ function pdfEditor() {
         this.commit(false);
         await this.refreshPdfUnderlay();
         await this.refreshPageThumbUnderlays();
-        this.showToast(`Merged “${file.name}”`);
+        this.showToast(`Merged pages ${fromIndex + 1}–${toIndex + 1} from “${file.name}”`);
       } catch (err) {
         this.showToast(err instanceof Error ? err.message : "Could not merge PDF", 4000);
       } finally {

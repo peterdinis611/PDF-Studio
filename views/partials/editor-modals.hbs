@@ -278,14 +278,27 @@
   <div class="modal-panel max-w-lg" @click.outside="showMailMerge = false">
     <h3 id="mail-merge-title" class="modal-title">Mail merge</h3>
     <p class="mt-1 text-xs text-slate-muted">
-      Upload a CSV (header row = field names). Insert field tokens into text, then generate one page set per row.
+      CSV, XLSX, or JSON. Tokens like field names, <code class="text-accent-soft">seq</code>, <code class="text-accent-soft">bates</code>. Table line-items: JSON array in column <code class="text-accent-soft">items</code>.
     </p>
     <div class="mt-4 space-y-3 text-sm">
       <label class="btn-ghost flex cursor-pointer items-center justify-center">
-        <input type="file" class="sr-only" accept=".csv,text/csv" @change="onMailMergeCsvSelected($event)" />
-        <span x-text="mailMergeFileName ? ('CSV: ' + mailMergeFileName) : 'Upload CSV…'"></span>
+        <input type="file" class="sr-only" accept=".csv,.xlsx,.xls,.json,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" @change="onMailMergeFileSelected($event)" />
+        <span x-text="mailMergeFileName ? ('Data: ' + mailMergeFileName) : 'Upload CSV / XLSX / JSON…'"></span>
       </label>
       <p class="text-xs text-slate-muted" x-show="mailMergeRows.length" x-text="mailMergeRows.length + ' row(s) · fields: ' + mailMergeHeaders.join(', ')"></p>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="btn-ghost text-xs" :class="mailMergeMode === 'single' && 'bg-accent/15 text-accent-soft'" @click="mailMergeMode = 'single'">One multi-page PDF</button>
+        <button type="button" class="btn-ghost text-xs" :class="mailMergeMode === 'zip' && 'bg-accent/15 text-accent-soft'" @click="mailMergeMode = 'zip'">ZIP (1 PDF / row)</button>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="panel-label">Seq start</label>
+          <input type="number" min="1" class="panel-input" x-model.number="mailMergeSeqStart" />
+        </div>
+        <div class="flex items-end">
+          <button type="button" class="btn-ghost w-full text-xs" @click="insertMergeToken('seq')">Insert seq token</button>
+        </div>
+      </div>
       <div x-show="mailMergeHeaders.length" class="flex flex-wrap gap-1.5">
         <template x-for="h in mailMergeHeaders" :key="h">
           <button type="button" class="btn-ghost text-xs" @click="insertMergeToken(h)" x-text="'{{' + h + '}}'"></button>
@@ -297,10 +310,63 @@
           <p class="text-slate-muted"><span class="text-fg" x-text="h"></span>: <span x-text="mailMergePreview?.[h] || ''"></span></p>
         </template>
       </div>
+      <div x-show="fieldAuditIssues.length" class="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+        <p class="mb-1 font-medium text-fg">Field audit</p>
+        <template x-for="issue in fieldAuditIssues" :key="issue.token + issue.message">
+          <p class="text-slate-muted" x-text="issue.message"></p>
+        </template>
+      </div>
     </div>
     <div class="modal-actions">
+      <button type="button" class="btn-ghost" @click="refreshFieldAudit()">Re-audit</button>
       <button type="button" class="btn-ghost" @click="showMailMerge = false">Cancel</button>
-      <button type="button" class="btn-primary" :disabled="!mailMergeRows.length" @click="runMailMerge()">Generate pages</button>
+      <button type="button" class="btn-primary" :disabled="!mailMergeRows.length" @click="runMailMerge()">
+        <span x-text="mailMergeMode === 'zip' ? 'Download ZIP' : 'Generate pages'"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+{{!-- Preflight modal --}}
+<div x-show="showPreflight" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showPreflight = false">
+  <div class="modal-panel max-w-lg" @click.outside="showPreflight = false">
+    <h3 class="modal-title">Print / accessibility preflight</h3>
+    <ul class="mt-4 max-h-72 space-y-2 overflow-y-auto text-sm">
+      <template x-for="(issue, i) in preflightIssues" :key="i">
+        <li class="rounded-md border border-slate-line px-3 py-2">
+          <span class="text-[10px] uppercase tracking-wide text-slate-muted" x-text="issue.level + ' · ' + issue.code"></span>
+          <p class="text-fg" x-text="issue.message"></p>
+        </li>
+      </template>
+      <li x-show="!preflightIssues.length" class="py-6 text-center text-slate-muted">No issues.</li>
+    </ul>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost ml-auto" @click="showPreflight = false">Close</button>
+    </div>
+  </div>
+</div>
+
+{{!-- E-sign modal --}}
+<div x-show="showESign" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showESign = false">
+  <div class="modal-panel max-w-lg" @click.outside="showESign = false">
+    <h3 class="modal-title">E-sign (local MVP)</h3>
+    <p class="mt-1 text-xs text-slate-muted">Signer order + audit trail stay in this browser. Not a legal eIDAS service.</p>
+    <div class="mt-4 space-y-3 text-sm" x-show="!eSignPkg">
+      <label class="panel-label">Signers (comma-separated, in order)</label>
+      <input type="text" class="panel-input" placeholder="Alice, Bob" x-model="eSignNames" />
+      <button type="button" class="btn-primary" @click="startESign()">Create package</button>
+    </div>
+    <div class="mt-4 space-y-2 text-sm" x-show="eSignPkg">
+      <template x-for="s in eSignPkg?.signers || []" :key="s.id">
+        <div class="flex items-center justify-between gap-2 rounded-md border border-slate-line px-3 py-2">
+          <span x-text="s.order + '. ' + s.name + ' — ' + s.status"></span>
+          <button type="button" class="btn-ghost text-xs" :disabled="s.status === 'signed'" @click="signAs(s.id)">Sign</button>
+        </div>
+      </template>
+      <button type="button" class="btn-ghost text-xs" @click="downloadESignTrail()">Download audit trail</button>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost ml-auto" @click="showESign = false">Close</button>
     </div>
   </div>
 </div>

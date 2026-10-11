@@ -88,6 +88,10 @@
       <button type="button" class="menu-item" @click="showFileMenu = false; downloadAsTemplatePack()">Share as template pack</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; saveAsUserTemplate()">Save as template…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; openMailMergeModal()">Mail merge…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; exportPngProof()">Export PNG proof ZIP…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; openPreflight()">Preflight checklist…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; openESign()">E-sign (local)…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; createShareLink()">Copy local review link</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; openExportModal()">Export PDF…</button>
       <div class="my-1 border-t border-slate-line"></div>
       <button type="button" class="menu-item sm:hidden" @click="showFileMenu = false; showTemplates = true">Templates…</button>

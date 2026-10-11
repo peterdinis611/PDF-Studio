@@ -31,7 +31,7 @@ describe("applyMailMerge", () => {
       type: "text",
       content: "Hello Ada — page {{page}}",
     });
-    expect(merged.pages[0].mergeFields).toEqual({ meno: "Ada" });
-    expect(merged.pages[1].mergeFields).toEqual({ meno: "Grace" });
+    expect(merged.pages[0].mergeFields).toMatchObject({ meno: "Ada", seq: "1" });
+    expect(merged.pages[1].mergeFields).toMatchObject({ meno: "Grace", seq: "2" });
   });
 });

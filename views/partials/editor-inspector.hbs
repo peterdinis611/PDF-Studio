@@ -111,6 +111,11 @@
               <button type="button" class="btn-ghost text-xs" @click="fillLoremIpsum('medium')" title="One paragraph">Lorem · para</button>
               <button type="button" class="btn-ghost text-xs" @click="fillLoremIpsum('long')" title="Two paragraphs">Lorem · long</button>
             </div>
+            <div class="mt-2">
+              <label class="panel-label">Link URL (optional)</label>
+              <input type="url" class="panel-input" placeholder="https://…" x-model="selected.href" @change="persist()" />
+            </div>
+            <button type="button" class="btn-ghost mt-2 text-xs" @click="setMergeHideWhenOnSelected()">Merge: hide when…</button>
           </div>
             <div>
             <label class="panel-label">Font</label>
@@ -251,6 +256,11 @@
           <div x-show="selected?.type === 'rect'">
             <label class="panel-label">Corner radius</label>
             <input type="number" class="panel-input" min="0" max="80" x-model.number="selected.cornerRadius" @change="persist()" />
+            <label class="mt-3 flex items-center gap-2 text-sm text-slate-muted">
+              <input type="checkbox" class="accent-accent" :checked="!!selected.redact" @change="toggleRedactOnSelected()" />
+              Redaction (burn black on export)
+            </label>
+            <button type="button" class="btn-ghost mt-2 text-xs" @click="setMergeHideWhenOnSelected()">Merge: hide when…</button>
           </div>
         </div>
       </template>
@@ -484,6 +494,8 @@
             <p class="truncate text-sm text-slate-muted" x-text="selected.name"></p>
           </div>
           <div x-show="selected.type === 'image'">
+            <label class="panel-label">Alt text (PDF/UA)</label>
+            <input type="text" class="panel-input mb-2" placeholder="Describe the image" x-model="selected.alt" @change="persist()" />
             <label class="panel-label">Fit</label>
             <div class="mt-1 flex flex-wrap gap-1.5">
               <button type="button" class="btn-ghost text-xs" :class="(selected.objectFit || 'contain') === 'contain' && 'bg-accent/15 text-accent-soft'" @click="setImageObjectFit('contain')">Contain</button>

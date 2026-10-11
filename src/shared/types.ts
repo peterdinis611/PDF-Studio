@@ -53,6 +53,12 @@ export type FontFamily =
 
 export type ListStyle = "none" | "bullet" | "number";
 
+export type MergeHideWhen = {
+  field: string;
+  op: "equals" | "notEquals" | "empty" | "notEmpty" | "contains";
+  value?: string;
+};
+
 export interface PdfElementBase {
   id: string;
   type: ElementType;
@@ -66,6 +72,8 @@ export interface PdfElementBase {
   /** When false, element is hidden on canvas and skipped on export. Default true. */
   visible?: boolean;
   groupId?: string;
+  /** Hide this element during mail merge when condition matches. */
+  mergeHideWhen?: MergeHideWhen;
 }
 
 export interface TextElement extends PdfElementBase {
@@ -83,6 +91,8 @@ export interface TextElement extends PdfElementBase {
   align: "left" | "center" | "right";
   /** When true, content is Markdown (TanStack Markdown) on canvas; export draws styled runs. */
   markdown?: boolean;
+  /** Explicit link URL (also auto-detected from http(s) in content). */
+  href?: string;
 }
 
 export interface RectElement extends PdfElementBase {
@@ -91,6 +101,8 @@ export interface RectElement extends PdfElementBase {
   stroke: string;
   strokeWidth: number;
   cornerRadius: number;
+  /** When true, burns opaque black over underlay on export (redaction). */
+  redact?: boolean;
 }
 
 export interface EllipseElement extends PdfElementBase {
@@ -120,6 +132,8 @@ export interface ImageElement extends PdfElementBase {
   name: string;
   objectFit?: "contain" | "cover" | "fill";
   crop?: ImageCrop;
+  /** Accessibility alt text (PDF/UA checklist). */
+  alt?: string;
 }
 
 export interface ArrowElement extends PdfElementBase {

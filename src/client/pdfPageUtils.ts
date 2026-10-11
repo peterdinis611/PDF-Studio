@@ -13,15 +13,27 @@ export function normalizeRotation(value: number): PageRotation {
   return n as PageRotation;
 }
 
+export type MergePdfOptions = {
+  /** 0-based inclusive range of pages to take from the incoming PDF. */
+  fromIndex?: number;
+  toIndex?: number;
+};
+
 /** Merge another PDF's pages onto the current document (overlay underlays). */
 export async function mergePdfFileIntoDoc(
   doc: PdfDocument,
   file: File,
+  options: MergePdfOptions = {},
 ): Promise<PdfDocument> {
   const incoming = new Uint8Array(await file.arrayBuffer());
   const addDoc = await PDFDocument.load(incoming, { ignoreEncryption: true });
-  const addCount = addDoc.getPageCount();
-  if (!addCount) throw new Error("PDF has no pages");
+  const total = addDoc.getPageCount();
+  if (!total) throw new Error("PDF has no pages");
+
+  const from = Math.max(0, options.fromIndex ?? 0);
+  const to = Math.min(total - 1, options.toIndex ?? total - 1);
+  if (from > to) throw new Error("Invalid page range");
+  const indices = Array.from({ length: to - from + 1 }, (_, i) => from + i);
 
   const existingBytes = getSessionImportedPdfBytes();
   const outPdf = await PDFDocument.create();
@@ -34,7 +46,7 @@ export async function mergePdfFileIntoDoc(
     baseOffset = base.getPageCount();
   }
 
-  const newPages = await outPdf.copyPages(addDoc, addDoc.getPageIndices());
+  const newPages = await outPdf.copyPages(addDoc, indices);
   for (const p of newPages) outPdf.addPage(p);
 
   const mergedBytes = await outPdf.save();
@@ -43,7 +55,7 @@ export async function mergePdfFileIntoDoc(
   const pages: PdfPage[] = [
     ...doc.pages.map((p) => ({ ...structuredClone(p), id: p.id })),
   ];
-  for (let i = 0; i < addCount; i++) {
+  for (let i = 0; i < indices.length; i++) {
     pages.push({
       id: uid(),
       elements: [],
@@ -57,7 +69,7 @@ export async function mergePdfFileIntoDoc(
     ...doc,
     pages,
     importedPdf: {
-      pageCount: baseOffset + addCount,
+      pageCount: baseOffset + indices.length,
       name: doc.importedPdf?.name
         ? `${doc.importedPdf.name} + ${file.name}`
         : file.name,

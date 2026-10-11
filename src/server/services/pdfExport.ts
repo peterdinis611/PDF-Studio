@@ -1,4 +1,17 @@
-import { PDFDocument, StandardFonts, rgb, degrees, pushGraphicsState, popGraphicsState, rectangle, clip, endPath, type PDFFont, type PDFPage } from "pdf-lib";
+import {
+  PDFDocument,
+  StandardFonts,
+  rgb,
+  degrees,
+  pushGraphicsState,
+  popGraphicsState,
+  rectangle,
+  clip,
+  endPath,
+  PDFString,
+  type PDFFont,
+  type PDFPage,
+} from "pdf-lib";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,7 +38,12 @@ import {
   type DocWatermark,
 } from "../../shared/types.js";
 import { markdownToPlainText, markdownToStyledLines } from "../../shared/markdown.js";
-import { substituteElementTokens, substituteTokens, type TokenContext } from "../../shared/tokens.js";
+import {
+  findUrlsInText,
+  substituteElementTokens,
+  substituteTokens,
+  type TokenContext,
+} from "../../shared/tokens.js";
 import { resolveUploadPath, base64ToBytes } from "./pdfImport.js";
 import {
   embedCustomFonts,
@@ -199,7 +217,37 @@ function formatTextLines(
   return raw;
 }
 
+function addUriLink(
+  doc: PDFDocument,
+  page: PDFPage,
+  url: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  try {
+    const safe = url.trim();
+    if (!/^https?:\/\//i.test(safe)) return;
+    const annot = doc.context.obj({
+      Type: "Annot",
+      Subtype: "Link",
+      Rect: [x, y, x + Math.max(8, width), y + Math.max(8, height)],
+      Border: [0, 0, 0],
+      A: {
+        Type: "Action",
+        S: "URI",
+        URI: PDFString.of(safe),
+      },
+    });
+    page.node.addAnnot(doc.context.register(annot));
+  } catch {
+    /* ignore link failures */
+  }
+}
+
 async function drawText(
+  doc: PDFDocument,
   page: PDFPage,
   el: TextElement,
   pageHeight: number,
@@ -208,7 +256,7 @@ async function drawText(
   pageCount: number,
 ) {
   if (el.markdown) {
-    await drawMarkdownText(page, el, pageHeight, fonts, pageIndex, pageCount);
+    await drawMarkdownText(doc, page, el, pageHeight, fonts, pageIndex, pageCount);
     return;
   }
 
@@ -216,6 +264,7 @@ async function drawText(
   const lines = formatTextLines(el, pageIndex, pageCount);
   const lineHeight = el.fontSize * (el.lineHeight || 1.25);
   let cursorY = toPdfY(pageHeight, el.y, el.fontSize);
+  const plain = lines.join("\n");
 
   for (const line of lines) {
     const textWidth =
@@ -261,11 +310,30 @@ async function drawText(
         opacity: el.opacity,
       });
     }
+
+    for (const hit of findUrlsInText(line)) {
+      const before = line.slice(0, hit.index);
+      const prefixW = font.widthOfTextAtSize(before, el.fontSize);
+      const linkW = font.widthOfTextAtSize(line.slice(hit.index, hit.index + hit.length), el.fontSize);
+      addUriLink(doc, page, hit.url, Math.max(0, x) + prefixW, cursorY - 2, linkW, el.fontSize + 4);
+    }
+
     cursorY -= lineHeight;
+  }
+
+  if (el.href) {
+    addUriLink(doc, page, el.href, el.x, toPdfY(pageHeight, el.y, el.height), el.width, el.height);
+  } else if (!findUrlsInText(plain).length) {
+    // markdown-style [label](url) single link on whole box
+    const md = plain.match(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/);
+    if (md) {
+      addUriLink(doc, page, md[2], el.x, toPdfY(pageHeight, el.y, el.height), el.width, el.height);
+    }
   }
 }
 
 async function drawMarkdownText(
+  doc: PDFDocument,
   page: PDFPage,
   el: TextElement,
   pageHeight: number,
@@ -325,17 +393,33 @@ async function drawMarkdownText(
 
     cursorY -= lineHeight;
   }
+
+  if (el.href) {
+    addUriLink(doc, page, el.href, el.x, toPdfY(pageHeight, el.y, el.height), el.width, el.height);
+  } else {
+    for (const hit of findUrlsInText(source)) {
+      addUriLink(doc, page, hit.url, el.x, toPdfY(pageHeight, el.y, el.height), el.width, el.height);
+      break;
+    }
+    const md = source.match(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/);
+    if (md) {
+      addUriLink(doc, page, md[2], el.x, toPdfY(pageHeight, el.y, el.height), el.width, el.height);
+    }
+  }
 }
 
 async function drawRect(page: PDFPage, el: RectElement, pageHeight: number) {
   const y = toPdfY(pageHeight, el.y, el.height);
-  if (el.cornerRadius > 0) {
+  const fill = el.redact ? "#000000" : el.fill;
+  const stroke = el.redact ? "#000000" : el.stroke;
+  const opacity = el.redact ? 1 : el.opacity;
+  if (el.cornerRadius > 0 && !el.redact) {
     page.drawSvgPath(roundedRectPath(el.x, y, el.width, el.height, el.cornerRadius), {
-      color: hexToRgb(el.fill),
-      borderColor: hexToRgb(el.stroke),
+      color: hexToRgb(fill),
+      borderColor: hexToRgb(stroke),
       borderWidth: el.strokeWidth,
-      opacity: el.opacity,
-      borderOpacity: el.opacity,
+      opacity,
+      borderOpacity: opacity,
     });
     return;
   }
@@ -344,11 +428,11 @@ async function drawRect(page: PDFPage, el: RectElement, pageHeight: number) {
     y,
     width: el.width,
     height: el.height,
-    color: hexToRgb(el.fill),
-    borderColor: hexToRgb(el.stroke),
-    borderWidth: el.strokeWidth,
-    opacity: el.opacity,
-    borderOpacity: el.opacity,
+    color: hexToRgb(fill),
+    borderColor: hexToRgb(stroke),
+    borderWidth: el.redact ? 0 : el.strokeWidth,
+    opacity,
+    borderOpacity: opacity,
     rotate: degrees(el.rotation || 0),
   });
 }
@@ -901,7 +985,7 @@ async function drawElement(
 ) {
   switch (el.type) {
     case "text":
-      await drawText(page, el, pageHeight, fonts, pageIndex, pageCount);
+      await drawText(doc, page, el, pageHeight, fonts, pageIndex, pageCount);
       break;
     case "rect":
       await drawRect(page, el, pageHeight);
