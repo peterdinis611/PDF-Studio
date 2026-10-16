@@ -95,6 +95,9 @@ export interface TextElement extends PdfElementBase {
   href?: string;
 }
 
+/** Acrobat-style text markup drawn as a rectangle overlay. */
+export type MarkupKind = "highlight" | "underline" | "strike";
+
 export interface RectElement extends PdfElementBase {
   type: "rect";
   fill: string;
@@ -103,6 +106,8 @@ export interface RectElement extends PdfElementBase {
   cornerRadius: number;
   /** When true, burns opaque black over underlay on export (redaction). */
   redact?: boolean;
+  /** Semi-transparent text markup (highlight / underline / strike). */
+  markup?: MarkupKind;
 }
 
 export interface EllipseElement extends PdfElementBase {
@@ -253,6 +258,14 @@ export type PdfElement =
   | FormCheckElement
   | FormSelectElement;
 
+/** Page crop inset as percent of page size (0–40 per edge), Acrobat-style. */
+export interface PageCropBox {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
 export interface PdfPage {
   id: string;
   elements: PdfElement[];
@@ -262,6 +275,8 @@ export interface PdfPage {
   mergeFields?: Record<string, string>;
   /** Clockwise page rotation in degrees. */
   rotation?: 0 | 90 | 180 | 270;
+  /** Optional crop applied when embedding / exporting this page. */
+  cropBox?: PageCropBox;
 }
 
 export interface GuideLine {
@@ -313,6 +328,16 @@ export interface ImportedPdfRef {
   url?: string;
 }
 
+/** Document outline entry (Acrobat Bookmarks panel). */
+export interface DocBookmark {
+  id: string;
+  title: string;
+  /** 0-based page index in the studio document. */
+  pageIndex: number;
+  /** Optional nest level (0 = top). */
+  level?: number;
+}
+
 export interface PdfDocument {
   id: string;
   name: string;
@@ -327,6 +352,8 @@ export interface PdfDocument {
   master?: DocMaster;
   watermark?: DocWatermark | null;
   comments?: DocComment[];
+  /** PDF outline / bookmarks written on export. */
+  bookmarks?: DocBookmark[];
   customFonts?: { id: string; name: string; url: string }[];
   importedPdf?: ImportedPdfRef | null;
 }
@@ -469,6 +496,7 @@ export interface ExportPayload {
   master?: DocMaster;
   watermark?: DocWatermark | null;
   comments?: DocComment[];
+  bookmarks?: DocBookmark[];
   importedPdf?: ImportedPdfRef | null;
   /** Base64 of the original PDF — sent only for export, never persisted. */
   importedPdfData?: string;

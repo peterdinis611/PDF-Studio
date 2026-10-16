@@ -7,11 +7,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "npm run build:fonts && concurrently -k -n server,css,client -c blue,magenta,green \"tsx watch src/server/index.ts\" \"npm run build:css -- --watch\" \"npm run build:client -- --watch\"",
+    "dev": "npm run build:fonts && concurrently -k -n server,css,client -c blue,magenta,green \"tsx watch src/server/index.ts\" \"npm run build:css -- --watch\" \"node scripts/build-client.mjs --watch\"",
     "build": "npm run build:fonts && npm run build:css && npm run build:client && npm run build:assets && tsc -p tsconfig.server.json",
     "build:fonts": "node scripts/build-fonts.mjs",
     "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/css/app.css --minify",
-    "build:client": "esbuild src/client/main.ts --bundle --outfile=public/js/app.js --format=esm --target=es2020 --minify && node scripts/build-export-worker.mjs",
+    "build:client": "node scripts/build-client.mjs",
     "build:assets": "node scripts/hash-assets.mjs",
     "start": "NODE_ENV=production node dist/server/index.js",
     "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json --noEmit",

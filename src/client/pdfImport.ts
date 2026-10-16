@@ -9,20 +9,87 @@ import {
 import { uid } from "./factories.js";
 import { openPdfJsDocument } from "./pdfJsDocument.js";
 import { extractEditablePages } from "./pdfTextExtract.js";
+import {
+  idbDeleteImportedPdf,
+  idbGetImportedPdf,
+  idbPutImportedPdf,
+  lsClearImportedPdf,
+  lsGetImportedPdf,
+  lsPutImportedPdf,
+} from "./pdfSessionStore.js";
 
-/** In-memory only — cleared when the tab/window closes. Never written to disk or localStorage. */
+/** In-memory cache; backed by session-scoped localStorage + IndexedDB (survives refresh). */
 let sessionPdfBytes: Uint8Array | null = null;
 
 export function getSessionImportedPdfBytes(): Uint8Array | null {
   return sessionPdfBytes;
 }
 
+/** Clear in-memory bytes only (does not wipe persisted backup). */
 export function clearSessionImportedPdf(): void {
   sessionPdfBytes = null;
 }
 
 export function setSessionImportedPdfBytes(bytes: Uint8Array): void {
   sessionPdfBytes = bytes;
+}
+
+/** Save current session PDF bytes under a studio document id (LS + IDB). */
+export async function persistSessionImportedPdf(docId: string): Promise<void> {
+  if (!sessionPdfBytes || !docId) return;
+  // localStorage first — same-tab refresh uses session-scoped keys (most reliable)
+  try {
+    lsPutImportedPdf(docId, sessionPdfBytes, bytesToBase64);
+  } catch {
+    /* quota */
+  }
+  try {
+    await idbPutImportedPdf(docId, sessionPdfBytes);
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+/** Restore PDF bytes after refresh into memory (localStorage, then IndexedDB). */
+export async function restoreSessionImportedPdf(docId: string): Promise<boolean> {
+  if (!docId) return false;
+  if (sessionPdfBytes?.byteLength) return true;
+
+  try {
+    const fromLs = lsGetImportedPdf(docId, base64ToBytes);
+    if (fromLs?.byteLength) {
+      sessionPdfBytes = fromLs;
+      return true;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    const bytes = await idbGetImportedPdf(docId);
+    if (!bytes?.byteLength) return false;
+    sessionPdfBytes = bytes;
+    // Warm LS for the next refresh
+    try {
+      lsPutImportedPdf(docId, bytes, bytesToBase64);
+    } catch {
+      /* ignore */
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Drop persisted PDF for a document (new blank doc / failed import). */
+export async function clearPersistedImportedPdf(docId?: string): Promise<void> {
+  lsClearImportedPdf();
+  if (!docId) return;
+  try {
+    await idbDeleteImportedPdf(docId);
+  } catch {
+    /* ignore */
+  }
 }
 
 function closestPageSize(width: number, height: number): PageSize {

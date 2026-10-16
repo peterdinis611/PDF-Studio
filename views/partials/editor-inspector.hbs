@@ -550,10 +550,13 @@
         </svg>
       </div>
       <p class="text-sm font-medium text-fg">Nothing selected</p>
-      <p class="mt-1.5 text-xs leading-relaxed text-slate-muted">
+      <p class="mt-1.5 text-xs leading-relaxed text-slate-muted" x-show="pageExpectsPdfBackdrop">
+        PDF page is shown as a backdrop. Select an annotation, or place text/shapes from the toolbar.
+      </p>
+      <p class="mt-1.5 text-xs leading-relaxed text-slate-muted" x-show="!pageExpectsPdfBackdrop">
         Select something on the page, or place an element from Insert.
       </p>
-      <div class="empty-properties-hints">
+      <div class="empty-properties-hints" x-show="!pageExpectsPdfBackdrop">
         <span><kbd>T</kbd> text</span>
         <span><kbd>/</kbd> search</span>
         <span><kbd>⇧</kbd> multi-select</span>
@@ -565,6 +568,34 @@
       >
         Open Insert
       </button>
+    </div>
+
+    <div class="border-t border-slate-line pt-4" x-show="!selected" x-init="$watch('activePageIndex', () => loadPageCropDraft())">
+      <label class="panel-label">Page crop</label>
+      <p class="mb-2 text-[11px] leading-snug text-slate-muted">Trim edges on export (percent 0–40).</p>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="panel-label">Top</label>
+          <input type="number" class="panel-input" min="0" max="40" x-model.number="pageCropDraft.top" />
+        </div>
+        <div>
+          <label class="panel-label">Bottom</label>
+          <input type="number" class="panel-input" min="0" max="40" x-model.number="pageCropDraft.bottom" />
+        </div>
+        <div>
+          <label class="panel-label">Left</label>
+          <input type="number" class="panel-input" min="0" max="40" x-model.number="pageCropDraft.left" />
+        </div>
+        <div>
+          <label class="panel-label">Right</label>
+          <input type="number" class="panel-input" min="0" max="40" x-model.number="pageCropDraft.right" />
+        </div>
+      </div>
+      <div class="mt-2 flex flex-wrap gap-1">
+        <button type="button" class="btn-ghost text-[10px]" @click="applyPageCrop()">Apply</button>
+        <button type="button" class="btn-ghost text-[10px]" @click="clearPageCrop()">Clear</button>
+        <button type="button" class="btn-ghost text-[10px]" @click="rotateActivePage(90)">Rotate 90°</button>
+      </div>
     </div>
 
     <div class="border-t border-slate-line pt-4">
@@ -596,7 +627,8 @@
           </li>
         </template>
         <li x-show="layers.length === 0" class="layers-empty">
-          Page is empty — place something from Insert.
+          <span x-show="pageExpectsPdfBackdrop">No annotations yet — PDF backdrop is not a layer. Place text or shapes to edit.</span>
+          <span x-show="!pageExpectsPdfBackdrop">Page is empty — place something from Insert.</span>
         </li>
       </ul>
       <div class="mt-2 flex flex-wrap gap-1" x-show="selected">

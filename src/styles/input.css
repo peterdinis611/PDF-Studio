@@ -349,8 +349,47 @@
     @apply relative aspect-[210/297] w-full cursor-pointer overflow-hidden rounded-lg border-2 border-transparent bg-paper transition duration-200 hover:-translate-y-0.5 hover:border-slate-muted/40 hover:shadow-md;
   }
 
+  .page-thumb img {
+    /* Prefer crisp downscale of a high-res PNG over soft browser smoothing */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  @supports (image-rendering: high-quality) {
+    .page-thumb img {
+      image-rendering: high-quality;
+    }
+  }
+
   .page-thumb[aria-current="true"] {
     @apply border-accent shadow-[0_0_0_1px_rgb(var(--color-accent)/0.4)];
+  }
+
+  .pages-thumb-scroll {
+    scroll-behavior: smooth;
+  }
+
+  /* Acrobat-like sticky page navigator over the canvas */
+  .page-nav {
+    @apply pointer-events-auto absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-slate-line bg-rail/95 px-2 py-1.5 shadow-page backdrop-blur-md;
+  }
+
+  .page-nav-btn {
+    @apply flex h-8 w-8 items-center justify-center rounded-full text-fg transition hover:bg-slate-hover disabled:cursor-not-allowed disabled:opacity-35;
+  }
+
+  .page-nav-jump {
+    @apply flex items-center gap-1.5 px-1 font-mono text-xs text-slate-muted;
+  }
+
+  .page-nav-input {
+    @apply h-8 w-12 rounded-md border border-slate-line bg-slate-panel text-center font-mono text-sm font-medium text-fg outline-none focus:border-accent focus:ring-1 focus:ring-accent;
+  }
+
+  .page-nav-of {
+    @apply min-w-[3.5rem] shrink-0;
   }
 
   .canvas-element {

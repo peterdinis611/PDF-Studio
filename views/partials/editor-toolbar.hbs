@@ -80,7 +80,16 @@
       <button type="button" class="menu-item" @click="showFileMenu = false; $refs.mergePdfInput.click()">Merge PDF…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; extractPageRange()">Extract pages…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; downloadExtractedPdf()">Download page range PDF…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; splitPdfDocument()">Split PDF…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; rotateActivePage(90)">Rotate page 90°</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; applyBatesNumbering()">Bates numbering…</button>
+      <button
+        type="button"
+        class="menu-item"
+        @click="showFileMenu = false; leftRail = 'bookmarks'; showLeftPanel = true; if (isCompact) showInspectorPanel = false"
+      >
+        Bookmarks…
+      </button>
       <button type="button" class="menu-item" @click="showFileMenu = false; $refs.jsonInput.click()">Open JSON…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; openSignatureModal()">Sign PDF…</button>
       <div class="my-1 border-t border-slate-line"></div>

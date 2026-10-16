@@ -410,9 +410,25 @@ async function drawMarkdownText(
 
 async function drawRect(page: PDFPage, el: RectElement, pageHeight: number) {
   const y = toPdfY(pageHeight, el.y, el.height);
+  // Acrobat markup: underline / strike draw as a thin bar through the band
+  if (el.markup === "underline" || el.markup === "strike") {
+    const barH = Math.max(1.2, Math.min(el.height, 3.5));
+    const barY =
+      el.markup === "underline" ? y : y + (el.height - barH) / 2;
+    page.drawRectangle({
+      x: el.x,
+      y: barY,
+      width: el.width,
+      height: barH,
+      color: hexToRgb(el.fill || (el.markup === "strike" ? "#dc2626" : "#2563eb")),
+      opacity: el.opacity ?? 0.95,
+      rotate: degrees(el.rotation || 0),
+    });
+    return;
+  }
   const fill = el.redact ? "#000000" : el.fill;
   const stroke = el.redact ? "#000000" : el.stroke;
-  const opacity = el.redact ? 1 : el.opacity;
+  const opacity = el.redact ? 1 : el.markup === "highlight" ? Math.min(el.opacity ?? 0.45, 0.55) : el.opacity;
   if (el.cornerRadius > 0 && !el.redact) {
     page.drawSvgPath(roundedRectPath(el.x, y, el.width, el.height, el.cornerRadius), {
       color: hexToRgb(fill),
@@ -430,7 +446,7 @@ async function drawRect(page: PDFPage, el: RectElement, pageHeight: number) {
     height: el.height,
     color: hexToRgb(fill),
     borderColor: hexToRgb(stroke),
-    borderWidth: el.redact ? 0 : el.strokeWidth,
+    borderWidth: el.redact || el.markup === "highlight" ? 0 : el.strokeWidth,
     opacity,
     borderOpacity: opacity,
     rotate: degrees(el.rotation || 0),
@@ -737,18 +753,75 @@ async function loadImageBytes(src: string): Promise<{ bytes: Uint8Array; isJpg: 
   }
 }
 
+/** Re-encode bitmap via canvas when compressImages is on (worker / browser). */
+async function compressImageBytes(
+  bytes: Uint8Array,
+  isJpg: boolean,
+  quality: number,
+): Promise<{ bytes: Uint8Array; isJpg: boolean }> {
+  const q = Math.min(0.95, Math.max(0.35, quality));
+  try {
+    if (typeof OffscreenCanvas !== "undefined" && typeof createImageBitmap === "function") {
+      const copy = bytes.slice();
+      const ab = copy.buffer.slice(copy.byteOffset, copy.byteOffset + copy.byteLength) as ArrayBuffer;
+      const blob = new Blob([ab], { type: isJpg ? "image/jpeg" : "image/png" });
+      const bmp = await createImageBitmap(blob);
+      const canvas = new OffscreenCanvas(bmp.width, bmp.height);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return { bytes, isJpg };
+      ctx.drawImage(bmp, 0, 0);
+      bmp.close();
+      const out = await canvas.convertToBlob({ type: "image/jpeg", quality: q });
+      return { bytes: new Uint8Array(await out.arrayBuffer()), isJpg: true };
+    }
+    if (typeof document !== "undefined") {
+      const copy = bytes.slice();
+      const ab = copy.buffer.slice(copy.byteOffset, copy.byteOffset + copy.byteLength) as ArrayBuffer;
+      const url = URL.createObjectURL(new Blob([ab], { type: isJpg ? "image/jpeg" : "image/png" }));
+      try {
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const el = new Image();
+          el.onload = () => resolve(el);
+          el.onerror = () => reject(new Error("img"));
+          el.src = url;
+        });
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return { bytes, isJpg };
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL("image/jpeg", q);
+        const raw = dataUrl.split(",")[1] || "";
+        const bin = atob(raw);
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return { bytes: out, isJpg: true };
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+  } catch {
+    /* keep original */
+  }
+  return { bytes, isJpg };
+}
+
 async function drawImage(
   doc: PDFDocument,
   page: PDFPage,
   el: ImageElement | SignatureElement,
   pageHeight: number,
   quality = 0.85,
+  compress = false,
 ) {
   const loaded = await loadImageBytes(el.src);
   if (!loaded) return;
-  const { bytes, isJpg } = loaded;
+  let { bytes, isJpg } = loaded;
+  if (compress && quality < 0.98) {
+    ({ bytes, isJpg } = await compressImageBytes(bytes, isJpg, quality));
+  }
   const image = isJpg ? await doc.embedJpg(bytes) : await doc.embedPng(bytes);
-  void quality;
 
   const pdfY = toPdfY(pageHeight, el.y, el.height);
   const crop = el.type === "image" ? el.crop : undefined;
@@ -982,6 +1055,7 @@ async function drawElement(
   pageIndex: number,
   pageCount: number,
   imageQuality: number,
+  compressImages = false,
 ) {
   switch (el.type) {
     case "text":
@@ -998,7 +1072,7 @@ async function drawElement(
       break;
     case "image":
     case "signature":
-      await drawImage(doc, page, el, pageHeight, imageQuality);
+      await drawImage(doc, page, el, pageHeight, imageQuality, compressImages);
       break;
     case "arrow":
       await drawArrow(page, el, pageHeight);
@@ -1089,12 +1163,40 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
     if (!skipSourceEmbed && sourcePdf && typeof pdfPage.sourcePageIndex === "number") {
       try {
         const [embedded] = await doc.embedPdf(sourcePdf, [pdfPage.sourcePageIndex]);
-        page.drawPage(embedded, {
-          x: settings.margin,
-          y: settings.margin,
-          width: size.width - settings.margin * 2,
-          height: size.height - settings.margin * 2,
-        });
+        const crop = pdfPage.cropBox;
+        const clampPct = (n: number) => Math.min(40, Math.max(0, n || 0)) / 100;
+        const cTop = clampPct(crop?.top ?? 0);
+        const cRight = clampPct(crop?.right ?? 0);
+        const cBottom = clampPct(crop?.bottom ?? 0);
+        const cLeft = clampPct(crop?.left ?? 0);
+        const baseX = settings.margin;
+        const baseY = settings.margin;
+        const baseW = size.width - settings.margin * 2;
+        const baseH = size.height - settings.margin * 2;
+        if (cTop + cRight + cBottom + cLeft > 0) {
+          const visW = Math.max(0.2, 1 - cLeft - cRight);
+          const visH = Math.max(0.2, 1 - cTop - cBottom);
+          page.pushOperators(
+            pushGraphicsState(),
+            rectangle(baseX, baseY, baseW, baseH),
+            clip(),
+            endPath(),
+          );
+          page.drawPage(embedded, {
+            x: baseX - (cLeft / visW) * baseW,
+            y: baseY - (cBottom / visH) * baseH,
+            width: baseW / visW,
+            height: baseH / visH,
+          });
+          page.pushOperators(popGraphicsState());
+        } else {
+          page.drawPage(embedded, {
+            x: baseX,
+            y: baseY,
+            width: baseW,
+            height: baseH,
+          });
+        }
       } catch {
         /* ignore embed failure */
       }
@@ -1128,6 +1230,7 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
         pageIndex,
         pageCount,
         settings.imageQuality,
+        Boolean(settings.compressImages),
       );
     }
 
@@ -1147,6 +1250,7 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
         pageIndex,
         pageCount,
         settings.imageQuality,
+        Boolean(settings.compressImages),
       );
     }
 
@@ -1155,6 +1259,15 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
       for (const c of pageComments) {
         drawDocComment(page, c, size.height, fonts);
       }
+    }
+  }
+
+  if (payload.bookmarks?.length) {
+    try {
+      const { writePdfBookmarks } = await import("./pdfOutline.js");
+      writePdfBookmarks(doc, payload.bookmarks);
+    } catch {
+      /* outline optional */
     }
   }
 

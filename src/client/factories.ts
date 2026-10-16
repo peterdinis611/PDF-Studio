@@ -11,6 +11,7 @@ import type {
   IconKind,
   ImageElement,
   LineElement,
+  MarkupKind,
   PdfDocument,
   PdfElement,
   PdfPage,
@@ -93,6 +94,49 @@ export function createRect(
     cornerRadius: 0,
     ...overrides,
   };
+}
+
+/** Acrobat-style text markup overlays. */
+export function createMarkup(
+  kind: MarkupKind,
+  x: number,
+  y: number,
+  overrides: Partial<RectElement> = {},
+): RectElement {
+  if (kind === "highlight") {
+    return createRect(x, y, {
+      width: 200,
+      height: 18,
+      fill: "#facc15",
+      stroke: "#facc15",
+      strokeWidth: 0,
+      opacity: 0.45,
+      markup: "highlight",
+      ...overrides,
+    });
+  }
+  if (kind === "underline") {
+    return createRect(x, y, {
+      width: 200,
+      height: 3,
+      fill: "#2563eb",
+      stroke: "#2563eb",
+      strokeWidth: 0,
+      opacity: 0.95,
+      markup: "underline",
+      ...overrides,
+    });
+  }
+  return createRect(x, y, {
+    width: 200,
+    height: 3,
+    fill: "#dc2626",
+    stroke: "#dc2626",
+    strokeWidth: 0,
+    opacity: 0.95,
+    markup: "strike",
+    ...overrides,
+  });
 }
 
 export function createEllipse(
@@ -489,6 +533,12 @@ export function elementLabel(el: PdfElement): string {
       return el.label || "Form check";
     case "formSelect":
       return el.name || "Form select";
+    case "rect":
+      if (el.redact) return "Redaction";
+      if (el.markup === "highlight") return "Highlight";
+      if (el.markup === "underline") return "Underline";
+      if (el.markup === "strike") return "Strikethrough";
+      return "Rectangle";
     default:
       return el.type.charAt(0).toUpperCase() + el.type.slice(1);
   }

@@ -6,7 +6,7 @@
     role="status"
   >
     <p class="text-xs text-fg">
-      Imported PDF was cleared after refresh. Re-attach the same file to restore the underlay and export.
+      PDF underlay is missing. Re-attach the same file to restore preview and export.
     </p>
     <button type="button" class="btn-primary shrink-0 px-3 py-1.5 text-xs" @click="requestPdfReattach()">
       Re-attach PDF
@@ -80,6 +80,7 @@
           :src="pdfUnderlaySrc"
           alt=""
           draggable="false"
+          decoding="async"
         />
 
         <div
@@ -402,9 +403,9 @@
           :style="marquee && `left:${marquee.x * zoom}px;top:${marquee.y * zoom}px;width:${marquee.w * zoom}px;height:${marquee.h * zoom}px`"
         ></div>
 
-        {{!-- Empty page nudge --}}
+        {{!-- Empty page nudge (skip when imported PDF underlay is the content) --}}
         <div
-          x-show="workingElements.length === 0 && !editingMaster && tool === 'select'"
+          x-show="workingElements.length === 0 && !editingMaster && tool === 'select' && !pageExpectsPdfBackdrop"
           x-cloak
           x-transition.opacity.duration.200ms
           class="canvas-empty"
@@ -469,6 +470,16 @@
         <button type="button" class="dock-btn" :aria-pressed="tool === 'line'" aria-label="Line (L)" @click="tool = 'line'" title="Line (L)">
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" d="M5 19L19 5" /></svg>
         </button>
+        <span class="dock-sep"></span>
+        <button type="button" class="dock-btn" :aria-pressed="tool === 'highlight'" aria-label="Highlight (H)" @click="tool = 'highlight'" title="Highlight (H)">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M4 17h16M7 17V8l5-3 5 3v9" /><path stroke-linecap="round" d="M4 20h16" stroke="#facc15" stroke-width="2.5" /></svg>
+        </button>
+        <button type="button" class="dock-btn" :aria-pressed="tool === 'underline'" aria-label="Underline (U)" @click="tool = 'underline'" title="Underline (U)">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" d="M7 5v8a5 5 0 0010 0V5M5 19h14" /></svg>
+        </button>
+        <button type="button" class="dock-btn" :aria-pressed="tool === 'strike'" aria-label="Strikethrough" @click="tool = 'strike'" title="Strikethrough">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" d="M6 12h12M8 7h8v3M8 17h8v-3" /></svg>
+        </button>
         <button type="button" class="dock-btn" aria-label="Image" @click="$refs.imageInput.click()" title="Image">
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.5-4.5a2 2 0 012.8 0L16 16m-2-2l1.5-1.5a2 2 0 012.8 0L20 14M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
         </button>
@@ -521,6 +532,53 @@
         </button>
         </div>
       </div>
+    </div>
+
+    {{!-- Acrobat-style page navigator --}}
+    <div
+      class="page-nav"
+      role="navigation"
+      aria-label="Page navigation"
+      x-show="doc.pages.length > 1"
+      x-cloak
+    >
+      <button
+        type="button"
+        class="page-nav-btn"
+        @click="prevPage()"
+        :disabled="activePageIndex <= 0"
+        title="Previous page (Page Up / ←)"
+        aria-label="Previous page"
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <label class="page-nav-jump">
+        <span class="sr-only">Page number</span>
+        <input
+          type="text"
+          inputmode="numeric"
+          class="page-nav-input"
+          x-model="pageJumpDraft"
+          @keydown.enter.prevent="jumpToPageDraft()"
+          @blur="jumpToPageDraft()"
+          :aria-label="'Page ' + (activePageIndex + 1) + ' of ' + doc.pages.length"
+        />
+        <span class="page-nav-of" x-text="'of ' + doc.pages.length"></span>
+      </label>
+      <button
+        type="button"
+        class="page-nav-btn"
+        @click="nextPage()"
+        :disabled="activePageIndex >= doc.pages.length - 1"
+        title="Next page (Page Down / →)"
+        aria-label="Next page"
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
     </div>
   </div>
 </section>

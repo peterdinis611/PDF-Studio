@@ -156,3 +156,74 @@ export function rotatePageInDoc(
   const pages = doc.pages.map((p, i) => (i === pageIndex ? { ...p, rotation: next } : p));
   return { ...doc, pages, updatedAt: new Date().toISOString() };
 }
+
+/**
+ * Rebuild session PDF bytes so delete/reorder matches thumbnails (Acrobat Organizer).
+ * Remaps each page's sourcePageIndex to 0..n-1 in current studio order.
+ */
+export async function syncSessionPdfToStudioPages(doc: PdfDocument): Promise<PdfDocument> {
+  const session = getSessionImportedPdfBytes();
+  if (!session || doc.importedPdf?.mode === "editable") return doc;
+
+  const hasSource = doc.pages.some((p) => typeof p.sourcePageIndex === "number");
+  if (!hasSource) return doc;
+
+  const src = await PDFDocument.load(session, { ignoreEncryption: true });
+  const out = await PDFDocument.create();
+  const pages = doc.pages.map((p) => structuredClone(p) as PdfPage);
+  let nextIndex = 0;
+
+  for (const page of pages) {
+    if (typeof page.sourcePageIndex !== "number") continue;
+    if (page.sourcePageIndex < 0 || page.sourcePageIndex >= src.getPageCount()) {
+      delete page.sourcePageIndex;
+      continue;
+    }
+    const [copied] = await out.copyPages(src, [page.sourcePageIndex]);
+    if (page.rotation) copied.setRotation(degrees(page.rotation));
+    out.addPage(copied);
+    page.sourcePageIndex = nextIndex;
+    nextIndex += 1;
+  }
+
+  if (!nextIndex) return doc;
+
+  const bytes = await out.save();
+  setSessionImportedPdfBytes(bytes);
+
+  return {
+    ...doc,
+    pages,
+    importedPdf: doc.importedPdf
+      ? { ...doc.importedPdf, pageCount: nextIndex, ephemeral: true }
+      : {
+          pageCount: nextIndex,
+          ephemeral: true,
+          mode: "overlay",
+        },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Split document into one PDF per chunk of pages (Acrobat Split). */
+export async function splitDocToPdfParts(
+  doc: PdfDocument,
+  pagesPerFile: number,
+): Promise<{ name: string; bytes: Uint8Array }[]> {
+  const n = Math.max(1, Math.floor(pagesPerFile));
+  const parts: { name: string; bytes: Uint8Array }[] = [];
+  for (let start = 0; start < doc.pages.length; start += n) {
+    const end = Math.min(doc.pages.length - 1, start + n - 1);
+    const indices = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+    const bytes = await extractPagesToPdfBytes(doc, indices);
+    const label =
+      start === end
+        ? `page-${start + 1}`
+        : `pages-${start + 1}-${end + 1}`;
+    parts.push({
+      name: `${(doc.name || "document").replace(/[^\w.-]+/g, "_")}-${label}.pdf`,
+      bytes,
+    });
+  }
+  return parts;
+}

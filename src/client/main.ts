@@ -4,6 +4,7 @@ import {
   type DocComment,
   type ExportSettings,
   type GuideLine,
+  type DocBookmark,
   type PdfDocument,
   type PdfElement,
   type PdfPage,
@@ -24,6 +25,7 @@ import {
   createImage,
   createSignature,
   createLine,
+  createMarkup,
   createRect,
   createText,
   defaultDoc,
@@ -54,12 +56,23 @@ import {
 import { apiFetch, getSessionId, storeGet, storeSet } from "./session.js";
 import {
   bytesToBase64,
+  clearPersistedImportedPdf,
   clearSessionImportedPdf,
   getSessionImportedPdfBytes,
   importPdfInBrowser,
+  persistSessionImportedPdf,
+  restoreSessionImportedPdf,
 } from "./pdfImport.js";
 import { docNeedsPdfReattach, reattachPdfSession } from "./pdfReattach.js";
-import { invalidatePdfPreviewCache, renderPdfPagePreview } from "./pdfPagePreview.js";
+import {
+  getCachedPdfPagePreview,
+  invalidatePdfPreviewCache,
+  prefetchPdfPagePreviews,
+  recommendedCanvasUnderlayScale,
+  recommendedThumbScale,
+  renderPdfPagePreview,
+  renderPdfThumbsProgressive,
+} from "./pdfPagePreview.js";
 import {
   buildPortableStudioFile,
   hydratePortableStudioFile,
@@ -100,6 +113,8 @@ import {
   extractPagesToPdfBytes,
   mergePdfFileIntoDoc,
   rotatePageInDoc,
+  splitDocToPdfParts,
+  syncSessionPdfToStudioPages,
 } from "./pdfPageUtils.js";
 import { exportPdfBytes } from "./clientExport.js";
 import { initHomePreview } from "./homePreview.js";
@@ -128,7 +143,17 @@ const EXPORT_KEY = "export";
 const AUTHOR_KEY = "author";
 const docKey = (id: string) => `doc:${id}`;
 
-type Tool = "select" | "text" | "rect" | "ellipse" | "line" | "place" | "comment";
+type Tool =
+  | "select"
+  | "text"
+  | "rect"
+  | "ellipse"
+  | "line"
+  | "place"
+  | "comment"
+  | "highlight"
+  | "underline"
+  | "strike";
 
 type DragState =
   | {
@@ -210,6 +235,7 @@ function normalizeDoc(doc: PdfDocument): PdfDocument {
     marginGuide: typeof doc.marginGuide === "number" ? doc.marginGuide : 40,
     guides: doc.guides || [],
     comments: doc.comments || [],
+    bookmarks: doc.bookmarks || [],
     customFonts: doc.customFonts || [],
     master: doc.master || { header: [], footer: [] },
     watermark: doc.watermark ?? null,
@@ -227,17 +253,17 @@ function normalizeDoc(doc: PdfDocument): PdfDocument {
     };
   }
 
-  // Ephemeral overlay imports live only in the open tab — drop stale refs after reload.
   // Editable imports keep mode metadata: text is already in elements, no underlay needed.
-  if (normalized.importedPdf?.ephemeral && !getSessionImportedPdfBytes()) {
-    if (normalized.importedPdf.mode === "editable") {
-      normalized.importedPdf = {
-        ...normalized.importedPdf,
-        ephemeral: false,
-      };
-    } else {
-      normalized.importedPdf = null;
-    }
+  // Overlay imports keep metadata so IndexedDB restore / re-attach can reconnect the PDF.
+  if (
+    normalized.importedPdf?.ephemeral &&
+    normalized.importedPdf.mode === "editable" &&
+    !getSessionImportedPdfBytes()
+  ) {
+    normalized.importedPdf = {
+      ...normalized.importedPdf,
+      ephemeral: false,
+    };
   }
 
   return normalized;
@@ -304,7 +330,7 @@ function pdfEditor() {
     marquee: null as { x: number; y: number; w: number; h: number } | null,
     showTemplates: false,
     showLibrary: true,
-    leftRail: "insert" as "insert" | "pages",
+    leftRail: "insert" as "insert" | "pages" | "bookmarks",
     isCompact: false,
     showLeftPanel: true,
     showInspectorPanel: true,
@@ -319,6 +345,11 @@ function pdfEditor() {
     showESign: false,
     showComments: false,
     showWatermarkModal: false,
+    bookmarkDraft: "",
+    batesPrefix: "",
+    batesStart: 1,
+    batesPad: 4,
+    pageCropDraft: { top: 0, right: 0, bottom: 0, left: 0 },
     mailMergeHeaders: [] as string[],
     mailMergeRows: [] as MailMergeRow[],
     mailMergePreview: null as MailMergeRow | null,
@@ -345,6 +376,12 @@ function pdfEditor() {
     formPreviewValues: {} as Record<string, string | boolean>,
     pdfUnderlaySrc: null as string | null,
     pageThumbUnderlays: {} as Record<number, string | null>,
+    pageJumpDraft: "1",
+    thumbsLoading: false,
+    _thumbGen: 0,
+    _underlayGen: 0,
+    canvasUnderlayScale: recommendedCanvasUnderlayScale(0.85),
+    thumbUnderlayScale: recommendedThumbScale(),
     pdfImportMode: "overlay" as "overlay" | "editable" | "reattach",
     commentPlacement: null as { x: number; y: number } | null,
     watermarkDraft: {
@@ -438,6 +475,23 @@ function pdfEditor() {
 
     hasSessionPdf() {
       return Boolean(getSessionImportedPdfBytes());
+    },
+
+    /** Overlay-import page with a PDF backdrop (even before hi-res underlay finishes). */
+    get pageHasPdfBackdrop(): boolean {
+      if (this.editingMaster) return false;
+      if (this.doc.importedPdf?.mode === "editable") return false;
+      const page = this.doc.pages[this.activePageIndex];
+      if (typeof page?.sourcePageIndex !== "number") return false;
+      return this.hasSessionPdf() || Boolean(this.pdfUnderlaySrc);
+    },
+
+    /** True when page references an imported PDF (backdrop present or waiting for re-attach). */
+    get pageExpectsPdfBackdrop(): boolean {
+      if (this.editingMaster) return false;
+      if (this.doc.importedPdf?.mode === "editable") return false;
+      const page = this.doc.pages[this.activePageIndex];
+      return typeof page?.sourcePageIndex === "number";
     },
 
     pdfNeedsReattach() {
@@ -581,6 +635,19 @@ function pdfEditor() {
       return { aspectRatio: `${width} / ${height}` };
     },
 
+    /** Skip per-element thumb HTML on large docs (Acrobat-style raster thumbs only). */
+    get thumbShowElements(): boolean {
+      const pages = this.doc.pages.length;
+      if (pages > 24) return false;
+      let els = 0;
+      for (const p of this.doc.pages) els += p.elements?.length || 0;
+      return els <= 180;
+    },
+
+    get pageLabel(): string {
+      return `${this.activePageIndex + 1} / ${this.doc.pages.length}`;
+    },
+
     get workingElements(): PdfElement[] {
       if (this.editingMaster) {
         if (!this.doc.master) this.doc.master = { header: [], footer: [] };
@@ -612,8 +679,10 @@ function pdfEditor() {
       return [...(this.doc.master?.header || []), ...(this.doc.master?.footer || [])];
     },
 
-    init() {
+    async init() {
       getSessionId();
+      this.canvasUnderlayScale = recommendedCanvasUnderlayScale(this.zoom || 0.85);
+      this.thumbUnderlayScale = recommendedThumbScale();
       const params = new URLSearchParams(window.location.search);
       const templateId = params.get("template");
       const fresh = params.get("new") === "1";
@@ -676,8 +745,7 @@ function pdfEditor() {
             void hydratePortableStudioFile(raw, {
               apiFetch: (url, init) => apiFetch(url, init),
               normalizeDoc,
-            }).then((doc) => {
-              clearSessionImportedPdf();
+            }).then(async (doc) => {
               this.doc = doc;
               this.activePageIndex = 0;
               this.selectedIds = [];
@@ -685,6 +753,9 @@ function pdfEditor() {
               this.syncHistoryFlags();
               this.syncDocumentFonts();
               this.commit(false);
+              await this.persistImportedPdfForDoc();
+              await this.refreshPdfUnderlay();
+              void this.refreshPageThumbUnderlays();
               this.showToast(`Opened shared “${rec.name}”`);
             });
           } catch {
@@ -703,7 +774,9 @@ function pdfEditor() {
         const saved = storeGet(docKey(openId));
         if (saved) {
           try {
-            this.doc = normalizeDoc(JSON.parse(saved) as PdfDocument);
+            const raw = JSON.parse(saved) as PdfDocument;
+            await this.restoreImportedPdfIfNeeded(raw);
+            this.doc = normalizeDoc(raw);
             queueMicrotask(() => this.showToast("Document restored"));
           } catch {
             this.doc = normalizeDoc(defaultDoc());
@@ -713,7 +786,9 @@ function pdfEditor() {
         const saved = storeGet(STORAGE_KEY);
         if (saved) {
           try {
-            this.doc = normalizeDoc(JSON.parse(saved) as PdfDocument);
+            const raw = JSON.parse(saved) as PdfDocument;
+            await this.restoreImportedPdfIfNeeded(raw);
+            this.doc = normalizeDoc(raw);
             queueMicrotask(() => this.showToast("Document restored"));
           } catch {
             this.doc = normalizeDoc(defaultDoc());
@@ -771,14 +846,34 @@ function pdfEditor() {
       (this as unknown as { $watch: (key: string, cb: () => void) => void }).$watch(
         "activePageIndex",
         () => {
+          this.pageJumpDraft = String(this.activePageIndex + 1);
           void this.refreshPdfUnderlay();
+          void this.ensureActiveThumb();
+          this.scrollActiveThumbIntoView();
         },
       );
+      // Persist any in-memory PDF (current tab) so the next refresh keeps it
+      await this.persistImportedPdfForDoc();
+      this.loadPageCropDraft();
       void this.refreshPdfUnderlay();
       void this.refreshPageThumbUnderlays();
     },
 
+    async restoreImportedPdfIfNeeded(doc: PdfDocument) {
+      if (!doc?.id) return false;
+      if (getSessionImportedPdfBytes()) return true;
+      if (!docNeedsPdfReattach(doc.pages)) return false;
+      return restoreSessionImportedPdf(doc.id);
+    },
+
+    async persistImportedPdfForDoc() {
+      const bytes = getSessionImportedPdfBytes();
+      if (!bytes || !this.doc?.id) return;
+      await persistSessionImportedPdf(this.doc.id);
+    },
+
     async refreshPdfUnderlay() {
+      const gen = ++this._underlayGen;
       if (this.doc.importedPdf?.mode === "editable") {
         this.pdfUnderlaySrc = null;
         return;
@@ -789,26 +884,144 @@ function pdfEditor() {
         this.pdfUnderlaySrc = null;
         return;
       }
-      this.pdfUnderlaySrc = await renderPdfPagePreview(bytes, page.sourcePageIndex, 1.5);
+      const sourceIdx = page.sourcePageIndex;
+      this.canvasUnderlayScale = recommendedCanvasUnderlayScale(this.zoom || 0.85);
+      const scale = this.canvasUnderlayScale;
+
+      // Instant paint: hi-res cache, else thumb placeholder (avoid showing previous page)
+      const cached = getCachedPdfPagePreview(bytes, sourceIdx, scale, "canvas");
+      if (cached) {
+        this.pdfUnderlaySrc = cached;
+      } else {
+        const thumb = this.pageThumbUnderlays[this.activePageIndex];
+        this.pdfUnderlaySrc = thumb || null;
+      }
+
+      const url = await renderPdfPagePreview(bytes, sourceIdx, scale, "canvas");
+      if (gen !== this._underlayGen) return;
+      if (url) this.pdfUnderlaySrc = url;
+
+      // Warm neighbors for snappy next/prev
+      const neighbors: number[] = [];
+      for (const delta of [-1, 1, 2, -2]) {
+        const i = this.activePageIndex + delta;
+        const p = this.doc.pages[i];
+        if (typeof p?.sourcePageIndex === "number") neighbors.push(p.sourcePageIndex);
+      }
+      prefetchPdfPagePreviews(bytes, neighbors, scale);
+    },
+
+    async ensureActiveThumb() {
+      if (this.doc.importedPdf?.mode === "editable") return;
+      const bytes = getSessionImportedPdfBytes();
+      const page = this.doc.pages[this.activePageIndex];
+      if (!bytes || typeof page?.sourcePageIndex !== "number") return;
+      if (this.pageThumbUnderlays[this.activePageIndex]) return;
+      const thumbScale = this.thumbUnderlayScale || recommendedThumbScale();
+      const url = await renderPdfPagePreview(bytes, page.sourcePageIndex, thumbScale, "thumb");
+      if (!url) return;
+      // Still on this page / same doc generation
+      if (this.doc.pages[this.activePageIndex]?.sourcePageIndex !== page.sourcePageIndex) return;
+      this.pageThumbUnderlays = {
+        ...this.pageThumbUnderlays,
+        [this.activePageIndex]: url,
+      };
     },
 
     async refreshPageThumbUnderlays() {
+      const gen = ++this._thumbGen;
       if (this.doc.importedPdf?.mode === "editable") {
         this.pageThumbUnderlays = {};
+        this.thumbsLoading = false;
         return;
       }
       const bytes = getSessionImportedPdfBytes();
-      const next: Record<number, string | null> = {};
-      await Promise.all(
-        this.doc.pages.map(async (page, index) => {
-          if (!bytes || typeof page.sourcePageIndex !== "number") {
-            next[index] = null;
+      if (!bytes) {
+        this.pageThumbUnderlays = {};
+        this.thumbsLoading = false;
+        return;
+      }
+
+      const studioIndices: number[] = [];
+      this.doc.pages.forEach((page: PdfPage, index: number) => {
+        if (typeof page.sourcePageIndex === "number") studioIndices.push(index);
+      });
+      if (!studioIndices.length) {
+        this.pageThumbUnderlays = {};
+        this.thumbsLoading = false;
+        return;
+      }
+
+      this.thumbsLoading = true;
+      // Drop stale soft thumbs so new high-DPI PNG scale always wins
+      this.pageThumbUnderlays = {};
+      this.thumbUnderlayScale = recommendedThumbScale();
+      const thumbScale = this.thumbUnderlayScale;
+      // Prioritize active page + neighbors first (Acrobat-like responsiveness)
+      const active = this.activePageIndex;
+      const order = [...studioIndices].sort(
+        (a, b) => Math.abs(a - active) - Math.abs(b - active),
+      );
+      const sourceOrder = order.map(
+        (studioIdx) => this.doc.pages[studioIdx].sourcePageIndex as number,
+      );
+
+      const signal = { cancelled: false };
+      await renderPdfThumbsProgressive(
+        bytes,
+        sourceOrder,
+        thumbScale,
+        (sourcePageIndex, dataUrl) => {
+          if (gen !== this._thumbGen) {
+            signal.cancelled = true;
             return;
           }
-          next[index] = await renderPdfPagePreview(bytes, page.sourcePageIndex, 0.35);
-        }),
+          const next = { ...this.pageThumbUnderlays };
+          order.forEach((studioIndex) => {
+            if (this.doc.pages[studioIndex].sourcePageIndex === sourcePageIndex) {
+              next[studioIndex] = dataUrl;
+            }
+          });
+          this.pageThumbUnderlays = next;
+        },
+        { chunkSize: studioIndices.length > 40 ? 2 : 4, signal },
       );
-      this.pageThumbUnderlays = next;
+
+      if (gen === this._thumbGen) this.thumbsLoading = false;
+    },
+
+    scrollActiveThumbIntoView() {
+      queueMicrotask(() => {
+        const el = document.querySelector(
+          `[data-page-thumb="${this.activePageIndex}"]`,
+        ) as HTMLElement | null;
+        el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+    },
+
+    goToPage(index: number) {
+      if (!this.doc.pages.length) return;
+      const next = Math.max(0, Math.min(this.doc.pages.length - 1, Math.floor(index)));
+      if (next === this.activePageIndex) return;
+      this.setActivePage(next);
+    },
+
+    prevPage() {
+      this.goToPage(this.activePageIndex - 1);
+    },
+
+    nextPage() {
+      this.goToPage(this.activePageIndex + 1);
+    },
+
+    jumpToPageDraft() {
+      const n = Number.parseInt(String(this.pageJumpDraft), 10);
+      if (!Number.isFinite(n)) {
+        this.pageJumpDraft = String(this.activePageIndex + 1);
+        return;
+      }
+      this.goToPage(n - 1);
+      this.pageJumpDraft = String(this.activePageIndex + 1);
     },
 
     bindLayoutMedia() {
@@ -956,12 +1169,15 @@ function pdfEditor() {
       storeSet(DOCS_INDEX_KEY, JSON.stringify(this.docLibrary));
     },
 
-    openDocFromLibrary(id: string) {
+    async openDocFromLibrary(id: string) {
       const raw = storeGet(docKey(id));
       if (!raw) return;
       try {
         clearSessionImportedPdf();
-        this.doc = normalizeDoc(JSON.parse(raw) as PdfDocument);
+        invalidatePdfPreviewCache();
+        const parsed = JSON.parse(raw) as PdfDocument;
+        await this.restoreImportedPdfIfNeeded(parsed);
+        this.doc = normalizeDoc(parsed);
         this.activePageIndex = 0;
         this.selectedIds = [];
         history.reset(this.doc);
@@ -969,6 +1185,8 @@ function pdfEditor() {
         this.showDocLibrary = false;
         this.syncDocumentFonts();
         storeSet(STORAGE_KEY, JSON.stringify(this.doc));
+        await this.refreshPdfUnderlay();
+        void this.refreshPageThumbUnderlays();
       } catch {
         this.showToast("Could not open document.", 4000);
       }
@@ -1037,6 +1255,7 @@ function pdfEditor() {
         this.syncHistoryFlags();
         this.syncDocumentFonts();
         this.commit(false);
+        await this.persistImportedPdfForDoc();
         await this.refreshPdfUnderlay();
         await this.refreshPageThumbUnderlays();
         this.showToast("Document imported");
@@ -1071,7 +1290,12 @@ function pdfEditor() {
 
     newDocument() {
       if (!confirm("Start a blank document? Unsaved changes stay in browser history only.")) return;
+      const prevId = this.doc?.id;
       clearSessionImportedPdf();
+      void clearPersistedImportedPdf(prevId);
+      invalidatePdfPreviewCache();
+      this.pdfUnderlaySrc = null;
+      this.pageThumbUnderlays = {};
       this.doc = normalizeDoc(defaultDoc());
       this.activePageIndex = 0;
       this.selectedIds = [];
@@ -1081,7 +1305,12 @@ function pdfEditor() {
     },
 
     applyTemplate(id: string) {
+      const prevId = this.doc?.id;
       clearSessionImportedPdf();
+      void clearPersistedImportedPdf(prevId);
+      invalidatePdfPreviewCache();
+      this.pdfUnderlaySrc = null;
+      this.pageThumbUnderlays = {};
       this.doc = normalizeDoc(buildTemplate(id));
       this.activePageIndex = 0;
       this.selectedIds = [];
@@ -1363,9 +1592,12 @@ function pdfEditor() {
     },
 
     setActivePage(index: number) {
+      if (index < 0 || index >= this.doc.pages.length) return;
       this.activePageIndex = index;
+      this.pageJumpDraft = String(index + 1);
       this.selectedIds = [];
       this.editingTextId = null;
+      this.scrollActiveThumbIntoView();
     },
 
     addPage() {
@@ -1396,9 +1628,13 @@ function pdfEditor() {
       this.commit();
     },
 
-    rotateActivePage(delta: 90 | -90 | 180 = 90) {
+    async rotateActivePage(delta: 90 | -90 | 180 = 90) {
       this.doc = rotatePageInDoc(this.doc, this.activePageIndex, delta);
+      this.doc = await syncSessionPdfToStudioPages(this.doc);
       this.commit();
+      await this.persistImportedPdfForDoc();
+      await this.refreshPdfUnderlay();
+      void this.refreshPageThumbUnderlays();
     },
 
     async mergePdfSelected(event: Event) {
@@ -1430,6 +1666,7 @@ function pdfEditor() {
         history.reset(this.doc);
         this.syncHistoryFlags();
         this.commit(false);
+        await this.persistImportedPdfForDoc();
         await this.refreshPdfUnderlay();
         await this.refreshPageThumbUnderlays();
         this.showToast(`Merged pages ${fromIndex + 1}–${toIndex + 1} from “${file.name}”`);
@@ -1498,20 +1735,206 @@ function pdfEditor() {
       }
     },
 
-    movePage(index: number, dir: -1 | 1) {
+    async movePage(index: number, dir: -1 | 1) {
       const next = index + dir;
       if (next < 0 || next >= this.doc.pages.length) return;
       const pages = this.doc.pages;
       [pages[index], pages[next]] = [pages[next], pages[index]];
       this.activePageIndex = next;
+      // Keep bookmark page indices in sync with reordered pages
+      if (this.doc.bookmarks?.length) {
+        this.doc.bookmarks = this.doc.bookmarks.map((b) => {
+          if (b.pageIndex === index) return { ...b, pageIndex: next };
+          if (b.pageIndex === next) return { ...b, pageIndex: index };
+          return b;
+        });
+      }
+      this.doc = await syncSessionPdfToStudioPages(this.doc);
       this.commit();
+      await this.persistImportedPdfForDoc();
+      await this.refreshPdfUnderlay();
+      void this.refreshPageThumbUnderlays();
     },
 
-    removePage(index: number) {
+    async removePage(index: number) {
       if (this.doc.pages.length <= 1) return;
       this.doc.pages.splice(index, 1);
       this.activePageIndex = Math.min(this.activePageIndex, this.doc.pages.length - 1);
       this.selectedIds = [];
+      if (this.doc.bookmarks?.length) {
+        this.doc.bookmarks = this.doc.bookmarks
+          .filter((b) => b.pageIndex !== index)
+          .map((b) => (b.pageIndex > index ? { ...b, pageIndex: b.pageIndex - 1 } : b));
+      }
+      this.doc = await syncSessionPdfToStudioPages(this.doc);
+      this.commit();
+      await this.persistImportedPdfForDoc();
+      await this.refreshPdfUnderlay();
+      void this.refreshPageThumbUnderlays();
+    },
+
+    async splitPdfDocument() {
+      const raw = prompt(
+        `Split into files of N pages each (1 = one PDF per page). Document has ${this.doc.pages.length} pages.`,
+        "1",
+      );
+      if (!raw) return;
+      const n = Number.parseInt(raw, 10);
+      if (!Number.isFinite(n) || n < 1) {
+        this.showToast("Enter a positive number", 3000);
+        return;
+      }
+      try {
+        this.showToast("Splitting…", 1800);
+        const parts = await splitDocToPdfParts(this.doc, n);
+        if (parts.length === 1) {
+          const blob = new Blob(
+            [parts[0].bytes.buffer.slice(parts[0].bytes.byteOffset, parts[0].bytes.byteOffset + parts[0].bytes.byteLength) as ArrayBuffer],
+            { type: "application/pdf" },
+          );
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = parts[0].name;
+          a.click();
+          URL.revokeObjectURL(url);
+        } else {
+          const zip = new JSZip();
+          for (const part of parts) {
+            zip.file(part.name, part.bytes);
+          }
+          const blob = await zip.generateAsync({ type: "blob" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${(this.doc.name || "document").replace(/[^\w.-]+/g, "_")}-split.zip`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+        this.showToast(`Split into ${parts.length} file(s)`);
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Split failed", 4000);
+      }
+    },
+
+    addBookmarkForActivePage() {
+      const title =
+        (this.bookmarkDraft || "").trim() ||
+        prompt("Bookmark title", `Page ${this.activePageIndex + 1}`) ||
+        "";
+      if (!title.trim()) return;
+      const entry: DocBookmark = {
+        id: uid(),
+        title: title.trim(),
+        pageIndex: this.activePageIndex,
+        level: 0,
+      };
+      this.doc.bookmarks = [...(this.doc.bookmarks || []), entry];
+      this.bookmarkDraft = "";
+      this.commit();
+      this.showToast("Bookmark added");
+    },
+
+    removeBookmark(id: string) {
+      this.doc.bookmarks = (this.doc.bookmarks || []).filter((b) => b.id !== id);
+      this.commit();
+    },
+
+    goToBookmark(b: DocBookmark) {
+      this.goToPage(b.pageIndex);
+      this.leftRail = "bookmarks";
+    },
+
+    autoBookmarksFromPages() {
+      this.doc.bookmarks = this.doc.pages.map((p, i) => ({
+        id: uid(),
+        title: `Page ${i + 1}`,
+        pageIndex: i,
+        level: 0,
+      }));
+      this.commit();
+      this.showToast(`Created ${this.doc.bookmarks.length} bookmarks`);
+    },
+
+    applyBatesNumbering() {
+      const prefix = prompt("Bates prefix (optional)", this.batesPrefix || "") ?? "";
+      if (prefix === null) return;
+      const startRaw = prompt("Starting number", String(this.batesStart || 1));
+      if (startRaw === null) return;
+      const start = Number.parseInt(startRaw, 10);
+      if (!Number.isFinite(start) || start < 0) {
+        this.showToast("Invalid start number", 3000);
+        return;
+      }
+      const pad = Math.max(2, Math.min(8, this.batesPad || 4));
+      this.batesPrefix = prefix;
+      this.batesStart = start;
+      if (!this.doc.master) this.doc.master = { header: [], footer: [] };
+      const token = prefix
+        ? `{{bates|${prefix}${String(0).padStart(pad, "0")}}}`
+        : `{{bates|${String(0).padStart(pad, "0")}}}`;
+      this.mailMergeSeqStart = start;
+      const existing = this.doc.master.footer.find(
+        (el) => el.type === "text" && (el as TextElement).content.includes("{{bates"),
+      ) as TextElement | undefined;
+      if (existing) {
+        existing.content = token;
+        existing.fontSize = 9;
+        existing.align = "center";
+      } else {
+        const { width, height } = this.pageSize;
+        this.doc.master.footer.push(
+          createText(width / 2 - 80, height - 28, {
+            content: token,
+            fontSize: 9,
+            width: 160,
+            height: 16,
+            align: "center",
+            color: "#544d45",
+          }),
+        );
+      }
+      this.doc.pages.forEach((page, i) => {
+        page.applyMaster = true;
+        page.mergeFields = { ...(page.mergeFields || {}), seq: String(start + i) };
+      });
+      this.commit();
+      this.showToast("Bates numbering applied to master footer");
+    },
+
+    loadPageCropDraft() {
+      const c = this.activePage?.cropBox;
+      this.pageCropDraft = {
+        top: c?.top ?? 0,
+        right: c?.right ?? 0,
+        bottom: c?.bottom ?? 0,
+        left: c?.left ?? 0,
+      };
+    },
+
+    applyPageCrop() {
+      const page = this.activePage;
+      if (!page) return;
+      const clamp = (n: number) => Math.min(40, Math.max(0, Number(n) || 0));
+      const crop = {
+        top: clamp(this.pageCropDraft.top),
+        right: clamp(this.pageCropDraft.right),
+        bottom: clamp(this.pageCropDraft.bottom),
+        left: clamp(this.pageCropDraft.left),
+      };
+      if (crop.top + crop.right + crop.bottom + crop.left <= 0) {
+        delete page.cropBox;
+      } else {
+        page.cropBox = crop;
+      }
+      this.commit();
+      this.showToast("Page crop updated (applied on export)");
+    },
+
+    clearPageCrop() {
+      if (!this.activePage) return;
+      delete this.activePage.cropBox;
+      this.pageCropDraft = { top: 0, right: 0, bottom: 0, left: 0 };
       this.commit();
     },
 
@@ -1659,6 +2082,9 @@ function pdfEditor() {
         el = createText(sx, sy, { fontFamily: this.brand.defaultFont || "Helvetica" });
       else if (this.tool === "rect") el = createRect(sx, sy);
       else if (this.tool === "ellipse") el = createEllipse(sx, sy);
+      else if (this.tool === "highlight") el = createMarkup("highlight", sx, sy);
+      else if (this.tool === "underline") el = createMarkup("underline", sx, sy);
+      else if (this.tool === "strike") el = createMarkup("strike", sx, sy);
       else el = createLine(sx, sy);
 
       this.pushElement(el);
@@ -2015,11 +2441,15 @@ function pdfEditor() {
     shapeStyle(el: RectElement | EllipseElement) {
       const radius =
         el.type === "ellipse" ? "50%" : `${((el as RectElement).cornerRadius || 0) * this.zoom}px`;
+      const rect = el.type === "rect" ? (el as RectElement) : null;
+      const mix =
+        rect?.markup === "highlight" ? "multiply" : undefined;
       return {
         backgroundColor: el.fill,
         border: el.strokeWidth > 0 ? `${el.strokeWidth * this.zoom}px solid ${el.stroke}` : "none",
         boxSizing: "border-box" as const,
         borderRadius: radius,
+        mixBlendMode: mix as "multiply" | undefined,
       };
     },
 
@@ -2934,18 +3364,23 @@ function pdfEditor() {
         });
         this.doc = normalizeDoc(document);
         this.activePageIndex = 0;
+        this.pageJumpDraft = "1";
         this.selectedIds = [];
+        this.leftRail = "pages";
+        this.showLeftPanel = true;
         history.reset(this.doc);
         this.syncHistoryFlags();
         this.commit(false);
+        await this.persistImportedPdfForDoc();
         await this.refreshPdfUnderlay();
-        await this.refreshPageThumbUnderlays();
+        // Progressive thumbs — do not block the UI on large PDFs
+        void this.refreshPageThumbUnderlays();
         const textCount = document.pages.reduce((n, p) => n + p.elements.length, 0);
         this.showToast(
           importMode === "editable"
-            ? `PDF imported as editable (${textCount} element${textCount === 1 ? "" : "s"})`
-            : "PDF imported — overlays stay in this tab until export",
-          3200,
+            ? `PDF imported as editable (${textCount} element${textCount === 1 ? "" : "s"}) · use Pages panel or bottom bar`
+            : `PDF imported (${document.pages.length} pages) · switch pages in the Pages panel or bottom bar`,
+          3600,
         );
       } catch (err) {
         clearSessionImportedPdf();
@@ -2980,6 +3415,7 @@ function pdfEditor() {
           };
           invalidatePdfPreviewCache();
           this.commit(false);
+          await this.persistImportedPdfForDoc();
           await this.refreshPdfUnderlay();
           await this.refreshPageThumbUnderlays();
           this.showToast("PDF re-attached — underlay restored");
@@ -3144,13 +3580,43 @@ function pdfEditor() {
         return;
       }
 
+      // Acrobat-like page navigation (always available)
+      if (event.key === "PageDown" || (event.key === "ArrowDown" && event.altKey)) {
+        event.preventDefault();
+        this.nextPage();
+        return;
+      }
+      if (event.key === "PageUp" || (event.key === "ArrowUp" && event.altKey)) {
+        event.preventDefault();
+        this.prevPage();
+        return;
+      }
+      if (event.key === "Home" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        this.goToPage(0);
+        return;
+      }
+      if (event.key === "End" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        this.goToPage(this.doc.pages.length - 1);
+        return;
+      }
+
       if (event.key === "ArrowLeft") {
         event.preventDefault();
+        if (!this.selectedIds.length) {
+          this.prevPage();
+          return;
+        }
         this.nudge(-1, 0, event.shiftKey);
         return;
       }
       if (event.key === "ArrowRight") {
         event.preventDefault();
+        if (!this.selectedIds.length) {
+          this.nextPage();
+          return;
+        }
         this.nudge(1, 0, event.shiftKey);
         return;
       }
@@ -3171,9 +3637,16 @@ function pdfEditor() {
         r: "rect",
         o: "ellipse",
         l: "line",
+        h: "highlight",
+        u: "underline",
+        k: "strike",
       };
       const tool = map[event.key.toLowerCase()];
-      if (tool) this.tool = tool;
+      if (tool) {
+        this.tool = tool;
+        this.pendingLibraryKind = null;
+        this.placeHint = false;
+      }
     },
 
     async onImageSelected(event: Event) {
@@ -3452,7 +3925,7 @@ function pdfEditor() {
         !this.doc.importedPdf.url
       ) {
         throw new Error(
-          "The imported PDF is only kept while this window is open. Please import the PDF again, then export.",
+          "Imported PDF bytes are missing. Re-import the PDF (or use Re-attach PDF), then export.",
         );
       }
       return {
@@ -3463,6 +3936,7 @@ function pdfEditor() {
         master: this.doc.master,
         watermark: this.doc.watermark,
         comments: this.doc.comments || [],
+        bookmarks: this.doc.bookmarks || [],
         importedPdf: this.doc.importedPdf,
         importedPdfData:
           !editableImport && sessionBytes ? bytesToBase64(sessionBytes) : undefined,
