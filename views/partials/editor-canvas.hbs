@@ -50,7 +50,11 @@
     data-tour="canvas"
     :style="viewportStyle"
     @mousedown="onViewportMouseDown($event)"
+    @dragover.prevent="canvasPdfDragOver = true"
+    @dragleave.prevent="canvasPdfDragOver = false"
+    @drop.prevent="onCanvasPdfDrop($event)"
   >
+    <div x-show="canvasPdfDragOver" x-cloak class="canvas-drop-hint">Drop PDF to import</div>
     <div x-show="showRulers && !isCompact" class="ruler-h absolute left-8 top-0 z-10 right-0" @mousedown="addGuideFromRuler('y', $event)" title="Drag for horizontal guide"></div>
     <div x-show="showRulers && !isCompact" class="ruler-v absolute left-0 top-8 z-10 bottom-0" @mousedown="addGuideFromRuler('x', $event)" title="Drag for vertical guide"></div>
 
@@ -157,8 +161,14 @@
                   x-html="renderMarkdownHtml(el.content)"
                 ></div>
                 <div
+                  class="md-block rich-block h-full w-full overflow-hidden break-words"
+                  x-show="el.rich && !el.markdown"
+                  :style="textInnerStyle(el)"
+                  x-html="renderRichHtml(el.content)"
+                ></div>
+                <div
                   class="h-full w-full whitespace-pre-wrap break-words"
-                  x-show="!el.markdown"
+                  x-show="!el.markdown && !el.rich"
                   :style="textInnerStyle(el)"
                   x-text="previewText(el.content)"
                 ></div>
@@ -185,19 +195,32 @@
                   x-html="renderMarkdownHtml(el.content)"
                 ></div>
                 <div
-                  x-show="editingTextId !== el.id && !el.markdown"
+                  x-show="editingTextId !== el.id && el.rich && !el.markdown"
+                  class="md-block rich-block h-full w-full overflow-hidden break-words"
+                  :style="textInnerStyle(el)"
+                  x-html="renderRichHtml(el.content)"
+                ></div>
+                <div
+                  x-show="editingTextId !== el.id && !el.markdown && !el.rich"
                   class="h-full w-full whitespace-pre-wrap break-words"
                   :style="textInnerStyle(el)"
                   x-text="displayTextContent(el)"
                 ></div>
                 <div
-                  x-show="editingTextId === el.id"
+                  x-show="editingTextId === el.id && !el.rich"
                   class="h-full w-full whitespace-pre-wrap break-words outline-none"
                   contenteditable="true"
                   :data-edit-id="el.id"
                   :style="textInnerStyle(el)"
                   @blur="finishTextEdit($event, el)"
                   @keydown.escape.stop="$event.target.blur()"
+                ></div>
+                <div
+                  x-show="editingTextId === el.id && el.rich"
+                  class="md-block rich-block tiptap-host h-full w-full overflow-auto outline-none"
+                  :data-edit-id="el.id"
+                  :style="textInnerStyle(el)"
+                  @keydown.escape.stop="finishRichTextEdit(el)"
                 ></div>
               </div>
             </template>
@@ -493,11 +516,14 @@
             <button type="button" class="dock-btn" aria-label="Sign PDF" @click="openSignatureModal()" title="Sign PDF">
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M4 20l4.5-1L19 8.5a2.5 2.5 0 00-3.5-3.5L5 15.5 4 20z" /></svg>
             </button>
+            <button type="button" class="dock-btn" :aria-pressed="tool === 'comment'" aria-label="Comment" @click="tool = 'comment'; placeHint = true" title="Comment">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8M8 14h5M21 12a9 9 0 11-3.2-6.8L21 5v7z" /></svg>
+            </button>
           </div>
 
-          <span class="dock-sep" x-show="doc.pages.length > 1"></span>
+          <span class="dock-sep"></span>
 
-          <div class="dock-page-nav" role="navigation" aria-label="Page" x-show="doc.pages.length > 1">
+          <div class="dock-page-nav" role="navigation" aria-label="Page">
             <button type="button" class="dock-btn" @click="prevPage()" :disabled="activePageIndex <= 0" title="Previous page" aria-label="Previous page">
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
             </button>

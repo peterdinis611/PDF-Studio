@@ -100,13 +100,36 @@
           <p class="inspector-section">Typography</p>
           <div>
             <label class="panel-label">Content</label>
-            <textarea class="panel-input min-h-[5rem] resize-y" x-model="selected.content" @change="persist()"></textarea>
+            <textarea
+              class="panel-input min-h-[5rem] resize-y"
+              x-show="!selected.rich"
+              x-model="selected.content"
+              @change="persist()"
+            ></textarea>
+            <p class="mt-1 text-[10px] text-slate-muted" x-show="selected.rich">
+              Double-click the block to edit with TipTap. Use headings below.
+            </p>
+            <div class="mt-2 flex flex-wrap gap-1" x-show="selected.rich">
+              <button type="button" class="btn-ghost text-xs font-semibold" title="Heading 1" @mousedown.prevent @click="richToggleHeading(1)">H1</button>
+              <button type="button" class="btn-ghost text-xs font-semibold" title="Heading 2" @mousedown.prevent @click="richToggleHeading(2)">H2</button>
+              <button type="button" class="btn-ghost text-xs font-semibold" title="Heading 3" @mousedown.prevent @click="richToggleHeading(3)">H3</button>
+              <button type="button" class="btn-ghost text-xs" title="Paragraph" @mousedown.prevent @click="richSetParagraph()">P</button>
+              <button type="button" class="btn-ghost text-xs font-bold" title="Bold" @mousedown.prevent @click="richToggleBold()">B</button>
+              <button type="button" class="btn-ghost text-xs italic" title="Italic" @mousedown.prevent @click="richToggleItalic()">I</button>
+              <button type="button" class="btn-ghost text-xs" title="Bullet list" @mousedown.prevent @click="richToggleBulletList()">• List</button>
+              <button type="button" class="btn-ghost text-xs" title="Numbered list" @mousedown.prevent @click="richToggleOrderedList()">1. List</button>
+            </div>
             <label class="mt-2 flex items-center gap-2 text-sm text-slate-muted">
+              <input type="checkbox" class="accent-accent" :checked="!!selected.rich" @change="toggleRich($event.target.checked)" />
+              Rich text
+              <span class="text-[10px] opacity-70">(TipTap)</span>
+            </label>
+            <label class="mt-1.5 flex items-center gap-2 text-sm text-slate-muted">
               <input type="checkbox" class="accent-accent" :checked="!!selected.markdown" @change="toggleMarkdown($event.target.checked)" />
               Markdown
               <span class="text-[10px] opacity-70">(TanStack)</span>
             </label>
-            <div class="mt-1.5 flex flex-wrap gap-1.5">
+            <div class="mt-1.5 flex flex-wrap gap-1.5" x-show="!selected.rich">
               <button type="button" class="btn-ghost text-xs" @click="fillLoremIpsum('short')" title="Short sentence">Lorem · short</button>
               <button type="button" class="btn-ghost text-xs" @click="fillLoremIpsum('medium')" title="One paragraph">Lorem · para</button>
               <button type="button" class="btn-ghost text-xs" @click="fillLoremIpsum('long')" title="Two paragraphs">Lorem · long</button>

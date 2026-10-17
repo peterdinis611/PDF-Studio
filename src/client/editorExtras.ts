@@ -156,9 +156,20 @@ export const SHORTCUT_GROUPS: { title: string; items: { keys: string; action: st
     items: [
       { keys: "⌘S", action: "Save now" },
       { keys: "⌘E", action: "Export" },
+      { keys: "⌘I", action: "Import PDF" },
       { keys: "⌘F", action: "Find & replace" },
       { keys: "Esc", action: "Clear / exit modes" },
       { keys: "Space+drag", action: "Pan canvas" },
+      { keys: "PageUp / PageDown", action: "Previous / next page" },
+    ],
+  },
+  {
+    title: "View",
+    items: [
+      { keys: "⌘0", action: "Fit page" },
+      { keys: "⌘1", action: "Actual size (100%)" },
+      { keys: "⌘+ / ⌘−", action: "Zoom in / out" },
+      { keys: "⌘ scroll", action: "Zoom toward cursor" },
     ],
   },
 ];

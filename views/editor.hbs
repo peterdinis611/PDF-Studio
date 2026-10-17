@@ -30,11 +30,38 @@
 
   <footer class="status-bar">
     <div class="flex min-w-0 items-center gap-1.5 overflow-hidden sm:gap-2">
-      <span
-        class="status-chip shrink-0"
-        x-show="doc.pages.length === 1"
-        x-text="'Page 1'"
-      ></span>
+      <div class="status-page-nav shrink-0" role="navigation" aria-label="Page">
+        <button
+          type="button"
+          class="status-page-btn"
+          @click="prevPage()"
+          :disabled="activePageIndex <= 0"
+          title="Previous page (Page Up)"
+          aria-label="Previous page"
+        >‹</button>
+        <button
+          type="button"
+          class="status-chip status-page-label"
+          @click="leftRail = 'pages'; showLeftPanel = true; if (isCompact) showInspectorPanel = false"
+          :title="'Open pages · ' + pageLabel"
+          x-text="'Page ' + pageLabel"
+        ></button>
+        <button
+          type="button"
+          class="status-page-btn"
+          @click="nextPage()"
+          :disabled="activePageIndex >= doc.pages.length - 1"
+          title="Next page (Page Down)"
+          aria-label="Next page"
+        >›</button>
+        <button
+          type="button"
+          class="status-page-btn"
+          @click="addPage()"
+          title="Add page"
+          aria-label="Add page"
+        >+</button>
+      </div>
       <span
         class="status-chip accent hidden truncate sm:inline-flex"
         x-show="doc.importedPdf && hasSessionPdf()"
@@ -68,10 +95,11 @@
       <span><kbd>/</kbd> search</span>
       <button type="button" @click="showShortcuts = true"><kbd>?</kbd></button>
     </p>
-    <div class="flex shrink-0 items-center gap-0.5 sm:gap-1">
-      <button type="button" class="status-action" @click="fitWidth()" title="Fit width">Fit</button>
-      <button type="button" class="status-action hidden sm:inline" @click="fitPage()" title="Fit page">Page</button>
-      <span class="ml-0.5 font-mono text-[10px] tabular-nums text-slate-muted sm:ml-1" x-text="Math.round(zoom * 100) + '%'"></span>
+    <div class="zoom-cluster flex shrink-0 items-center" role="group" aria-label="Zoom">
+      <button type="button" class="zoom-btn" @click="zoomOut()" title="Zoom out (−)" aria-label="Zoom out">−</button>
+      <button type="button" class="zoom-label" @click="fitPage()" title="Fit page (⌘0)" x-text="Math.round(zoom * 100) + '%'"></button>
+      <button type="button" class="zoom-btn" @click="zoomIn()" title="Zoom in (+)" aria-label="Zoom in">+</button>
+      <button type="button" class="status-action hidden border-l border-slate-line px-1.5 sm:inline" @click="fitWidth()" title="Fit width">Width</button>
     </div>
   </footer>
 
@@ -81,7 +109,7 @@
     x-transition.opacity.duration.200ms
     role="status"
     aria-live="polite"
-    class="pointer-events-none fixed bottom-16 left-1/2 z-[80] -translate-x-1/2 rounded-full border border-slate-line bg-rail/95 px-4 py-2 text-xs font-medium text-fg shadow-lg backdrop-blur"
+    class="pointer-events-none fixed bottom-20 left-1/2 z-[80] max-w-[min(90vw,28rem)] -translate-x-1/2 rounded-full border border-slate-line bg-rail/95 px-4 py-2 text-center text-xs font-medium text-fg shadow-lg backdrop-blur sm:bottom-24"
     x-text="toast"
   ></div>
 

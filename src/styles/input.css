@@ -452,23 +452,130 @@
   }
 
   .zoom-cluster {
-    @apply overflow-hidden rounded-lg border border-slate-line;
+    @apply overflow-hidden rounded-md border border-slate-line;
   }
 
   .zoom-btn {
-    @apply px-2.5 py-1.5 text-sm text-slate-muted transition hover:bg-slate-hover hover:text-fg;
+    @apply px-2 py-1 text-xs text-slate-muted transition hover:bg-slate-hover hover:text-fg;
   }
 
   .zoom-label {
-    @apply min-w-[3rem] border-x border-slate-line px-1.5 py-1.5 text-center font-mono text-[11px] text-slate-muted transition hover:bg-slate-hover hover:text-fg;
+    @apply min-w-[2.75rem] border-x border-slate-line px-1.5 py-1 text-center font-mono text-[10px] tabular-nums text-slate-muted transition hover:bg-slate-hover hover:text-fg;
   }
 
   .menu-popover {
-    @apply z-[60] overflow-hidden rounded-xl border border-slate-line bg-rail shadow-page;
+    @apply z-[60] max-h-[min(70vh,32rem)] overflow-y-auto overflow-x-hidden rounded-xl border border-slate-line bg-rail shadow-page;
   }
 
   .menu-item {
     @apply flex w-full px-3 py-2 text-left text-sm text-fg transition hover:bg-slate-hover;
+  }
+
+  .menu-section {
+    @apply px-3 pb-1 pt-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-muted;
+  }
+
+  /* Page size picker — compact print-shop panel */
+  .page-size-trigger {
+    @apply inline-flex max-w-[8.5rem] items-center gap-1.5 rounded-lg border border-slate-line bg-slate-panel px-2 py-1.5 text-xs font-medium text-fg transition hover:border-slate-muted hover:bg-slate-hover;
+  }
+
+  .page-size-trigger[aria-expanded="true"] {
+    border-color: rgb(var(--color-accent) / 0.5);
+    box-shadow: 0 0 0 1px rgb(var(--color-accent) / 0.3);
+  }
+
+  .page-size-sil {
+    @apply shrink-0 rounded-[2px] border border-slate-muted/60 bg-paper/90 shadow-[inset_0_0_0_1px_rgb(var(--color-line)/0.35)];
+  }
+
+  .page-size-menu {
+    @apply absolute left-0 top-[calc(100%+0.4rem)] z-[70] flex w-[min(92vw,18.5rem)] flex-col overflow-hidden rounded-xl border border-slate-line bg-rail shadow-page;
+    background-image:
+      linear-gradient(180deg, rgb(var(--color-panel) / 0.55), transparent 2.75rem),
+      repeating-linear-gradient(
+        -12deg,
+        transparent,
+        transparent 11px,
+        rgb(var(--color-line) / 0.07) 11px,
+        rgb(var(--color-line) / 0.07) 12px
+      );
+    animation: page-size-in 0.18s ease-out;
+  }
+
+  @keyframes page-size-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .page-size-menu-head {
+    @apply space-y-2 border-b border-slate-line p-2.5;
+  }
+
+  .page-size-common {
+    @apply flex flex-wrap gap-1;
+  }
+
+  .page-size-chip {
+    @apply rounded-md border border-slate-line bg-slate-panel/80 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-slate-muted transition hover:border-accent/40 hover:text-fg;
+  }
+
+  .page-size-chip.is-active {
+    @apply border-accent text-accent-soft;
+    background: rgb(var(--color-accent) / 0.15);
+  }
+
+  .page-size-menu-body {
+    @apply max-h-[min(58vh,22rem)] overflow-y-auto overscroll-contain px-1 pb-2;
+  }
+
+  .page-size-group + .page-size-group {
+    @apply mt-0.5 border-t border-slate-line/60 pt-0.5;
+  }
+
+  .page-size-grid {
+    @apply grid grid-cols-4 gap-1 px-2 pb-1.5;
+  }
+
+  .page-size-cell {
+    @apply rounded-md border border-transparent py-1.5 text-center font-mono text-[11px] tabular-nums text-fg transition hover:border-slate-line hover:bg-slate-hover;
+  }
+
+  .page-size-cell.is-active {
+    @apply font-semibold text-accent-soft;
+    border-color: rgb(var(--color-accent) / 0.5);
+    background: rgb(var(--color-accent) / 0.12);
+  }
+
+  .page-size-list {
+    @apply flex flex-col gap-0.5 px-1.5 pb-1;
+  }
+
+  .page-size-row {
+    @apply flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-fg transition hover:bg-slate-hover;
+  }
+
+  .page-size-row.is-active {
+    @apply text-accent-soft;
+    background: rgb(var(--color-accent) / 0.1);
+  }
+
+  .page-size-row-sil {
+    @apply shrink-0 rounded-[1.5px] border border-slate-muted/50 bg-paper/80;
+  }
+
+  .page-size-row-meta {
+    @apply shrink-0 font-mono text-[9px] tabular-nums text-slate-muted;
+  }
+
+  .canvas-drop-hint {
+    @apply pointer-events-none absolute inset-4 z-40 flex items-center justify-center rounded-2xl border-2 border-dashed border-accent/50 bg-rail/70 text-sm font-medium text-accent-soft backdrop-blur-sm;
   }
 
   .settings-row {
@@ -492,6 +599,18 @@
 
   .status-chip.accent {
     @apply bg-accent/10 text-accent-soft;
+  }
+
+  .status-page-nav {
+    @apply inline-flex items-center overflow-hidden rounded-md border border-slate-line;
+  }
+
+  .status-page-btn {
+    @apply px-1.5 py-0.5 font-mono text-[11px] leading-none text-slate-muted transition hover:bg-slate-hover hover:text-fg disabled:pointer-events-none disabled:opacity-35;
+  }
+
+  .status-page-label {
+    @apply cursor-pointer border-x border-slate-line px-1.5 transition hover:bg-slate-hover hover:text-fg;
   }
 
   .status-action {
@@ -3013,65 +3132,108 @@
   background: rgb(10 12 18 / 0.7) !important;
 }
 
-/* TanStack Markdown preview on canvas */
-.md-block {
+/* TanStack Markdown + TipTap rich preview on canvas */
+.md-block,
+.rich-block {
   font-size: inherit;
   line-height: inherit;
   color: inherit;
   text-align: inherit;
 }
 
-.md-block > *:first-child {
+.tiptap-host .tiptap-editor,
+.tiptap-host .ProseMirror {
+  min-height: 100%;
+  outline: none;
+}
+
+.tiptap-host .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: rgb(var(--color-muted) / 0.55);
+  pointer-events: none;
+  height: 0;
+}
+
+.md-block > *:first-child,
+.rich-block > *:first-child,
+.tiptap-host .ProseMirror > *:first-child {
   margin-top: 0;
 }
 
-.md-block > *:last-child {
+.md-block > *:last-child,
+.rich-block > *:last-child,
+.tiptap-host .ProseMirror > *:last-child {
   margin-bottom: 0;
 }
 
 .md-block h1,
 .md-block h2,
 .md-block h3,
-.md-block h4 {
+.md-block h4,
+.rich-block h1,
+.rich-block h2,
+.rich-block h3,
+.tiptap-host .ProseMirror h1,
+.tiptap-host .ProseMirror h2,
+.tiptap-host .ProseMirror h3 {
   font-weight: 700;
   line-height: 1.25;
   margin: 0 0 0.4em;
 }
 
-.md-block h1 {
+.md-block h1,
+.rich-block h1,
+.tiptap-host .ProseMirror h1 {
   font-size: 1.55em;
 }
 
-.md-block h2 {
+.md-block h2,
+.rich-block h2,
+.tiptap-host .ProseMirror h2 {
   font-size: 1.3em;
 }
 
-.md-block h3 {
+.md-block h3,
+.rich-block h3,
+.tiptap-host .ProseMirror h3 {
   font-size: 1.15em;
 }
 
-.md-block p {
+.md-block p,
+.rich-block p,
+.tiptap-host .ProseMirror p {
   margin: 0 0 0.55em;
 }
 
 .md-block ul,
-.md-block ol {
+.md-block ol,
+.rich-block ul,
+.rich-block ol,
+.tiptap-host .ProseMirror ul,
+.tiptap-host .ProseMirror ol {
   margin: 0 0 0.55em;
   padding-left: 1.25em;
 }
 
-.md-block li {
+.md-block li,
+.rich-block li,
+.tiptap-host .ProseMirror li {
   margin: 0.15em 0;
 }
 
-.md-block blockquote {
+.md-block blockquote,
+.rich-block blockquote,
+.tiptap-host .ProseMirror blockquote {
   margin: 0 0 0.55em;
   padding-left: 0.75em;
   border-left: 3px solid rgb(var(--color-accent));
   opacity: 0.9;
 }
 
-.md-block code {
+.md-block code,
+.rich-block code,
+.tiptap-host .ProseMirror code {
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 0.9em;
   padding: 0.1em 0.3em;
@@ -3079,7 +3241,9 @@
   background: rgb(var(--color-line) / 0.45);
 }
 
-.md-block pre {
+.md-block pre,
+.rich-block pre,
+.tiptap-host .ProseMirror pre {
   margin: 0 0 0.55em;
   padding: 0.5em 0.65em;
   border-radius: 8px;
@@ -3087,25 +3251,32 @@
   background: rgb(var(--color-line) / 0.35);
 }
 
-.md-block pre code {
+.md-block pre code,
+.rich-block pre code {
   padding: 0;
   background: transparent;
 }
 
-.md-block a {
+.md-block a,
+.rich-block a {
   color: rgb(var(--color-accent-soft));
   text-decoration: underline;
 }
 
-.md-block strong {
+.md-block strong,
+.rich-block strong,
+.tiptap-host .ProseMirror strong {
   font-weight: 700;
 }
 
-.md-block em {
+.md-block em,
+.rich-block em,
+.tiptap-host .ProseMirror em {
   font-style: italic;
 }
 
-.md-block hr {
+.md-block hr,
+.rich-block hr {
   border: none;
   border-top: 1px solid rgb(var(--color-line));
   margin: 0.6em 0;

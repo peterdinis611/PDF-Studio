@@ -14,6 +14,7 @@ import {
   createRect,
   createStamp,
   createSticky,
+  createRichText,
   createTable,
   createText,
 } from "./factories.js";
@@ -92,9 +93,18 @@ export const LIBRARY_ITEMS: LibraryItem[] = [
     category: "basics",
     label: "Markdown",
     hint: "TanStack Markdown block",
-    tags: ["markdown", "md", "rich", "tanstack"],
+    tags: ["markdown", "md", "tanstack"],
     kind: "preset:markdown",
     preview: "MD",
+  },
+  {
+    id: "rich-text",
+    category: "basics",
+    label: "Rich text",
+    hint: "TipTap editor with H1–H3",
+    tags: ["rich", "tiptap", "heading", "h1", "h2", "h3", "wysiwyg", "html"],
+    kind: "preset:rich-text",
+    preview: "Tt",
   },
   {
     id: "image",
@@ -1376,6 +1386,8 @@ function createPreset(id: string, x: number, y: number): PdfElement {
         color: "#2b2721",
         lineHeight: 1.4,
       });
+    case "rich-text":
+      return createRichText(x, y);
     case "subhead":
       return createText(x, y, {
         content: "Subheading",

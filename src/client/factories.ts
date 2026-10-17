@@ -22,6 +22,7 @@ import type {
   TableElement,
   TextElement,
 } from "../shared/types.js";
+import { RICH_TEXT_SAMPLE, richHtmlToPlainText } from "../shared/richText.js";
 
 export function uid() {
   return crypto.randomUUID();
@@ -71,6 +72,25 @@ export function createText(
     align: "left",
     ...overrides,
   };
+}
+
+/** TipTap rich-text block (HTML content with H1–H3). */
+export function createRichText(
+  x: number,
+  y: number,
+  overrides: Partial<TextElement> = {},
+): TextElement {
+  return createText(x, y, {
+    content: RICH_TEXT_SAMPLE,
+    rich: true,
+    markdown: false,
+    fontSize: 12,
+    width: 360,
+    height: 220,
+    color: "#2b2721",
+    lineHeight: 1.4,
+    ...overrides,
+  });
 }
 
 export function createRect(
@@ -510,6 +530,7 @@ export function escapeHtml(value: string) {
 export function elementLabel(el: PdfElement): string {
   switch (el.type) {
     case "text":
+      if (el.rich) return richHtmlToPlainText(el.content).slice(0, 24) || "Rich text";
       return el.content.slice(0, 24) || "Text";
     case "image":
       return el.name || "Image";

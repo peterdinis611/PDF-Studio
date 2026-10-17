@@ -1,10 +1,12 @@
 import {
   PAGE_SIZES,
+  PAGE_SIZE_GROUPS,
   GOOGLE_FONTS,
   type DocComment,
   type ExportSettings,
   type GuideLine,
   type DocBookmark,
+  type PageSize,
   type PdfDocument,
   type PdfElement,
   type PdfPage,
@@ -35,6 +37,19 @@ import {
 } from "./factories.js";
 import { scheduleEditorTour, startEditorTour } from "./tour.js";
 import { markdownToHtml } from "../shared/markdown.js";
+import { richHtmlToPlainText, sanitizeRichHtml } from "../shared/richText.js";
+import {
+  destroyTipTap,
+  getActiveTipTap,
+  mountTipTap,
+  tipTapSetParagraph,
+  tipTapToggleBold,
+  tipTapToggleBulletList,
+  tipTapToggleHeading,
+  tipTapToggleItalic,
+  tipTapToggleOrderedList,
+  type RichHeadingLevel,
+} from "./tiptapEditor.js";
 import {
   allFontOptions,
   ensureCustomFontFace,
@@ -374,6 +389,7 @@ function pdfEditor() {
     pdfImportBusy: false,
     pdfImportStatus: "",
     pdfImportDragOver: false,
+    canvasPdfDragOver: false,
     editingMaster: false,
     reviewMode: false,
     formPreviewMode: false,
@@ -423,6 +439,10 @@ function pdfEditor() {
     theme: "dark" as "dark" | "light",
     showSettings: false,
     showFileMenu: false,
+    showPageSizeMenu: false,
+    pageSizeQuery: "",
+    pageSizeGroups: PAGE_SIZE_GROUPS,
+    commonPageSizes: ["a4", "letter", "legal", "a3", "a5", "businessCard"] as PageSize[],
     showGuides: false,
     showGrid: false,
     showRulers: true,
@@ -476,6 +496,56 @@ function pdfEditor() {
 
     get pageSize() {
       return PAGE_SIZES[this.doc.pageSize] ?? PAGE_SIZES.a4;
+    },
+
+    get pageSizeLabel() {
+      return (PAGE_SIZES[this.doc.pageSize] ?? PAGE_SIZES.a4).label;
+    },
+
+    get filteredPageSizeGroups() {
+      const q = this.pageSizeQuery.trim().toLowerCase();
+      if (!q) return this.pageSizeGroups;
+      return this.pageSizeGroups
+        .map((group) => ({
+          ...group,
+          options: group.options.filter(
+            (o) =>
+              o.label.toLowerCase().includes(q) ||
+              o.id.toLowerCase().includes(q) ||
+              group.label.toLowerCase().includes(q),
+          ),
+        }))
+        .filter((group) => group.options.length > 0);
+    },
+
+    pageSizeOptionLabel(id: PageSize) {
+      return (PAGE_SIZES[id] ?? PAGE_SIZES.a4).label;
+    },
+
+    pageSizeDims(id?: PageSize) {
+      const size = PAGE_SIZES[id || this.doc.pageSize] ?? PAGE_SIZES.a4;
+      const mmW = Math.round((size.width / 72) * 25.4);
+      const mmH = Math.round((size.height / 72) * 25.4);
+      return `${mmW} × ${mmH} mm`;
+    },
+
+    pageSizeThumbStyle(id?: PageSize) {
+      const size = PAGE_SIZES[id || this.doc.pageSize] ?? PAGE_SIZES.a4;
+      const max = id ? 12 : 13;
+      const ratio = size.width / size.height;
+      const tall = ratio <= 1;
+      const h = tall ? max : max * ratio;
+      const w = tall ? max * ratio : max;
+      return `width:${Math.max(5, w).toFixed(1)}px;height:${Math.max(5, h).toFixed(1)}px`;
+    },
+
+    setPageSize(id: PageSize) {
+      if (!PAGE_SIZES[id]) return;
+      this.doc.pageSize = id;
+      this.showPageSizeMenu = false;
+      this.pageSizeQuery = "";
+      this.persist();
+      this.showToast(`Page size · ${PAGE_SIZES[id].label}`);
     },
 
     hasSessionPdf() {
@@ -548,6 +618,18 @@ function pdfEditor() {
     onPdfImportDrop(event: DragEvent) {
       this.pdfImportDragOver = false;
       const file = event.dataTransfer?.files?.[0] ?? null;
+      this.setPdfImportFile(file);
+    },
+
+    onCanvasPdfDrop(event: DragEvent) {
+      this.canvasPdfDragOver = false;
+      const file = event.dataTransfer?.files?.[0] ?? null;
+      if (!file) return;
+      if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
+        this.showToast("Drop a PDF file to import.", 2800);
+        return;
+      }
+      this.openPdfImportModal("overlay");
       this.setPdfImportFile(file);
     },
 
@@ -1624,10 +1706,10 @@ function pdfEditor() {
 
     setActivePage(index: number) {
       if (index < 0 || index >= this.doc.pages.length) return;
+      this.endTextEditing();
       this.activePageIndex = index;
       this.pageJumpDraft = String(index + 1);
       this.selectedIds = [];
-      this.editingTextId = null;
       this.scrollActiveThumbIntoView();
     },
 
@@ -2056,8 +2138,8 @@ function pdfEditor() {
     onCanvasBackground(event: MouseEvent) {
       if (event.target === event.currentTarget) {
         if (spaceDown || event.button === 1) return;
+        this.endTextEditing();
         this.selectedIds = [];
-        this.editingTextId = null;
         this.closeOverlayPanels();
       }
     },
@@ -2102,8 +2184,8 @@ function pdfEditor() {
           h: 0,
         };
         if (!event.shiftKey) {
+          this.endTextEditing();
           this.selectedIds = [];
-          this.editingTextId = null;
         }
         return;
       }
@@ -2232,6 +2314,9 @@ function pdfEditor() {
       if (event.button !== 0 || spaceDown) return;
       if (this.editingMaster) {
         /* allow select master els */
+      }
+      if (this.editingTextId && this.editingTextId !== el.id) {
+        this.endTextEditing();
       }
       this.selectElement(el, event.shiftKey);
       if (el.locked) return;
@@ -2490,7 +2575,11 @@ function pdfEditor() {
 
     thumbPreview(el: PdfElement) {
       if (el.type === "text" || el.type === "sticky") {
-        return `<span style="font-size:${el.fontSize}px;color:${el.color};background:${el.type === "sticky" ? el.fill : "transparent"}">${escapeHtml(el.content.slice(0, 28))}</span>`;
+        const raw =
+          el.type === "text" && el.rich
+            ? richHtmlToPlainText(el.content).slice(0, 28)
+            : el.content.slice(0, 28);
+        return `<span style="font-size:${el.fontSize}px;color:${el.color};background:${el.type === "sticky" ? el.fill : "transparent"}">${escapeHtml(raw)}</span>`;
       }
       if (el.type === "image" || el.type === "signature") {
         return `<img src="${el.src}" style="width:100%;height:100%;object-fit:contain" />`;
@@ -2521,21 +2610,113 @@ function pdfEditor() {
     },
 
     startTextEdit(el: TextElement | StickyElement) {
+      if (this.editingTextId && this.editingTextId !== el.id) {
+        this.flushRichTextEdit();
+      }
       this.editingTextId = el.id;
       this.selectedIds = [el.id];
       queueMicrotask(() => {
         const node = document.querySelector<HTMLElement>(`[data-edit-id="${el.id}"]`);
         if (!node) return;
+        if (el.type === "text" && el.rich) {
+          mountTipTap(node, el.content, el.id, (html) => {
+            el.content = html;
+          });
+          return;
+        }
         node.innerText = el.content;
         node.focus();
       });
     },
 
+    findElementById(id: string): PdfElement | undefined {
+      if (this.editingMaster && this.doc.master) {
+        const zone = this.masterZone === "footer" ? this.doc.master.footer : this.doc.master.header;
+        const hit = zone.find((e) => e.id === id);
+        if (hit) return hit;
+      }
+      for (const page of this.doc.pages) {
+        const hit = page.elements.find((e) => e.id === id);
+        if (hit) return hit;
+      }
+      return undefined;
+    },
+
+    flushRichTextEdit() {
+      const html = destroyTipTap();
+      if (html == null || !this.editingTextId) return;
+      const el = this.findElementById(this.editingTextId);
+      if (el && el.type === "text" && el.rich) {
+        el.content = html;
+      }
+    },
+
+    endTextEditing(commit = true) {
+      if (this.editingTextId) {
+        this.flushRichTextEdit();
+        if (commit) this.commit();
+      }
+      this.editingTextId = null;
+    },
+
+    finishRichTextEdit(el: TextElement) {
+      const html = destroyTipTap();
+      if (html != null) el.content = html;
+      this.editingTextId = null;
+      this.commit();
+    },
+
     finishTextEdit(event: FocusEvent, el: TextElement | StickyElement) {
+      if (el.type === "text" && el.rich) {
+        this.finishRichTextEdit(el);
+        return;
+      }
       const target = event.target as HTMLElement;
       el.content = target.innerText;
       this.editingTextId = null;
       this.commit();
+    },
+
+    ensureRichEditing() {
+      const el = this.selected;
+      if (!el || el.type !== "text" || !el.rich || el.locked) return false;
+      if (this.editingTextId !== el.id || !getActiveTipTap()) {
+        this.startTextEdit(el);
+        return true;
+      }
+      return true;
+    },
+
+    richToggleHeading(level: RichHeadingLevel) {
+      if (!this.ensureRichEditing()) return;
+      queueMicrotask(() => {
+        if (!tipTapToggleHeading(level)) this.showToast("Double-click the block to edit");
+      });
+    },
+
+    richSetParagraph() {
+      if (!this.ensureRichEditing()) return;
+      queueMicrotask(() => tipTapSetParagraph());
+    },
+
+    richToggleBold() {
+      if (!this.ensureRichEditing()) return;
+      queueMicrotask(() => tipTapToggleBold());
+    },
+
+    richToggleItalic() {
+      if (!this.ensureRichEditing()) return;
+      queueMicrotask(() => tipTapToggleItalic());
+    },
+
+    richToggleBulletList() {
+      if (!this.ensureRichEditing()) return;
+      queueMicrotask(() => tipTapToggleBulletList());
+    },
+
+    richToggleOrderedList() {
+      if (!this.ensureRichEditing()) return;
+      queueMicrotask(() => tipTapToggleOrderedList());
     },
 
     updateTableCell(row: number, col: number, value: string) {
@@ -3010,6 +3191,7 @@ function pdfEditor() {
       if (!el || el.type !== "text" || el.locked) return;
       el.content = loremIpsum(size);
       el.markdown = false;
+      el.rich = false;
       if (size === "long") {
         el.width = Math.max(el.width, 360);
         el.height = Math.max(el.height, 160);
@@ -3025,14 +3207,40 @@ function pdfEditor() {
       return markdownToHtml(source || "");
     },
 
+    renderRichHtml(source: string) {
+      return sanitizeRichHtml(source || "");
+    },
+
+    toggleRich(enabled: boolean) {
+      const el = this.selected;
+      if (!el || el.type !== "text" || el.locked) return;
+      this.flushRichTextEdit();
+      el.rich = Boolean(enabled);
+      if (el.rich) {
+        el.markdown = false;
+        if (!/<[a-z][\s\S]*>/i.test(el.content || "")) {
+          const plain = escapeHtml(el.content || "").replace(/\n/g, "<br>");
+          el.content = plain ? `<p>${plain}</p>` : "<p></p>";
+        }
+        el.width = Math.max(el.width, 280);
+        el.height = Math.max(el.height, 140);
+      }
+      this.editingTextId = null;
+      this.commit();
+      this.showToast(el.rich ? "Rich text on" : "Rich text off");
+    },
+
     toggleMarkdown(enabled: boolean) {
       const el = this.selected;
       if (!el || el.type !== "text" || el.locked) return;
+      this.flushRichTextEdit();
       el.markdown = Boolean(enabled);
       if (el.markdown) {
+        el.rich = false;
         el.width = Math.max(el.width, 280);
         el.height = Math.max(el.height, 120);
       }
+      this.editingTextId = null;
       this.commit();
       this.showToast(el.markdown ? "Markdown on" : "Markdown off");
     },
@@ -3416,12 +3624,17 @@ function pdfEditor() {
         // Underlay / thumbs must not block import (EmbedPDF WASM can be slow to init)
         void this.refreshPdfUnderlay();
         void this.refreshPageThumbUnderlays();
+        // Fit the page after layout settles (Acrobat-like first view)
+        requestAnimationFrame(() => {
+          this.fitPage();
+          void this.refreshPdfUnderlay();
+        });
         const textCount = document.pages.reduce((n, p) => n + p.elements.length, 0);
         this.showToast(
           importMode === "editable"
-            ? `PDF imported as editable (${textCount} element${textCount === 1 ? "" : "s"}) · use Pages panel or bottom bar`
-            : `PDF imported (${document.pages.length} pages) · switch pages in the Pages panel or bottom bar`,
-          3600,
+            ? `Imported as editable · ${textCount} block${textCount === 1 ? "" : "s"} · ${document.pages.length} page${document.pages.length === 1 ? "" : "s"}`
+            : `Imported ${document.pages.length} page${document.pages.length === 1 ? "" : "s"} · drop tools or comments on top`,
+          3200,
         );
       } catch (err) {
         clearSessionImportedPdf();
@@ -3560,6 +3773,33 @@ function pdfEditor() {
         this.openExportModal();
         return;
       }
+      if (mod && event.key === "0") {
+        event.preventDefault();
+        this.fitPage();
+        return;
+      }
+      if (mod && event.key === "1") {
+        event.preventDefault();
+        this.zoom = 1;
+        this.panX = 0;
+        this.panY = 0;
+        return;
+      }
+      if (mod && (event.key === "=" || event.key === "+")) {
+        event.preventDefault();
+        this.zoomIn();
+        return;
+      }
+      if (mod && event.key === "-") {
+        event.preventDefault();
+        this.zoomOut();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === "i") {
+        event.preventDefault();
+        this.openPdfImportModal("overlay");
+        return;
+      }
 
       if (event.key === "?" || (event.shiftKey && event.key === "/")) {
         event.preventDefault();
@@ -3568,6 +3808,10 @@ function pdfEditor() {
       }
 
       if (event.key === "Escape") {
+        if (this.showPageSizeMenu) {
+          this.showPageSizeMenu = false;
+          return;
+        }
         if (this.commentPlacement) {
           this.cancelCommentDraft();
           return;
@@ -3586,8 +3830,8 @@ function pdfEditor() {
           this.selectedIds = [];
           return;
         }
+        this.endTextEditing();
         this.selectedIds = [];
-        this.editingTextId = null;
         this.tool = "select";
         this.pendingLibraryKind = null;
         this.placeHint = false;

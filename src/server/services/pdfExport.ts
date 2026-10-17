@@ -38,6 +38,7 @@ import {
   type DocWatermark,
 } from "../../shared/types.js";
 import { markdownToPlainText, markdownToStyledLines } from "../../shared/markdown.js";
+import { richHtmlToPlainText, richHtmlToStyledLines } from "../../shared/richText.js";
 import {
   findUrlsInText,
   substituteElementTokens,
@@ -202,9 +203,11 @@ function formatTextLines(
   pageCount: number,
   fields?: TokenContext,
 ): string[] {
-  let content = el.markdown
-    ? markdownToPlainText(el.content || "")
-    : el.content || "";
+  let content = el.rich
+    ? richHtmlToPlainText(el.content || "")
+    : el.markdown
+      ? markdownToPlainText(el.content || "")
+      : el.content || "";
   content = substituteTokens(content, pageIndex, pageCount, fields);
   const raw = content.split("\n");
   if (el.listStyle === "bullet") {
@@ -255,6 +258,10 @@ async function drawText(
   pageIndex: number,
   pageCount: number,
 ) {
+  if (el.rich) {
+    await drawRichText(doc, page, el, pageHeight, fonts, pageIndex, pageCount);
+    return;
+  }
   if (el.markdown) {
     await drawMarkdownText(doc, page, el, pageHeight, fonts, pageIndex, pageCount);
     return;
@@ -329,6 +336,52 @@ async function drawText(
     if (md) {
       addUriLink(doc, page, md[2], el.x, toPdfY(pageHeight, el.y, el.height), el.width, el.height);
     }
+  }
+}
+
+async function drawRichText(
+  doc: PDFDocument,
+  page: PDFPage,
+  el: TextElement,
+  pageHeight: number,
+  fonts: Fonts,
+  pageIndex: number,
+  pageCount: number,
+) {
+  const source = substituteTokens(el.content || "", pageIndex, pageCount);
+  const styled = richHtmlToStyledLines(source);
+  let cursorY = toPdfY(pageHeight, el.y, el.fontSize);
+  const baseSize = el.fontSize;
+  const baseLh = el.lineHeight || 1.25;
+
+  for (const line of styled) {
+    const size = Math.max(6, baseSize * (line.sizeScale || 1));
+    const lineHeight = size * baseLh;
+    const bold = Boolean(line.bold) || el.fontWeight === "bold";
+    const italic = Boolean(line.italic) || el.fontStyle === "italic";
+    const font = pickFont(fonts, el.fontFamily, bold, italic);
+    const text = line.text || "";
+    const textWidth = font.widthOfTextAtSize(text, size);
+    let x = el.x;
+    if (el.align === "center") x = el.x + (el.width - textWidth) / 2;
+    if (el.align === "right") x = el.x + el.width - textWidth;
+    if (text) {
+      page.drawText(text, {
+        x: Math.max(0, x),
+        y: cursorY,
+        size,
+        font,
+        color: hexToRgb(el.color),
+        opacity: el.opacity,
+        rotate: degrees(el.rotation || 0),
+        maxWidth: el.width,
+      });
+    }
+    cursorY -= lineHeight;
+  }
+
+  if (el.href) {
+    addUriLink(doc, page, el.href, el.x, toPdfY(pageHeight, el.y, el.height), el.width, el.height);
   }
 }
 

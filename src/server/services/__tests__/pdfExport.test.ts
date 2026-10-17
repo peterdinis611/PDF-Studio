@@ -62,6 +62,21 @@ describe("exportPdf", () => {
       expect(opened.getPageCount()).toBe(1);
     });
 
+    it("exports rich TipTap HTML without raw tags", async () => {
+      const el = createText(40, 40, {
+        content: "<h1>Rich Title</h1><p>Hello <strong>world</strong></p>",
+        rich: true,
+        fontSize: 14,
+        width: 300,
+        height: 120,
+      });
+      const bytes = await exportPdf(payload({ pages: [pageWith(el)] }));
+      expect(bytes.byteLength).toBeGreaterThan(500);
+      const raw = Buffer.from(bytes).toString("latin1");
+      expect(raw).not.toContain("<h1>");
+      expect(raw).not.toContain("<strong>");
+    });
+
     it("exports markdown without raw markers", async () => {
       const el = createText(40, 40, {
         content: "# Hello\n\n**bold** and plain",

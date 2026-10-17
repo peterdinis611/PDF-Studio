@@ -97,6 +97,19 @@ describe("createFromLibrary", () => {
       expect(text.x).toBe(12);
     });
 
+    it("creates a TipTap rich-text preset with rich flag and headings", () => {
+      const el = createFromLibrary("preset:rich-text", 8, 16);
+      expect(typeof el).not.toBe("string");
+      if (typeof el === "string") return;
+      expect(el.type).toBe("text");
+      const text = el as TextElement;
+      expect(text.rich).toBe(true);
+      expect(text.markdown).toBeFalsy();
+      expect(text.content).toMatch(/<h1>/i);
+      expect(text.x).toBe(8);
+      expect(text.y).toBe(16);
+    });
+
     it("creates fillable form elements", () => {
       const field = createFromLibrary("formText", 0, 0);
       expect(typeof field).not.toBe("string");

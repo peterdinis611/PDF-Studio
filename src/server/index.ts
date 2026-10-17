@@ -10,6 +10,7 @@ import { logger } from "./logger.js";
 import { currentEdition, NOTICE_PAGE, seo } from "./pageMeta.js";
 import { apiRouter } from "./routes/api.js";
 import { pruneExpiredUploads, sessionMiddleware, uploadsRoot } from "./session.js";
+import { buildRobotsTxt, buildSitemapXml } from "./sitemap.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -87,43 +88,17 @@ function siteOrigin(req: Request): string {
 }
 
 app.get("/robots.txt", (req, res) => {
-  const origin = siteOrigin(req);
   res
     .type("text/plain")
-    .send(
-      [
-        "User-agent: *",
-        "Allow: /",
-        "Disallow: /api/",
-        "Disallow: /uploads/",
-        "Disallow: /audit-logs",
-        "Disallow: /health",
-        "",
-        `Sitemap: ${origin}/sitemap.xml`,
-        "",
-      ].join("\n"),
-    );
+    .set("Cache-Control", "public, max-age=3600")
+    .send(buildRobotsTxt(siteOrigin(req)));
 });
 
 app.get("/sitemap.xml", (req, res) => {
-  const origin = siteOrigin(req);
-  const lastmod = new Date().toISOString().slice(0, 10);
-  const urls = ["/", "/editor"];
-  const body = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls
-  .map(
-    (pathName) => `  <url>
-    <loc>${origin}${pathName === "/" ? "/" : pathName}</loc>
-    <lastmod>${lastmod}</lastmod>
-    <changefreq>${pathName === "/" ? "weekly" : "monthly"}</changefreq>
-    <priority>${pathName === "/" ? "1.0" : "0.8"}</priority>
-  </url>`,
-  )
-  .join("\n")}
-</urlset>
-`;
-  res.type("application/xml").send(body);
+  res
+    .type("application/xml")
+    .set("Cache-Control", "public, max-age=3600")
+    .send(buildSitemapXml(siteOrigin(req)));
 });
 
 function noStoreHtml(_req: Request, res: Response, next: NextFunction): void {
@@ -138,21 +113,34 @@ app.get("/health", (_req, res) => {
 const HOME_DESCRIPTION =
   "Design invoices, letters, CVs and proposals on a real page grid, then export a genuine PDF with the fonts embedded. Runs in your browser — no account, no upload.";
 
+const EDITOR_DESCRIPTION =
+  "Open the PDF Studio editor — place text, images, tables and forms on A4, Letter and more, then export a print-ready PDF locally in your browser.";
+
 app.get("/", noStoreHtml, (req, res) => {
   res.render("home", {
     ...seo(siteOrigin(req), {
       title: "PDF Studio — a local-first PDF editor in your browser",
       description: HOME_DESCRIPTION,
       path: "/",
+      keywords:
+        "PDF editor, local-first PDF, invoice template, CV PDF, proposal PDF, browser PDF export, free PDF maker, pdf-lib editor",
+      schemaType: "WebSite",
     }),
     newsprint: true,
     ...currentEdition(),
   });
 });
 
-app.get("/editor", noStoreHtml, (_req, res) => {
+app.get("/editor", noStoreHtml, (req, res) => {
   res.render("editor", {
-    title: "Editor — PDF Studio",
+    ...seo(siteOrigin(req), {
+      title: "Editor — PDF Studio",
+      description: EDITOR_DESCRIPTION,
+      path: "/editor",
+      keywords:
+        "PDF editor online, design PDF, export PDF, page templates, TipTap rich text, markdown PDF",
+      schemaType: "WebApplication",
+    }),
     layout: "editor",
   });
 });

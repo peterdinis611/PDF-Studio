@@ -91,6 +91,8 @@ export interface TextElement extends PdfElementBase {
   align: "left" | "center" | "right";
   /** When true, content is Markdown (TanStack Markdown) on canvas; export draws styled runs. */
   markdown?: boolean;
+  /** When true, content is TipTap HTML (headings, lists, bold/italic); mutually exclusive with markdown. */
+  rich?: boolean;
   /** Explicit link URL (also auto-detected from http(s) in content). */
   href?: string;
 }
