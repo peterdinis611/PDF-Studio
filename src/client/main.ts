@@ -66,8 +66,11 @@ import {
 import { docNeedsPdfReattach, reattachPdfSession } from "./pdfReattach.js";
 import {
   getCachedPdfPagePreview,
+  getEmbedPdfStatus,
+  getPdfPreviewBackend,
   invalidatePdfPreviewCache,
   prefetchPdfPagePreviews,
+  preloadEmbedPdfEngine,
   recommendedCanvasUnderlayScale,
   recommendedThumbScale,
   renderPdfPagePreview,
@@ -369,6 +372,7 @@ function pdfEditor() {
     pdfImportFile: null as File | null,
     pdfImportFileName: "",
     pdfImportBusy: false,
+    pdfImportStatus: "",
     pdfImportDragOver: false,
     editingMaster: false,
     reviewMode: false,
@@ -380,6 +384,7 @@ function pdfEditor() {
     thumbsLoading: false,
     _thumbGen: 0,
     _underlayGen: 0,
+    _pdfImportGen: 0,
     canvasUnderlayScale: recommendedCanvasUnderlayScale(0.85),
     thumbUnderlayScale: recommendedThumbScale(),
     pdfImportMode: "overlay" as "overlay" | "editable" | "reattach",
@@ -504,12 +509,16 @@ function pdfEditor() {
       this.pdfImportFile = null;
       this.pdfImportFileName = "";
       this.pdfImportBusy = false;
+      this.pdfImportStatus = "";
       this.pdfImportDragOver = false;
       this.showPdfImportModal = true;
     },
 
     closePdfImportModal() {
-      if (this.pdfImportBusy) return;
+      // Allow dismiss even while busy — ignore late import results
+      this._pdfImportGen += 1;
+      this.pdfImportBusy = false;
+      this.pdfImportStatus = "";
       this.showPdfImportModal = false;
       this.pdfImportFile = null;
       this.pdfImportFileName = "";
@@ -546,13 +555,21 @@ function pdfEditor() {
       const file = this.pdfImportFile;
       if (!file || this.pdfImportBusy) return;
       this.pdfImportBusy = true;
+      this.pdfImportStatus = "Starting…";
+      const gen = ++this._pdfImportGen;
       try {
-        await this.runPdfImport(file, this.pdfImportChoice);
+        await this.runPdfImport(file, this.pdfImportChoice, (msg) => {
+          if (gen === this._pdfImportGen) this.pdfImportStatus = msg;
+        });
+        if (gen !== this._pdfImportGen) return;
         this.showPdfImportModal = false;
         this.pdfImportFile = null;
         this.pdfImportFileName = "";
       } finally {
-        this.pdfImportBusy = false;
+        if (gen === this._pdfImportGen) {
+          this.pdfImportBusy = false;
+          this.pdfImportStatus = "";
+        }
       }
     },
 
@@ -648,6 +665,18 @@ function pdfEditor() {
       return `${this.activePageIndex + 1} / ${this.doc.pages.length}`;
     },
 
+    /** Status-bar label for the active PDF rasterizer (EmbedPDF / pdf.js). */
+    get pdfRasterLabel(): string {
+      const backend = getPdfPreviewBackend();
+      if (backend === "embedpdf") return "EmbedPDF";
+      if (backend === "pdfjs") return "pdf.js";
+      const st = getEmbedPdfStatus();
+      if (st === "loading") return "EmbedPDF…";
+      if (st === "ready") return "EmbedPDF";
+      if (st === "error") return "pdf.js";
+      return "";
+    },
+
     get workingElements(): PdfElement[] {
       if (this.editingMaster) {
         if (!this.doc.master) this.doc.master = { header: [], footer: [] };
@@ -681,6 +710,8 @@ function pdfEditor() {
 
     async init() {
       getSessionId();
+      // Warm EmbedPDF / PDFium before the user imports a PDF
+      preloadEmbedPdfEngine();
       this.canvasUnderlayScale = recommendedCanvasUnderlayScale(this.zoom || 0.85);
       this.thumbUnderlayScale = recommendedThumbScale();
       const params = new URLSearchParams(window.location.search);
@@ -3356,11 +3387,16 @@ function pdfEditor() {
       this.pushElement(el);
     },
 
-    async runPdfImport(file: File, importMode: "overlay" | "editable") {
+    async runPdfImport(
+      file: File,
+      importMode: "overlay" | "editable",
+      onProgress?: (message: string) => void,
+    ) {
       try {
         const document = await importPdfInBrowser(file, {
           mode: importMode,
           ocr: importMode === "editable" && this.pdfImportOcr,
+          onProgress,
         });
         this.doc = normalizeDoc(document);
         this.activePageIndex = 0;
@@ -3371,9 +3407,14 @@ function pdfEditor() {
         history.reset(this.doc);
         this.syncHistoryFlags();
         this.commit(false);
+        // Imported pages should read like a proof — hide layout chrome over the PDF
+        if (importMode === "overlay") {
+          this.showGuides = false;
+          this.showGrid = false;
+        }
         await this.persistImportedPdfForDoc();
-        await this.refreshPdfUnderlay();
-        // Progressive thumbs — do not block the UI on large PDFs
+        // Underlay / thumbs must not block import (EmbedPDF WASM can be slow to init)
+        void this.refreshPdfUnderlay();
         void this.refreshPageThumbUnderlays();
         const textCount = document.pages.reduce((n, p) => n + p.elements.length, 0);
         this.showToast(

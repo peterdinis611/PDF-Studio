@@ -35,8 +35,8 @@
         </button>
       </div>
       <label class="settings-row mt-3" x-show="pdfImportChoice === 'editable'">
-        <span>OCR scanned pages (experimental)</span>
-        <input type="checkbox" class="accent-accent" x-model="pdfImportOcr" />
+        <span>OCR scanned pages (experimental, first 3 pages)</span>
+        <input type="checkbox" class="accent-accent" x-model="pdfImportOcr" :disabled="pdfImportBusy" />
       </label>
     </div>
 
@@ -62,8 +62,10 @@
       />
     </div>
 
+    <p class="mt-3 text-xs text-slate-muted" x-show="pdfImportBusy && pdfImportStatus" x-text="pdfImportStatus"></p>
+
     <div class="modal-actions">
-      <button type="button" class="btn-ghost" :disabled="pdfImportBusy" @click="closePdfImportModal()">Cancel</button>
+      <button type="button" class="btn-ghost" @click="closePdfImportModal()" x-text="pdfImportBusy ? 'Close' : 'Cancel'"></button>
       <button
         type="button"
         class="btn-primary"

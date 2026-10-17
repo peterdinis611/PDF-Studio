@@ -12,6 +12,8 @@ public/js/app.*.js
 public/js/pdf.worker.min.mjs
 public/js/alpine.min.js
 public/js/alpine.*.js
+public/wasm/
+public/js/tesseract/
 public/css/app.*.css
 !public/css/app.css
 

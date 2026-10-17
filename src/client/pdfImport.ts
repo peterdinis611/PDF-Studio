@@ -112,6 +112,8 @@ export type ImportPdfOptions = {
   mode?: PdfImportMode;
   /** Experimental OCR for scanned pages in editable mode. */
   ocr?: boolean;
+  /** Progress updates for the import modal. */
+  onProgress?: (message: string) => void;
 };
 
 /** Parse a PDF file entirely in the browser — nothing is uploaded to the server. */
@@ -120,6 +122,8 @@ export async function importPdfInBrowser(
   options: ImportPdfOptions = {},
 ): Promise<PdfDocument> {
   const mode: PdfImportMode = options.mode ?? "overlay";
+  const report = (msg: string) => options.onProgress?.(msg);
+  report("Reading PDF…");
   const buffer = await file.arrayBuffer();
   const bytes = new Uint8Array(buffer);
   const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
@@ -133,6 +137,7 @@ export async function importPdfInBrowser(
 
   let editableElements: Awaited<ReturnType<typeof extractEditablePages>> | null = null;
   if (mode === "editable") {
+    report(options.ocr ? "Extracting text (OCR enabled)…" : "Extracting text…");
     const pdfjs = await openPdfJsDocument(bytes);
     try {
       editableElements = await extractEditablePages(
@@ -142,7 +147,7 @@ export async function importPdfInBrowser(
           studioWidth: studio.width,
           studioHeight: studio.height,
         },
-        { ocr: Boolean(options.ocr) },
+        { ocr: Boolean(options.ocr), onProgress: options.onProgress },
       );
     } finally {
       await pdfjs.destroy();

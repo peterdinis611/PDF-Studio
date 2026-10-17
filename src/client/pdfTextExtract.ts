@@ -1,7 +1,8 @@
 import { type PDFDocumentProxy, Util } from "pdfjs-dist";
 import type { FontFamily, PdfElement, TextElement } from "../shared/types.js";
 import { createText } from "./factories.js";
-import { extractImagesFromPage, ocrPageToTextElements } from "./pdfImageExtract.js";
+import { extractImagesFromPage } from "./pdfImageExtract.js";
+import { OCR_MAX_PAGES, ocrPageToTextElements, terminateOcrWorker } from "./pdfOcr.js";
 
 export type StudioPageTarget = {
   studioWidth: number;
@@ -169,6 +170,10 @@ export function textRunsToElements(runs: TextRun[]): TextElement[] {
 export type ExtractEditableOptions = {
   /** When true and a page has no text, run experimental OCR (tesseract.js). */
   ocr?: boolean;
+  /** Progress callback for long editable/OCR imports. */
+  onProgress?: (message: string) => void;
+  /** Cap OCR pages (default OCR_MAX_PAGES). */
+  maxOcrPages?: number;
 };
 
 /** Extract + merge text and embedded images for every page. */
@@ -179,21 +184,32 @@ export async function extractEditablePages(
   options: ExtractEditableOptions = {},
 ): Promise<PdfElement[][]> {
   const pages: PdfElement[][] = [];
-  for (let i = 0; i < pageCount; i++) {
-    const runs = await extractTextRunsFromPage(pdf, i, target);
-    const textEls = textRunsToElements(mergeRunsIntoLines(runs));
-    let images: PdfElement[] = [];
-    try {
-      images = await extractImagesFromPage(pdf, i, target);
-    } catch {
-      images = [];
+  const maxOcr = options.maxOcrPages ?? OCR_MAX_PAGES;
+  let ocrUsed = 0;
+  const report = (msg: string) => options.onProgress?.(msg);
+
+  try {
+    for (let i = 0; i < pageCount; i++) {
+      report(`Extracting page ${i + 1}/${pageCount}…`);
+      const runs = await extractTextRunsFromPage(pdf, i, target);
+      const textEls = textRunsToElements(mergeRunsIntoLines(runs));
+      let images: PdfElement[] = [];
+      try {
+        images = await extractImagesFromPage(pdf, i, target);
+      } catch {
+        images = [];
+      }
+      let elements: PdfElement[] = [...images, ...textEls];
+      if (options.ocr && textEls.length === 0 && ocrUsed < maxOcr) {
+        report(`OCR page ${i + 1}/${pageCount}…`);
+        const ocrEls = await ocrPageToTextElements(pdf, i, target);
+        ocrUsed += 1;
+        elements = [...images, ...ocrEls];
+      }
+      pages.push(elements);
     }
-    let elements: PdfElement[] = [...images, ...textEls];
-    if (options.ocr && textEls.length === 0) {
-      const ocrEls = await ocrPageToTextElements(pdf, i, target);
-      elements = [...images, ...ocrEls];
-    }
-    pages.push(elements);
+  } finally {
+    if (ocrUsed > 0) void terminateOcrWorker();
   }
   return pages;
 }

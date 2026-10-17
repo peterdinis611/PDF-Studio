@@ -36,23 +36,23 @@
   --color-accent-hex: #e2523a;
 }
 
-/* Day edition. Canvas sits darker than the panels so the sheet lifts off it. */
+/* Day edition — cooler workshop desk so the page sheet reads first. */
 [data-theme="light"] {
-  --color-canvas: 206 199 186;
+  --color-canvas: 214 212 206;
   --color-ink: 26 24 21;
-  --color-paper: 252 250 245;
-  --color-fg: 23 21 19;
-  --color-panel: 243 239 230;
-  --color-rail: 248 245 238;
-  --color-muted: 116 108 98;
-  --color-line: 210 203 190;
-  --color-hover: 232 227 215;
+  --color-paper: 255 253 249;
+  --color-fg: 22 21 19;
+  --color-panel: 245 243 238;
+  --color-rail: 250 248 244;
+  --color-muted: 110 104 96;
+  --color-line: 214 209 198;
+  --color-hover: 236 232 223;
   --color-accent: 176 40 27;
   --color-accent-soft: 140 30 20;
   --color-accent-dim: 150 33 22;
   --color-warn: 168 22 52;
-  --shadow-page: 0 18px 48px rgba(40, 30, 10, 0.18), 0 4px 12px rgba(40, 30, 10, 0.1);
-  --preload-bg: #eae5da;
+  --shadow-page: 0 12px 40px rgba(28, 24, 18, 0.14), 0 2px 8px rgba(28, 24, 18, 0.08);
+  --preload-bg: #e8e6e1;
   --color-accent-hex: #b0281b;
 }
 
@@ -146,15 +146,15 @@
   }
 
   .rail-tabs {
-    @apply grid grid-cols-[1fr_1fr_auto] gap-1 border-b border-slate-line p-2;
+    @apply grid grid-cols-3 gap-1 border-b border-slate-line p-2;
   }
 
-  .editor-shell:not(.is-compact) .rail-tabs {
-    @apply grid-cols-2;
+  .editor-shell.is-compact .rail-tabs {
+    @apply grid-cols-[1fr_1fr_1fr_auto];
   }
 
   .rail-tab {
-    @apply relative flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-slate-muted transition hover:bg-slate-hover hover:text-fg;
+    @apply relative flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-[11px] font-medium text-slate-muted transition hover:bg-slate-hover hover:text-fg sm:gap-1.5 sm:px-2 sm:text-xs;
   }
 
   .rail-tab.is-active {
@@ -261,12 +261,12 @@
   }
 
   .tool-dock {
-    @apply pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center px-2 sm:bottom-5 sm:px-4;
+    @apply pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center px-2 sm:bottom-4 sm:px-4;
     padding-bottom: env(safe-area-inset-bottom);
   }
 
   .tool-dock-scroll {
-    @apply pointer-events-auto max-w-full overflow-x-auto overscroll-x-contain;
+    @apply pointer-events-auto max-w-[min(100%,52rem)] overflow-x-auto overscroll-x-contain;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
@@ -276,16 +276,25 @@
   }
 
   .tool-dock-inner {
-    @apply flex w-max items-center gap-0.5 rounded-2xl border border-slate-line/90 bg-rail/95 p-1.5 shadow-page backdrop-blur-xl;
-    animation: dock-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    @apply flex w-max items-center gap-0.5 rounded-xl border border-slate-line bg-rail/95 px-1.5 py-1 backdrop-blur-md;
+    animation: dock-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     box-shadow:
-      0 0 0 1px rgb(var(--color-line) / 0.35),
-      0 18px 40px rgba(0, 0, 0, 0.35),
-      0 2px 8px rgba(0, 0, 0, 0.2);
+      0 1px 0 rgb(var(--color-line) / 0.55),
+      0 10px 28px rgba(0, 0, 0, 0.22);
+  }
+
+  [data-theme="light"] .tool-dock-inner {
+    box-shadow:
+      0 1px 0 rgb(var(--color-line) / 0.9),
+      0 8px 24px rgba(28, 24, 18, 0.12);
+  }
+
+  .dock-cluster {
+    @apply flex items-center gap-0.5;
   }
 
   .dock-btn {
-    @apply flex h-9 w-9 items-center justify-center rounded-xl text-slate-muted transition hover:bg-slate-hover hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-30;
+    @apply flex h-8 w-8 items-center justify-center rounded-lg text-slate-muted transition hover:bg-slate-hover hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-30 sm:h-9 sm:w-9;
   }
 
   .dock-btn[aria-pressed="true"] {
@@ -297,7 +306,23 @@
   }
 
   .dock-sep {
-    @apply mx-1 h-5 w-px bg-slate-line;
+    @apply mx-0.5 h-4 w-px shrink-0 bg-slate-line sm:mx-1 sm:h-5;
+  }
+
+  .dock-page-nav {
+    @apply flex items-center gap-0.5 rounded-lg bg-slate-panel/70 px-0.5;
+  }
+
+  .dock-page-jump {
+    @apply flex items-center gap-1 px-0.5 font-mono text-[11px] text-slate-muted;
+  }
+
+  .dock-page-input {
+    @apply h-7 w-9 rounded-md border border-slate-line bg-rail text-center font-mono text-xs font-semibold text-fg outline-none focus:border-accent focus:ring-1 focus:ring-accent sm:h-8 sm:w-10 sm:text-sm;
+  }
+
+  .dock-page-of {
+    @apply tabular-nums;
   }
 
   .ruler-h {
@@ -323,9 +348,22 @@
   }
 
   .page-surface {
-    @apply rounded-sm;
+    @apply rounded-sm bg-paper;
     box-shadow: var(--shadow-page);
-    animation: page-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: page-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* EmbedPDF underlay — prefer crisp downscale of a high-DPI raster */
+  .pdf-underlay {
+    image-rendering: -webkit-optimize-contrast;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  @supports (image-rendering: high-quality) {
+    .pdf-underlay {
+      image-rendering: high-quality;
+    }
   }
 
   .panel-label {
@@ -346,7 +384,7 @@
   }
 
   .page-thumb {
-    @apply relative aspect-[210/297] w-full cursor-pointer overflow-hidden rounded-lg border-2 border-transparent bg-paper transition duration-200 hover:-translate-y-0.5 hover:border-slate-muted/40 hover:shadow-md;
+    @apply relative aspect-[210/297] w-full cursor-pointer overflow-hidden rounded-md border border-transparent bg-paper transition duration-150 hover:border-slate-muted/50 hover:shadow-sm;
   }
 
   .page-thumb img {
@@ -371,25 +409,9 @@
     scroll-behavior: smooth;
   }
 
-  /* Acrobat-like sticky page navigator over the canvas */
+  /* Legacy page-nav (merged into tool-dock) */
   .page-nav {
-    @apply pointer-events-auto absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-slate-line bg-rail/95 px-2 py-1.5 shadow-page backdrop-blur-md;
-  }
-
-  .page-nav-btn {
-    @apply flex h-8 w-8 items-center justify-center rounded-full text-fg transition hover:bg-slate-hover disabled:cursor-not-allowed disabled:opacity-35;
-  }
-
-  .page-nav-jump {
-    @apply flex items-center gap-1.5 px-1 font-mono text-xs text-slate-muted;
-  }
-
-  .page-nav-input {
-    @apply h-8 w-12 rounded-md border border-slate-line bg-slate-panel text-center font-mono text-sm font-medium text-fg outline-none focus:border-accent focus:ring-1 focus:ring-accent;
-  }
-
-  .page-nav-of {
-    @apply min-w-[3.5rem] shrink-0;
+    @apply hidden;
   }
 
   .canvas-element {
@@ -458,53 +480,48 @@
   }
 
   .status-bar {
-    @apply flex h-9 shrink-0 items-center justify-between gap-2 border-t border-slate-line bg-rail/95 px-2 backdrop-blur-sm sm:gap-3 sm:px-4;
+    @apply flex h-8 shrink-0 items-center justify-between gap-2 border-t border-slate-line/80 bg-rail px-2 sm:gap-3 sm:px-3;
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: max(0.5rem, env(safe-area-inset-left));
     padding-right: max(0.5rem, env(safe-area-inset-right));
   }
 
   .status-chip {
-    @apply rounded-md bg-slate-hover px-2 py-0.5 font-mono text-[10px] text-slate-muted;
+    @apply rounded px-1.5 py-px font-mono text-[10px] text-slate-muted;
   }
 
   .status-chip.accent {
-    @apply bg-accent/15 text-accent-soft;
+    @apply bg-accent/10 text-accent-soft;
   }
 
   .status-action {
-    @apply rounded-md px-1.5 py-0.5 text-[11px] text-slate-muted transition hover:bg-slate-hover hover:text-fg;
+    @apply rounded px-1 py-px text-[11px] text-slate-muted transition hover:bg-slate-hover hover:text-fg;
   }
 
   .status-hints {
-    @apply items-center gap-3 text-[11px] text-slate-muted;
+    @apply items-center gap-2.5 text-[10px] text-slate-muted;
   }
 
   .status-hints > span,
   .status-hints > button {
-    @apply inline-flex items-center gap-1.5 transition hover:text-fg;
+    @apply inline-flex items-center gap-1 transition hover:text-fg;
   }
 
   .status-hints kbd {
-    @apply rounded border border-slate-line bg-slate-hover/80 px-1 py-px font-mono text-[10px] text-fg/70;
+    @apply rounded border border-slate-line/80 bg-transparent px-1 py-px font-mono text-[9px] text-fg/55;
   }
 
   .status-tour {
-    @apply rounded-md bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent-soft transition hover:bg-accent/20;
+    @apply rounded px-1.5 py-px text-[10px] font-medium text-accent-soft transition hover:bg-accent/15;
   }
 
   .canvas-workspace {
     background-color: rgb(var(--color-canvas));
     background-image:
-      radial-gradient(
-        ellipse 55% 45% at 50% 40%,
-        rgb(var(--color-accent) / 0.07),
-        transparent 70%
-      ),
-      linear-gradient(rgb(var(--color-line) / 0.22) 1px, transparent 1px),
-      linear-gradient(90deg, rgb(var(--color-line) / 0.22) 1px, transparent 1px);
-    background-size: auto, 48px 48px, 48px 48px;
-    background-position: center, center, center;
+      linear-gradient(rgb(var(--color-line) / 0.14) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--color-line) / 0.14) 1px, transparent 1px);
+    background-size: 40px 40px, 40px 40px;
+    background-position: center, center;
   }
 
   .canvas-empty {
@@ -2577,10 +2594,20 @@
   }
   .guide-grid {
     background-image:
-      linear-gradient(to right, rgb(var(--color-accent) / 0.18) 1px, transparent 1px),
-      linear-gradient(to bottom, rgb(var(--color-accent) / 0.18) 1px, transparent 1px);
+      linear-gradient(to right, rgb(var(--color-line) / 0.55) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--color-line) / 0.55) 1px, transparent 1px);
     background-size: 32px 32px;
     pointer-events: none;
+  }
+
+  /* Acrobat-like margin box: thin solid, muted — never a loud red dashed frame */
+  .margin-guide {
+    border: 1px solid rgb(var(--color-muted) / 0.28);
+    box-shadow: inset 0 0 0 1px rgb(var(--color-paper) / 0.35);
+  }
+
+  [data-theme="light"] .margin-guide {
+    border-color: rgb(90 100 120 / 0.22);
   }
 
   .preload-screen {

@@ -38,15 +38,42 @@ const manifestPath = path.join(root, "public/asset-manifest.json");
 fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(`wrote ${path.relative(root, manifestPath)}`);
 
-// pdf.js worker for imported-PDF canvas underlays (not hashed — stable URL for GlobalWorkerOptions)
+// pdf.js worker (text/image extract + legacy helpers — stable URL for GlobalWorkerOptions)
 const workerSrc = path.join(root, "node_modules/pdfjs-dist/build/pdf.worker.min.mjs");
 const workerDest = path.join(root, "public/js/pdf.worker.min.mjs");
 if (fs.existsSync(workerSrc)) {
   fs.copyFileSync(workerSrc, workerDest);
   console.log("copied pdf.worker.min.mjs → public/js/");
 } else {
-  console.warn("pdfjs worker missing — PDF underlay preview will fail until pdfjs-dist is installed");
+  console.warn("pdfjs worker missing — PDF text extract may fail until pdfjs-dist is installed");
 }
+
+// EmbedPDF PDFium WASM for sharp canvas underlays / thumbs
+const wasmSrc = path.join(root, "node_modules/@embedpdf/pdfium/dist/pdfium.wasm");
+const wasmDir = path.join(root, "public/wasm");
+const wasmDest = path.join(wasmDir, "pdfium.wasm");
+if (fs.existsSync(wasmSrc)) {
+  fs.mkdirSync(wasmDir, { recursive: true });
+  fs.copyFileSync(wasmSrc, wasmDest);
+  console.log("copied pdfium.wasm → public/wasm/");
+} else {
+  console.warn("pdfium.wasm missing — EmbedPDF underlays will fail until @embedpdf/pdfium is installed");
+}
+
+// Tesseract OCR assets (worker + core). Lang data is prepared by build:client.
+const tessDir = path.join(root, "public/js/tesseract");
+fs.mkdirSync(tessDir, { recursive: true });
+for (const [rel, name] of [
+  ["node_modules/tesseract.js/dist/worker.min.js", "worker.min.js"],
+  ["node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js", "tesseract-core-simd-lstm.wasm.js"],
+  ["node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm", "tesseract-core-simd-lstm.wasm"],
+]) {
+  const src = path.join(root, rel);
+  if (fs.existsSync(src)) {
+    fs.copyFileSync(src, path.join(tessDir, name));
+  }
+}
+console.log("copied tesseract worker/core → public/js/tesseract/");
 
 // Self-hosted Alpine (stable URL; also content-hash when present)
 const alpineSrc = path.join(root, "node_modules/alpinejs/dist/cdn.min.js");

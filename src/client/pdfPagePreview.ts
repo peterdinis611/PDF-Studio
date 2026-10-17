@@ -1,11 +1,30 @@
+/**
+ * PDF page previews via EmbedPDF (PDFium). pdf.js is only a last-resort fallback
+ * when PDFium cannot initialize — never permanently disables EmbedPDF.
+ */
+import {
+  closeEmbedPdfDocument,
+  ensureEmbedPdfDocument,
+  getEmbedPdfEngine,
+  getEmbedPdfStatus,
+  isEmbedPdfReady,
+  preloadEmbedPdfEngine,
+} from "./embedPdfEngine.js";
 import { openPdfJsDocument } from "./pdfJsDocument.js";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
+export { preloadEmbedPdfEngine, getEmbedPdfStatus, isEmbedPdfReady };
+
 const pageCache = new Map<string, string>();
 let bytesFingerprint = "";
+const objectUrls: string[] = [];
+
 let sharedPdf: PDFDocumentProxy | null = null;
 let sharedFp = "";
 let openTask: Promise<PDFDocumentProxy> | null = null;
+
+/** Which rasterizer produced the last successful page image. */
+let lastBackend: "embedpdf" | "pdfjs" | null = null;
 
 export type PreviewPurpose = "thumb" | "canvas";
 
@@ -19,9 +38,22 @@ function cacheKey(pageIndex: number, scale: number, purpose: PreviewPurpose): st
   return `${purpose}:${pageIndex}@${scale}`;
 }
 
+function revokeCachedUrls(): void {
+  for (const url of objectUrls) {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      /* ignore */
+    }
+  }
+  objectUrls.length = 0;
+}
+
 export function invalidatePdfPreviewCache(): void {
   pageCache.clear();
   bytesFingerprint = "";
+  revokeCachedUrls();
+  void closeEmbedPdfDocument();
   openTask = null;
   if (sharedPdf) {
     void sharedPdf.destroy().catch(() => undefined);
@@ -30,7 +62,26 @@ export function invalidatePdfPreviewCache(): void {
   sharedFp = "";
 }
 
-async function ensureSharedPdf(bytes: Uint8Array): Promise<PDFDocumentProxy> {
+export function getPdfPreviewBackend(): "embedpdf" | "pdfjs" | null {
+  return lastBackend;
+}
+
+function devicePixelRatioSafe(): number {
+  if (typeof window === "undefined") return 2;
+  return Math.min(Math.max(window.devicePixelRatio || 1, 1), 3);
+}
+
+export function recommendedThumbScale(): number {
+  const cssWidth = 288;
+  const dpr = Math.max(2.5, devicePixelRatioSafe());
+  return Math.min(2.4, (cssWidth * dpr) / 595);
+}
+
+export function recommendedCanvasUnderlayScale(zoom = 0.85): number {
+  return Math.min(3.2, Math.max(1.75, zoom * devicePixelRatioSafe() * 1.65));
+}
+
+async function ensureSharedPdfJs(bytes: Uint8Array): Promise<PDFDocumentProxy> {
   const fp = fingerprint(bytes);
   if (sharedPdf && sharedFp === fp) return sharedPdf;
   if (openTask && sharedFp === fp) return openTask;
@@ -39,10 +90,7 @@ async function ensureSharedPdf(bytes: Uint8Array): Promise<PDFDocumentProxy> {
     void sharedPdf.destroy().catch(() => undefined);
     sharedPdf = null;
   }
-  pageCache.clear();
-  bytesFingerprint = fp;
   sharedFp = fp;
-
   openTask = openPdfJsDocument(bytes).then((pdf) => {
     sharedPdf = pdf;
     openTask = null;
@@ -51,37 +99,51 @@ async function ensureSharedPdf(bytes: Uint8Array): Promise<PDFDocumentProxy> {
   return openTask;
 }
 
-function devicePixelRatioSafe(): number {
-  if (typeof window === "undefined") return 2;
-  return Math.min(Math.max(window.devicePixelRatio || 1, 1), 3);
+async function renderViaEmbedPdf(
+  bytes: Uint8Array,
+  pageIndex: number,
+  scale: number,
+  purpose: PreviewPurpose,
+): Promise<string> {
+  const eng = await getEmbedPdfEngine();
+  const doc = await ensureEmbedPdfDocument(bytes);
+  const page = doc.pages[pageIndex];
+  if (!page) throw new Error(`EmbedPDF: missing page ${pageIndex}`);
+
+  const maxEdge = purpose === "thumb" ? 1600 : 3200;
+  const pageW = Math.max(1, page.size?.width ?? 595);
+  const pageH = Math.max(1, page.size?.height ?? 842);
+  const fit = Math.min(1, maxEdge / Math.max(pageW * scale, pageH * scale));
+  const scaleFactor = scale * fit;
+
+  const blob = await eng
+    .renderPage(doc, page, {
+      scaleFactor,
+      dpr: 1,
+      imageType: purpose === "thumb" ? "image/png" : "image/jpeg",
+      imageQuality: purpose === "thumb" ? 1 : 0.95,
+      withAnnotations: true,
+      withForms: true,
+    })
+    .toPromise();
+
+  const url = URL.createObjectURL(blob);
+  objectUrls.push(url);
+  lastBackend = "embedpdf";
+  return url;
 }
 
-/**
- * Rail ≈ 19rem / ~288 CSS px. Always render ≥2.5× CSS px so type stays sharp
- * on Retina (never infer “thumb vs canvas” from scale alone).
- */
-export function recommendedThumbScale(): number {
-  const cssWidth = 288;
-  const dpr = Math.max(2.5, devicePixelRatioSafe());
-  return Math.min(2.4, (cssWidth * dpr) / 595);
-}
-
-/** Target scale for the main canvas underlay at typical zoom. */
-export function recommendedCanvasUnderlayScale(zoom = 0.85): number {
-  return Math.min(3.2, Math.max(1.75, zoom * devicePixelRatioSafe() * 1.65));
-}
-
-async function renderPageToDataUrl(
-  pdf: PDFDocumentProxy,
+async function renderViaPdfJs(
+  bytes: Uint8Array,
   pageIndex: number,
   scale: number,
   purpose: PreviewPurpose,
 ): Promise<string | null> {
+  const pdf = await ensureSharedPdfJs(bytes);
   if (pageIndex < 0 || pageIndex >= pdf.numPages) return null;
   const page = await pdf.getPage(pageIndex + 1);
   const viewport = page.getViewport({ scale });
   const canvas = document.createElement("canvas");
-  // Thumbs: allow up to 1600px so high DPR scales are not downsampled soft
   const maxEdge = purpose === "thumb" ? 1600 : 3200;
   const rawW = Math.ceil(viewport.width);
   const rawH = Math.ceil(viewport.height);
@@ -90,7 +152,6 @@ async function renderPageToDataUrl(
   canvas.height = Math.max(1, Math.floor(rawH * fit));
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) return null;
-  // pdf.js paints vectors — disable smoothing so glyphs stay crisp
   ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -101,13 +162,31 @@ async function renderPageToDataUrl(
     intent: "display",
   }).promise;
 
+  lastBackend = "pdfjs";
   if (purpose === "thumb") {
     return canvas.toDataURL("image/png");
   }
   return canvas.toDataURL("image/jpeg", 0.95);
 }
 
-/** Sync lookup — used for instant page switches without awaiting render. */
+async function renderPageToUrl(
+  bytes: Uint8Array,
+  pageIndex: number,
+  scale: number,
+  purpose: PreviewPurpose,
+): Promise<string | null> {
+  try {
+    return await renderViaEmbedPdf(bytes, pageIndex, scale, purpose);
+  } catch (err) {
+    console.warn("[pdf-studio] EmbedPDF render failed (will retry next time)", err);
+    try {
+      return await renderViaPdfJs(bytes, pageIndex, scale, purpose);
+    } catch {
+      return null;
+    }
+  }
+}
+
 export function getCachedPdfPagePreview(
   bytes: Uint8Array,
   pageIndex: number,
@@ -115,11 +194,10 @@ export function getCachedPdfPagePreview(
   purpose: PreviewPurpose = "canvas",
 ): string | null {
   const fp = fingerprint(bytes);
-  if (fp !== bytesFingerprint && fp !== sharedFp) return null;
+  if (fp !== bytesFingerprint) return null;
   return pageCache.get(cacheKey(pageIndex, scale, purpose)) ?? null;
 }
 
-/** Rasterize one PDF page for canvas underlay or rail thumbnail. */
 export async function renderPdfPagePreview(
   bytes: Uint8Array,
   pageIndex: number,
@@ -127,17 +205,17 @@ export async function renderPdfPagePreview(
   purpose: PreviewPurpose = "canvas",
 ): Promise<string | null> {
   const fp = fingerprint(bytes);
-  if (fp !== bytesFingerprint && fp !== sharedFp) {
-    if (sharedFp && sharedFp !== fp) invalidatePdfPreviewCache();
+  if (bytesFingerprint && bytesFingerprint !== fp) {
+    invalidatePdfPreviewCache();
   }
+  bytesFingerprint = fp;
 
   const key = cacheKey(pageIndex, scale, purpose);
   const cached = pageCache.get(key);
   if (cached) return cached;
 
   try {
-    const pdf = await ensureSharedPdf(bytes);
-    const url = await renderPageToDataUrl(pdf, pageIndex, scale, purpose);
+    const url = await renderPageToUrl(bytes, pageIndex, scale, purpose);
     if (url) pageCache.set(key, url);
     return url;
   } catch {
@@ -145,7 +223,6 @@ export async function renderPdfPagePreview(
   }
 }
 
-/** Warm the cache for nearby pages so next/prev feels instant. */
 export function prefetchPdfPagePreviews(
   bytes: Uint8Array,
   pageIndices: number[],
@@ -158,10 +235,6 @@ export function prefetchPdfPagePreviews(
   }
 }
 
-/**
- * Progressively render many thumbnail pages, reusing one pdf.js document.
- * Always PNG at thumb purpose — never JPEG (JPEG mushifies small type).
- */
 export async function renderPdfThumbsProgressive(
   bytes: Uint8Array,
   pageIndices: number[],
@@ -171,12 +244,17 @@ export async function renderPdfThumbsProgressive(
 ): Promise<void> {
   const chunkSize = options?.chunkSize ?? 3;
   const signal = options?.signal;
-  let pdf: PDFDocumentProxy;
+  const fp = fingerprint(bytes);
+  if (bytesFingerprint && bytesFingerprint !== fp) {
+    invalidatePdfPreviewCache();
+  }
+  bytesFingerprint = fp;
+
+  // Ensure PDFium is warm before the first thumb chunk
   try {
-    pdf = await ensureSharedPdf(bytes);
+    await getEmbedPdfEngine();
   } catch {
-    for (const i of pageIndices) onPage(i, null);
-    return;
+    /* fallback path will handle renders */
   }
 
   for (let offset = 0; offset < pageIndices.length; offset += chunkSize) {
@@ -192,7 +270,7 @@ export async function renderPdfThumbsProgressive(
           return;
         }
         try {
-          const url = await renderPageToDataUrl(pdf, pageIndex, scale, "thumb");
+          const url = await renderPageToUrl(bytes, pageIndex, scale, "thumb");
           if (url) pageCache.set(key, url);
           onPage(pageIndex, url);
         } catch {

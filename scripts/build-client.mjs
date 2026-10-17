@@ -5,6 +5,7 @@
  *   node scripts/build-client.mjs --watch
  */
 import * as esbuild from "esbuild";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -81,6 +82,49 @@ const nodeStubPlugin = {
     });
   },
 };
+
+// Ensure EmbedPDF WASM + pdf.js worker are available during `dev`.
+const wasmSrc = path.join(root, "node_modules/@embedpdf/pdfium/dist/pdfium.wasm");
+const wasmDir = path.join(root, "public/wasm");
+const wasmDest = path.join(wasmDir, "pdfium.wasm");
+if (fs.existsSync(wasmSrc)) {
+  fs.mkdirSync(wasmDir, { recursive: true });
+  fs.copyFileSync(wasmSrc, wasmDest);
+}
+const pdfJsWorkerSrc = path.join(root, "node_modules/pdfjs-dist/build/pdf.worker.min.mjs");
+const pdfJsWorkerDest = path.join(root, "public/js/pdf.worker.min.mjs");
+if (fs.existsSync(pdfJsWorkerSrc)) {
+  fs.copyFileSync(pdfJsWorkerSrc, pdfJsWorkerDest);
+}
+
+// Self-host tesseract.js worker + core so OCR doesn't hang on CDN
+const tessDir = path.join(root, "public/js/tesseract");
+const tessLangDir = path.join(tessDir, "lang");
+fs.mkdirSync(tessLangDir, { recursive: true });
+const tessCopies = [
+  ["node_modules/tesseract.js/dist/worker.min.js", "worker.min.js"],
+  ["node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js", "tesseract-core-simd-lstm.wasm.js"],
+  ["node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm", "tesseract-core-simd-lstm.wasm"],
+];
+for (const [rel, name] of tessCopies) {
+  const src = path.join(root, rel);
+  if (fs.existsSync(src)) fs.copyFileSync(src, path.join(tessDir, name));
+}
+const engGz = path.join(tessLangDir, "eng.traineddata.gz");
+if (!fs.existsSync(engGz)) {
+  try {
+    const url = "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz";
+    const res = await fetch(url);
+    if (res.ok) {
+      fs.writeFileSync(engGz, Buffer.from(await res.arrayBuffer()));
+      console.log("downloaded eng.traineddata.gz → public/js/tesseract/lang/");
+    } else {
+      console.warn("could not download OCR lang data:", res.status);
+    }
+  } catch (err) {
+    console.warn("OCR lang download skipped:", err instanceof Error ? err.message : err);
+  }
+}
 
 const appOptions = {
   entryPoints: [path.join(root, "src/client/main.ts")],
