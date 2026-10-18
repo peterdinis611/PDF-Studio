@@ -59,10 +59,37 @@
     <div x-show="showRulers && !isCompact" class="ruler-v absolute left-0 top-8 z-10 bottom-0" @mousedown="addGuideFromRuler('x', $event)" title="Drag for vertical guide"></div>
 
     <div
-      class="relative flex flex-1 items-center justify-center overflow-auto p-4 sm:p-8 md:p-16"
-      :class="[tool === 'place' ? 'cursor-crosshair' : '', showRulers && !isCompact ? 'pl-12 pt-12' : '']"
+      class="relative flex flex-1 overflow-auto p-4 sm:p-8 md:p-16"
+      :class="[
+        tool === 'place' ? 'cursor-crosshair' : '',
+        showRulers && !isCompact ? 'pl-12 pt-12' : '',
+        multiPageScroll ? 'flex-col items-center gap-10' : 'items-center justify-center',
+      ]"
       @mousedown="onCanvasBackground($event)"
     >
+      <template x-if="multiPageScroll">
+        <div class="flex w-full flex-col items-center gap-10">
+          <template x-for="(page, pIndex) in doc.pages" :key="'stack-' + page.id">
+            <button
+              type="button"
+              class="page-surface relative shrink-0 overflow-hidden text-left shadow-page transition"
+              :class="pIndex === activePageIndex ? 'ring-2 ring-accent/50' : 'opacity-80 hover:opacity-100'"
+              :style="pageStyle"
+              :data-page-stack="pIndex"
+              @click="setActivePage(pIndex)"
+            >
+              <img
+                x-show="pageThumbUnderlays[pIndex] || (pIndex === activePageIndex && pdfUnderlaySrc)"
+                class="pointer-events-none absolute inset-0 h-full w-full object-fill"
+                :src="pIndex === activePageIndex && pdfUnderlaySrc ? pdfUnderlaySrc : pageThumbUnderlays[pIndex]"
+                alt=""
+              />
+              <span class="absolute bottom-2 left-2 rounded bg-ink/80 px-1.5 py-0.5 font-mono text-[10px] text-white" x-text="'Page ' + (pIndex + 1)"></span>
+            </button>
+          </template>
+          <p class="text-xs text-slate-muted">Multi-page scroll · click a page to edit it below</p>
+        </div>
+      </template>
       <div
         class="page-surface relative shrink-0"
         :class="tool === 'place' ? 'ring-2 ring-accent/40 ring-offset-4 ring-offset-[rgb(var(--color-canvas))]' : ''"
@@ -81,6 +108,7 @@
           x-show="pdfUnderlaySrc"
           x-cloak
           class="pdf-underlay pointer-events-none absolute inset-0 z-0 h-full w-full object-fill select-none"
+          :class="doc.importedPdf?.mode === 'editable' && 'opacity-25'"
           :src="pdfUnderlaySrc"
           alt=""
           draggable="false"

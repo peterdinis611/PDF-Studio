@@ -40,6 +40,12 @@ import {
 import { markdownToPlainText, markdownToStyledLines } from "../../shared/markdown.js";
 import { richHtmlToPlainText, richHtmlToStyledLines } from "../../shared/richText.js";
 import {
+  resolveFlattenAnnotations,
+  resolveFlattenForms,
+  resolvePdfaMode,
+} from "../../shared/exportSettings.js";
+import { applyPdfaDocumentHints } from "./pdfa.js";
+import {
   findUrlsInText,
   substituteElementTokens,
   substituteTokens,
@@ -355,28 +361,70 @@ async function drawRichText(
   const baseLh = el.lineHeight || 1.25;
 
   for (const line of styled) {
-    const size = Math.max(6, baseSize * (line.sizeScale || 1));
+    const size = Math.max(6, baseSize * (line.sizeScale || 1) * (line.codeBlock ? 0.9 : 1));
     const lineHeight = size * baseLh;
-    const bold = Boolean(line.bold) || el.fontWeight === "bold";
-    const italic = Boolean(line.italic) || el.fontStyle === "italic";
-    const font = pickFont(fonts, el.fontFamily, bold, italic);
-    const text = line.text || "";
-    const textWidth = font.widthOfTextAtSize(text, size);
-    let x = el.x;
+    const runs =
+      line.runs && line.runs.length
+        ? line.runs
+        : [{ text: line.text || "", bold: line.bold, italic: line.italic }];
+
+    let textWidth = 0;
+    for (const run of runs) {
+      const bold = Boolean(run.bold) || el.fontWeight === "bold" || Boolean(line.sizeScale && line.sizeScale > 1);
+      const italic = Boolean(run.italic) || el.fontStyle === "italic" || Boolean(line.quote);
+      const family = run.code || line.codeBlock ? "Courier" : el.fontFamily;
+      const font = pickFont(fonts, family, bold, italic);
+      textWidth += font.widthOfTextAtSize(run.text, size);
+    }
+
+    let x = el.x + (line.quote ? 10 : 0);
     if (el.align === "center") x = el.x + (el.width - textWidth) / 2;
     if (el.align === "right") x = el.x + el.width - textWidth;
-    if (text) {
-      page.drawText(text, {
-        x: Math.max(0, x),
+    let cx = Math.max(0, x);
+
+    if (line.quote) {
+      page.drawRectangle({
+        x: el.x,
+        y: cursorY - 2,
+        width: 2.5,
+        height: size,
+        color: hexToRgb(el.color),
+        opacity: Math.min(el.opacity, 0.45),
+      });
+    }
+
+    for (const run of runs) {
+      if (!run.text) continue;
+      const bold = Boolean(run.bold) || el.fontWeight === "bold" || Boolean(line.sizeScale && line.sizeScale > 1);
+      const italic = Boolean(run.italic) || el.fontStyle === "italic" || Boolean(line.quote);
+      const family = run.code || line.codeBlock ? "Courier" : el.fontFamily;
+      const font = pickFont(fonts, family, bold, italic);
+      const color = run.color ? hexToRgb(run.color) : hexToRgb(el.color);
+      page.drawText(run.text, {
+        x: cx,
         y: cursorY,
         size,
         font,
-        color: hexToRgb(el.color),
+        color,
         opacity: el.opacity,
         rotate: degrees(el.rotation || 0),
-        maxWidth: el.width,
       });
+      const w = font.widthOfTextAtSize(run.text, size);
+      if (run.underline || el.underline) {
+        page.drawLine({
+          start: { x: cx, y: cursorY - 2 },
+          end: { x: cx + w, y: cursorY - 2 },
+          thickness: Math.max(0.5, size / 16),
+          color,
+          opacity: el.opacity,
+        });
+      }
+      if (run.href) {
+        addUriLink(doc, page, run.href, cx, cursorY - 2, w, size + 4);
+      }
+      cx += w;
     }
+
     cursorY -= lineHeight;
   }
 
@@ -1099,6 +1147,12 @@ async function drawDocComment(page: PDFPage, c: DocComment, pageHeight: number, 
   }
 }
 
+function isAnnotationLike(el: PdfElement): boolean {
+  if (el.type === "stamp" || el.type === "badge") return true;
+  if (el.type === "rect" && el.markup && !el.redact) return true;
+  return false;
+}
+
 async function drawElement(
   doc: PDFDocument,
   page: PDFPage,
@@ -1109,7 +1163,10 @@ async function drawElement(
   pageCount: number,
   imageQuality: number,
   compressImages = false,
+  flattenAnnotations = true,
 ) {
+  if (!flattenAnnotations && isAnnotationLike(el)) return;
+
   switch (el.type) {
     case "text":
       await drawText(doc, page, el, pageHeight, fonts, pageIndex, pageCount);
@@ -1167,8 +1224,15 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
     margin: 0,
     imageQuality: 0.85,
     flatten: false,
+    flattenForms: false,
+    flattenAnnotations: true,
     pdfaLite: false,
+    pdfaMode: "off" as const,
   };
+  const flattenForms = resolveFlattenForms(settings);
+  const flattenAnnotations = resolveFlattenAnnotations(settings);
+  const pdfaMode = resolvePdfaMode(settings);
+  const pdfaHints = applyPdfaDocumentHints(doc, pdfaMode, payload.name || "Document");
   const pageCount = payload.pages.length;
 
   let sourcePdf: PDFDocument | null = null;
@@ -1190,13 +1254,6 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
         sourcePdf = null;
       }
     }
-  }
-
-  if (settings.pdfaLite) {
-    doc.setTitle(payload.name || "Document");
-    doc.setProducer("PDF Studio");
-    doc.setCreator("PDF Studio");
-    doc.setCreationDate(new Date());
   }
 
   for (let pageIndex = 0; pageIndex < payload.pages.length; pageIndex++) {
@@ -1284,6 +1341,7 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
         pageCount,
         settings.imageQuality,
         Boolean(settings.compressImages),
+        flattenAnnotations,
       );
     }
 
@@ -1304,6 +1362,7 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
         pageCount,
         settings.imageQuality,
         Boolean(settings.compressImages),
+        flattenAnnotations,
       );
     }
 
@@ -1324,7 +1383,7 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
     }
   }
 
-  if (settings.flatten) {
+  if (flattenForms) {
     try {
       doc.getForm().flatten();
     } catch {
@@ -1332,9 +1391,12 @@ export async function exportPdf(payload: ExportPayload): Promise<Uint8Array> {
     }
   }
 
-  const bytes = await doc.save({ useObjectStreams: !settings.pdfaLite });
+  const bytes = await doc.save({ useObjectStreams: pdfaHints.useObjectStreams });
   const password = payload.userPassword?.trim();
   if (password) {
+    if (pdfaHints.blockEncryption) {
+      throw new Error("PDF/A strict mode cannot be combined with password encryption");
+    }
     const { encryptPdfBytes } = await import("./pdfEncrypt.js");
     return encryptPdfBytes(bytes, password);
   }

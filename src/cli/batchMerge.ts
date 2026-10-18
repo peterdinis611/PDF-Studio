@@ -73,8 +73,11 @@ async function main() {
       exportSettings: {
         margin: 0,
         imageQuality: 0.9,
-        flatten: false,
-        pdfaLite: false,
+        flattenForms: arg("--flatten") === "1",
+        flattenAnnotations: arg("--flatten-annots") !== "0",
+        pdfaMode: (arg("--pdfa") as "off" | "friendly" | "strict") || "off",
+        flatten: arg("--flatten") === "1",
+        pdfaLite: Boolean(arg("--pdfa") && arg("--pdfa") !== "off"),
         includeComments: false,
         includeWatermark: true,
       },

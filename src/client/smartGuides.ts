@@ -13,9 +13,11 @@ export function computeSmartGuides(
   pageWidth: number,
   pageHeight: number,
   excludeIds: Set<string>,
+  /** Optional underlay text baselines (page Y) for Acrobat-like snap. */
+  underlayBaselines: number[] = [],
 ): { x: number; y: number; guides: SmartGuide[] } {
   const targetsX: number[] = [0, pageWidth / 2, pageWidth];
-  const targetsY: number[] = [0, pageHeight / 2, pageHeight];
+  const targetsY: number[] = [0, pageHeight / 2, pageHeight, ...underlayBaselines];
 
   for (const el of siblings) {
     if (excludeIds.has(el.id)) continue;

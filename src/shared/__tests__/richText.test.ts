@@ -20,11 +20,12 @@ describe("richHtmlToPlainText", () => {
 });
 
 describe("richHtmlToStyledLines", () => {
-  it("scales headings and marks bold", () => {
+  it("scales headings and marks bold with inline runs", () => {
     const lines = richHtmlToStyledLines("<h1>Title</h1><p>Body with <strong>bold</strong></p><h3>Sub</h3>");
     expect(lines[0].text).toBe("Title");
     expect(lines[0].sizeScale).toBeGreaterThan(1.5);
     expect(lines[0].bold).toBe(true);
+    expect(lines[0].runs?.length).toBeGreaterThan(0);
     expect(lines.some((l) => l.text.includes("Body") && l.bold)).toBe(true);
     expect(lines.find((l) => l.text === "Sub")?.sizeScale).toBeCloseTo(1.2);
   });

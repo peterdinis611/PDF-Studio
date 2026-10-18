@@ -42,12 +42,19 @@ import {
   destroyTipTap,
   getActiveTipTap,
   mountTipTap,
+  tipTapInsertTable,
+  tipTapSetColor,
+  tipTapSetLink,
   tipTapSetParagraph,
+  tipTapSetTextAlign,
+  tipTapToggleBlockquote,
   tipTapToggleBold,
   tipTapToggleBulletList,
+  tipTapToggleCode,
   tipTapToggleHeading,
   tipTapToggleItalic,
   tipTapToggleOrderedList,
+  tipTapToggleUnderline,
   type RichHeadingLevel,
 } from "./tiptapEditor.js";
 import {
@@ -58,6 +65,7 @@ import {
   googleFamilyCssName,
 } from "./fonts.js";
 import { HistoryStack } from "./history.js";
+import { listDocVersions, loadDocVersion, saveDocVersion, type DocVersionMeta } from "./docVersions.js";
 import { iconSvg } from "./icons.js";
 import { loremIpsum, type LoremSize } from "./lorem.js";
 import {
@@ -108,8 +116,9 @@ import {
   type MergeOutputMode,
 } from "./mailMerge.js";
 import { auditMergeFields } from "./fieldAudit.js";
-import { exportPngProofZip } from "./pngProof.js";
-import { runPreflight } from "./preflight.js";
+import { exportPageAsImage, exportPngProofZip } from "./pngProof.js";
+import { normalizeExportSettings } from "../shared/exportSettings.js";
+import { buildPreflightReport, type PreflightIssue } from "./preflight.js";
 import {
   createESignPackage,
   exportTrailText,
@@ -376,7 +385,8 @@ function pdfEditor() {
     mailMergeSkipWhen: null as MergeCondition | null,
     mailMergeSeqStart: 1,
     fieldAuditIssues: [] as { token: string; severity: string; message: string }[],
-    preflightIssues: [] as { level: string; code: string; message: string }[],
+    preflightIssues: [] as PreflightIssue[],
+    preflightSummary: { error: 0, warn: 0, info: 0 },
     eSignPkg: null as ESignPackage | null,
     eSignNames: "",
     userTemplates: [] as UserTemplateMeta[],
@@ -443,6 +453,24 @@ function pdfEditor() {
     pageSizeQuery: "",
     pageSizeGroups: PAGE_SIZE_GROUPS,
     commonPageSizes: ["a4", "letter", "legal", "a3", "a5", "businessCard"] as PageSize[],
+    multiPageScroll: false,
+    pageDragIndex: null as number | null,
+    underlayBaselines: [] as number[],
+    historyEntries: [] as { label: string; at: number; pastIndex: number }[],
+    docVersions: [] as DocVersionMeta[],
+    showHistoryPanel: false,
+    showFillSign: false,
+    fillSignStep: 0,
+    showBatchModal: false,
+    showCompareModal: false,
+    showRedactConfirm: false,
+    redactConfirmed: false,
+    batchFiles: [] as File[],
+    batchBusy: false,
+    compareFileA: null as File | null,
+    compareFileB: null as File | null,
+    compareMode: "split" as "split" | "overlay",
+    editableGhostUnderlay: true,
     showGuides: false,
     showGrid: false,
     showRulers: true,
@@ -472,16 +500,17 @@ function pdfEditor() {
       defaultFont: "Helvetica",
       name: "My Brand",
     } as BrandKit,
-    exportSettings: {
+    exportSettings: normalizeExportSettings({
       margin: 0,
       imageQuality: 0.85,
-      flatten: false,
-      pdfaLite: false,
+      flattenForms: false,
+      flattenAnnotations: true,
+      pdfaMode: "off",
       intent: "screen",
       compressImages: true,
       includeComments: false,
       includeWatermark: true,
-    } as ExportSettings,
+    }),
     authorName: "Reviewer",
     docLibrary: [] as DocIndexEntry[],
     commentDraft: "",
@@ -814,11 +843,13 @@ function pdfEditor() {
           showGrid?: boolean;
           snapEnabled?: boolean;
           showRulers?: boolean;
+          multiPageScroll?: boolean;
         };
         if (typeof settings.showGuides === "boolean") this.showGuides = settings.showGuides;
         if (typeof settings.showGrid === "boolean") this.showGrid = settings.showGrid;
         if (typeof settings.snapEnabled === "boolean") this.snapEnabled = settings.snapEnabled;
         if (typeof settings.showRulers === "boolean") this.showRulers = settings.showRulers;
+        if (typeof settings.multiPageScroll === "boolean") this.multiPageScroll = settings.multiPageScroll;
       } catch {
         /* ignore */
       }
@@ -840,7 +871,7 @@ function pdfEditor() {
 
       try {
         const exp = JSON.parse(storeGet(EXPORT_KEY) || "null");
-        if (exp) this.exportSettings = { ...this.exportSettings, ...exp };
+        if (exp) this.exportSettings = normalizeExportSettings({ ...this.exportSettings, ...exp });
       } catch {
         /* ignore */
       }
@@ -987,14 +1018,17 @@ function pdfEditor() {
 
     async refreshPdfUnderlay() {
       const gen = ++this._underlayGen;
-      if (this.doc.importedPdf?.mode === "editable") {
+      const editable = this.doc.importedPdf?.mode === "editable";
+      if (editable && !this.editableGhostUnderlay) {
         this.pdfUnderlaySrc = null;
+        this.underlayBaselines = [];
         return;
       }
       const bytes = getSessionImportedPdfBytes();
       const page = this.doc.pages[this.activePageIndex];
       if (!bytes || typeof page?.sourcePageIndex !== "number") {
         this.pdfUnderlaySrc = null;
+        this.underlayBaselines = [];
         return;
       }
       const sourceIdx = page.sourcePageIndex;
@@ -1022,6 +1056,7 @@ function pdfEditor() {
         if (typeof p?.sourcePageIndex === "number") neighbors.push(p.sourcePageIndex);
       }
       prefetchPdfPagePreviews(bytes, neighbors, scale);
+      void this.refreshUnderlayBaselines();
     },
 
     async ensureActiveThumb() {
@@ -1208,12 +1243,80 @@ function pdfEditor() {
     syncHistoryFlags() {
       this.canUndo = history.canUndo;
       this.canRedo = history.canRedo;
+      this.historyEntries = history.list();
     },
 
-    commit(recordHistory = true) {
+    jumpToHistory(pastIndex: number) {
+      const prev = history.jumpToPastIndex(this.doc, pastIndex);
+      if (!prev) return;
+      this.doc = normalizeDoc(prev);
+      this.selectedIds = [];
+      this.syncHistoryFlags();
+      this.commit(false);
+      void this.refreshPdfUnderlay();
+      this.showToast("Restored history state");
+    },
+
+    async refreshDocVersions() {
+      try {
+        this.docVersions = await listDocVersions(this.doc.id);
+      } catch {
+        this.docVersions = [];
+      }
+    },
+
+    async restoreDocVersion(id: string) {
+      const doc = await loadDocVersion(id);
+      if (!doc) {
+        this.showToast("Version not found", 3000);
+        return;
+      }
+      this.doc = normalizeDoc(doc);
+      history.reset(this.doc);
+      this.syncHistoryFlags();
+      this.selectedIds = [];
+      this.commit(false);
+      await this.refreshPdfUnderlay();
+      this.showToast("Version restored");
+    },
+
+    async saveNamedVersion() {
+      const label = prompt("Version label", "Checkpoint") || "Checkpoint";
+      await saveDocVersion(this.doc, label);
+      await this.refreshDocVersions();
+      this.showToast(`Saved version “${label}”`);
+    },
+
+    toggleMultiPageScroll() {
+      this.multiPageScroll = !this.multiPageScroll;
+      storeSet(
+        SETTINGS_KEY,
+        JSON.stringify({
+          showGuides: this.showGuides,
+          showGrid: this.showGrid,
+          snapEnabled: this.snapEnabled,
+          showRulers: this.showRulers,
+          multiPageScroll: this.multiPageScroll,
+        }),
+      );
+    },
+
+    async refreshUnderlayBaselines() {
+      this.underlayBaselines = [];
+      if (!this.doc.importedPdf || this.doc.importedPdf.mode === "editable") return;
+      try {
+        const { extractPageBaselines } = await import("./pdfTextExtract.js");
+        const baselines = await extractPageBaselines(this.doc, this.activePageIndex);
+        this.underlayBaselines = baselines;
+      } catch {
+        this.underlayBaselines = [];
+      }
+    },
+
+    commit(recordHistory = true, historyLabel = "Edit") {
       this.doc.updatedAt = new Date().toISOString();
       if (recordHistory && !skipHistory) {
-        history.push(this.doc, JSON.stringify(this.doc));
+        history.push(this.doc, JSON.stringify(this.doc), historyLabel);
         this.syncHistoryFlags();
       }
       this.saveState = "saving";
@@ -1225,6 +1328,8 @@ function pdfEditor() {
           storeSet(docKey(this.doc.id), snapshot);
           this.upsertDocLibrary();
           this.saveState = "saved";
+          // Periodic IndexedDB version (throttled by save cadence)
+          void saveDocVersion(this.doc, "Autosave").then(() => this.refreshDocVersions());
           window.setTimeout(() => {
             if (this.saveState === "saved") this.saveState = "idle";
           }, 1600);
@@ -1603,8 +1708,21 @@ function pdfEditor() {
     },
 
     openPreflight() {
-      this.preflightIssues = runPreflight(this.doc);
+      const report = buildPreflightReport(this.doc, this.exportSettings);
+      this.preflightIssues = report.issues;
+      this.preflightSummary = report.summary;
       this.showPreflight = true;
+    },
+
+    focusPreflightIssue(issue: PreflightIssue) {
+      if (typeof issue.pageIndex === "number") {
+        this.setActivePage(issue.pageIndex);
+      }
+      if (issue.elId) {
+        this.selectedIds = [issue.elId];
+        this.showInspectorPanel = true;
+      }
+      this.showPreflight = false;
     },
 
     async exportPngProof() {
@@ -1620,6 +1738,28 @@ function pdfEditor() {
         this.showToast("PNG proof ZIP downloaded");
       } catch (err) {
         this.showToast(err instanceof Error ? err.message : "PNG export failed", 4000);
+      }
+    },
+
+    async exportActivePageImage(format: "png" | "jpeg" = "png") {
+      try {
+        this.showToast(`Rendering ${format.toUpperCase()}…`, 1800);
+        const { blob, filename } = await exportPageAsImage(this.doc, (url, init) => apiFetch(url, init), {
+          pageIndex: this.activePageIndex,
+          format,
+          quality: this.exportSettings.imageQuality ?? 0.92,
+          scale: 2,
+          exportSettings: this.exportSettings,
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.showToast(`${format.toUpperCase()} downloaded`);
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Image export failed", 4000);
       }
     },
 
@@ -1849,24 +1989,44 @@ function pdfEditor() {
     },
 
     async movePage(index: number, dir: -1 | 1) {
-      const next = index + dir;
-      if (next < 0 || next >= this.doc.pages.length) return;
+      await this.reorderPages(index, index + dir);
+    },
+
+    async reorderPages(from: number, to: number) {
+      if (from === to || from < 0 || to < 0 || from >= this.doc.pages.length || to >= this.doc.pages.length) {
+        return;
+      }
       const pages = this.doc.pages;
-      [pages[index], pages[next]] = [pages[next], pages[index]];
-      this.activePageIndex = next;
-      // Keep bookmark page indices in sync with reordered pages
+      const [moved] = pages.splice(from, 1);
+      pages.splice(to, 0, moved);
+      this.activePageIndex = to;
       if (this.doc.bookmarks?.length) {
         this.doc.bookmarks = this.doc.bookmarks.map((b) => {
-          if (b.pageIndex === index) return { ...b, pageIndex: next };
-          if (b.pageIndex === next) return { ...b, pageIndex: index };
-          return b;
+          let idx = b.pageIndex;
+          if (idx === from) idx = to;
+          else if (from < to && idx > from && idx <= to) idx -= 1;
+          else if (to < from && idx >= to && idx < from) idx += 1;
+          return { ...b, pageIndex: idx };
         });
       }
       this.doc = await syncSessionPdfToStudioPages(this.doc);
-      this.commit();
+      this.commit(true, "Reorder pages");
       await this.persistImportedPdfForDoc();
       await this.refreshPdfUnderlay();
       void this.refreshPageThumbUnderlays();
+    },
+
+    onPageThumbDragStart(index: number, event: DragEvent) {
+      this.pageDragIndex = index;
+      event.dataTransfer?.setData("text/page-index", String(index));
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    },
+
+    onPageThumbDrop(toIndex: number, event: DragEvent) {
+      event.preventDefault();
+      const from = this.pageDragIndex ?? Number(event.dataTransfer?.getData("text/page-index"));
+      this.pageDragIndex = null;
+      if (Number.isFinite(from)) void this.reorderPages(Number(from), toIndex);
     },
 
     async removePage(index: number) {
@@ -2434,6 +2594,7 @@ function pdfEditor() {
             this.pageSize.width,
             this.pageSize.height,
             exclude,
+            this.underlayBaselines,
           );
           nx = result.x;
           ny = result.y;
@@ -2717,6 +2878,43 @@ function pdfEditor() {
     richToggleOrderedList() {
       if (!this.ensureRichEditing()) return;
       queueMicrotask(() => tipTapToggleOrderedList());
+    },
+
+    richToggleUnderline() {
+      if (!this.ensureRichEditing()) return;
+      queueMicrotask(() => tipTapToggleUnderline());
+    },
+
+    richToggleBlockquote() {
+      if (!this.ensureRichEditing()) return;
+      queueMicrotask(() => tipTapToggleBlockquote());
+    },
+
+    richToggleCode() {
+      if (!this.ensureRichEditing()) return;
+      queueMicrotask(() => tipTapToggleCode());
+    },
+
+    richSetAlign(align: "left" | "center" | "right") {
+      if (!this.ensureRichEditing()) return;
+      queueMicrotask(() => tipTapSetTextAlign(align));
+    },
+
+    richSetColor(color: string) {
+      if (!this.ensureRichEditing()) return;
+      queueMicrotask(() => tipTapSetColor(color));
+    },
+
+    richSetLink() {
+      if (!this.ensureRichEditing()) return;
+      const href = prompt("Link URL (blank to remove)", "https://");
+      if (href === null) return;
+      queueMicrotask(() => tipTapSetLink(href));
+    },
+
+    richInsertTable() {
+      if (!this.ensureRichEditing()) return;
+      queueMicrotask(() => tipTapInsertTable());
     },
 
     updateTableCell(row: number, col: number, value: string) {
@@ -3026,23 +3224,24 @@ function pdfEditor() {
 
     setExportPreset(intent: "screen" | "print") {
       if (intent === "screen") {
-        this.exportSettings = {
+        this.exportSettings = normalizeExportSettings({
           ...this.exportSettings,
           intent: "screen",
           margin: 0,
           imageQuality: 0.72,
           compressImages: true,
-          pdfaLite: false,
-        };
+          pdfaMode: "off",
+        });
       } else {
-        this.exportSettings = {
+        this.exportSettings = normalizeExportSettings({
           ...this.exportSettings,
           intent: "print",
           margin: Math.max(this.exportSettings.margin, 36),
           imageQuality: 0.95,
           compressImages: false,
-          pdfaLite: true,
-        };
+          pdfaMode: "friendly",
+          flattenAnnotations: true,
+        });
       }
       this.saveExportSettings();
     },
@@ -3684,10 +3883,158 @@ function pdfEditor() {
     },
 
     openExportModal() {
+      const redacts = this.redactRects();
+      if (redacts.length && !this.redactConfirmed) {
+        this.showRedactConfirm = true;
+        return;
+      }
       this.showExportModal = true;
     },
 
+    redactRects() {
+      const out: { id: string; pageIndex: number; width: number; height: number }[] = [];
+      this.doc.pages.forEach((page, pageIndex) => {
+        for (const el of page.elements) {
+          if (el.type === "rect" && el.redact) {
+            out.push({ id: el.id, pageIndex, width: el.width, height: el.height });
+          }
+        }
+      });
+      return out;
+    },
+
+    confirmRedactionsAndExport() {
+      this.redactConfirmed = true;
+      this.showRedactConfirm = false;
+      this.showExportModal = true;
+    },
+
+    openFillSign() {
+      this.fillSignStep = 0;
+      this.showFillSign = true;
+    },
+
+    onBatchFilesSelected(event: Event) {
+      const input = event.target as HTMLInputElement;
+      this.batchFiles = Array.from(input.files || []);
+    },
+
+    async runBatchExport() {
+      if (!this.batchFiles.length) return;
+      this.batchBusy = true;
+      try {
+        const zip = new JSZip();
+        const { importPdfInBrowser } = await import("./pdfImport.js");
+        for (const file of this.batchFiles) {
+          const buf = await file.arrayBuffer();
+          const imported = await importPdfInBrowser(file, { mode: "overlay" });
+          const bytesArr = new Uint8Array(buf);
+          let binary = "";
+          const chunk = 0x8000;
+          for (let i = 0; i < bytesArr.length; i += chunk) {
+            binary += String.fromCharCode(...bytesArr.subarray(i, i + chunk));
+          }
+          const payload = {
+            name: imported.name || file.name.replace(/\.pdf$/i, ""),
+            pageSize: imported.pageSize,
+            pageBackground: imported.pageBackground,
+            pages: imported.pages,
+            master: this.doc.master,
+            watermark: this.doc.watermark,
+            comments: [],
+            importedPdf: imported.importedPdf,
+            importedPdfData: btoa(binary),
+            customFonts: this.doc.customFonts || [],
+            exportSettings: normalizeExportSettings({
+              ...this.exportSettings,
+              includeWatermark: true,
+            }),
+          };
+          const out = await exportPdfBytes(payload as never, (url, init) => apiFetch(url, init));
+          zip.file(`${(file.name || "doc").replace(/\.pdf$/i, "")}-batch.pdf`, out);
+        }
+        const blob = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "pdf-studio-batch.zip";
+        a.click();
+        URL.revokeObjectURL(url);
+        this.showBatchModal = false;
+        this.showToast(`Batch exported ${this.batchFiles.length} PDF(s)`);
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Batch failed", 4000);
+      } finally {
+        this.batchBusy = false;
+      }
+    },
+
+    openCompareModal() {
+      this.showCompareModal = true;
+    },
+
+    onCompareFile(event: Event, which: "a" | "b") {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0] || null;
+      if (which === "a") this.compareFileA = file;
+      else this.compareFileB = file;
+      void this.runComparePreview();
+    },
+
+    async runComparePreview() {
+      const refs = (this as unknown as { $refs: Record<string, HTMLCanvasElement | undefined> }).$refs;
+      const canvasA = refs.compareCanvasA;
+      const canvasB = refs.compareCanvasB;
+      if (!canvasA) return;
+      const renderFile = async (file: File | null, canvas: HTMLCanvasElement) => {
+        if (!file) return null;
+        const buf = await file.arrayBuffer();
+        const { openPdfJsDocument } = await import("./pdfJsDocument.js");
+        const pdf = await openPdfJsDocument(new Uint8Array(buf));
+        try {
+          const page = await pdf.getPage(1);
+          const viewport = page.getViewport({ scale: 1.2 });
+          canvas.width = Math.floor(viewport.width);
+          canvas.height = Math.floor(viewport.height);
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return null;
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          return ctx.getImageData(0, 0, canvas.width, canvas.height);
+        } finally {
+          await pdf.destroy();
+        }
+      };
+      try {
+        const dataA = await renderFile(this.compareFileA, canvasA);
+        if (this.compareMode === "split" && canvasB) {
+          await renderFile(this.compareFileB, canvasB);
+        } else if (this.compareMode === "overlay" && dataA && this.compareFileB) {
+          const tmp = document.createElement("canvas");
+          const dataB = await renderFile(this.compareFileB, tmp);
+          if (!dataB) return;
+          const ctx = canvasA.getContext("2d");
+          if (!ctx) return;
+          const out = ctx.createImageData(dataA.width, dataA.height);
+          const n = Math.min(dataA.data.length, dataB.data.length);
+          for (let i = 0; i < n; i += 4) {
+            const dr = Math.abs(dataA.data[i] - dataB.data[i]);
+            const dg = Math.abs(dataA.data[i + 1] - dataB.data[i + 1]);
+            const db = Math.abs(dataA.data[i + 2] - dataB.data[i + 2]);
+            const diff = dr + dg + db;
+            out.data[i] = Math.min(255, dataA.data[i] + (diff > 30 ? 80 : 0));
+            out.data[i + 1] = dataA.data[i + 1];
+            out.data[i + 2] = Math.min(255, dataA.data[i + 2] + (diff > 30 ? 40 : 0));
+            out.data[i + 3] = 255;
+          }
+          ctx.putImageData(out, 0, 0);
+        }
+      } catch (err) {
+        this.showToast(err instanceof Error ? err.message : "Compare failed", 4000);
+      }
+    },
+
     saveExportSettings() {
+      this.exportSettings = normalizeExportSettings(this.exportSettings);
       storeSet(EXPORT_KEY, JSON.stringify(this.exportSettings));
     },
 

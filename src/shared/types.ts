@@ -476,11 +476,24 @@ export const GOOGLE_FONTS = [
   { id: "Raleway", label: "Raleway", css: "Raleway, sans-serif", googleFamily: "Raleway" },
 ] as const;
 
+export type PdfaMode = "off" | "friendly" | "strict";
+
 export interface ExportSettings {
   margin: number;
   imageQuality: number;
-  flatten: boolean;
-  pdfaLite: boolean;
+  /** @deprecated Prefer flattenForms — kept for older saved prefs. */
+  flatten?: boolean;
+  /** Flatten AcroForm fields into page content. */
+  flattenForms?: boolean;
+  /**
+   * When true (default), burn markup (highlight/underline/strike), stamps and badges into the page.
+   * When false, those annotation-like elements are omitted from the PDF.
+   */
+  flattenAnnotations?: boolean;
+  /** @deprecated Prefer pdfaMode — kept for older saved prefs. */
+  pdfaLite?: boolean;
+  /** off | friendly metadata | stricter PDF/A-oriented hints. */
+  pdfaMode?: PdfaMode;
   /** Screen = smaller files; print = higher quality / margins. */
   intent?: "screen" | "print";
   compressImages?: boolean;

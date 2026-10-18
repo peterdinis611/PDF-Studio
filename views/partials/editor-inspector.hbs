@@ -116,8 +116,20 @@
               <button type="button" class="btn-ghost text-xs" title="Paragraph" @mousedown.prevent @click="richSetParagraph()">P</button>
               <button type="button" class="btn-ghost text-xs font-bold" title="Bold" @mousedown.prevent @click="richToggleBold()">B</button>
               <button type="button" class="btn-ghost text-xs italic" title="Italic" @mousedown.prevent @click="richToggleItalic()">I</button>
+              <button type="button" class="btn-ghost text-xs underline" title="Underline" @mousedown.prevent @click="richToggleUnderline()">U</button>
               <button type="button" class="btn-ghost text-xs" title="Bullet list" @mousedown.prevent @click="richToggleBulletList()">• List</button>
               <button type="button" class="btn-ghost text-xs" title="Numbered list" @mousedown.prevent @click="richToggleOrderedList()">1. List</button>
+              <button type="button" class="btn-ghost text-xs" title="Quote" @mousedown.prevent @click="richToggleBlockquote()">“”</button>
+              <button type="button" class="btn-ghost text-xs font-mono" title="Inline code" @mousedown.prevent @click="richToggleCode()">&lt;/&gt;</button>
+              <button type="button" class="btn-ghost text-xs" title="Align left" @mousedown.prevent @click="richSetAlign('left')">⬅</button>
+              <button type="button" class="btn-ghost text-xs" title="Align center" @mousedown.prevent @click="richSetAlign('center')">⬌</button>
+              <button type="button" class="btn-ghost text-xs" title="Align right" @mousedown.prevent @click="richSetAlign('right')">➡</button>
+              <button type="button" class="btn-ghost text-xs" title="Link" @mousedown.prevent @click="richSetLink()">Link</button>
+              <label class="btn-ghost inline-flex cursor-pointer items-center gap-1 text-xs" title="Text color">
+                <span>Color</span>
+                <input type="color" class="h-5 w-5 cursor-pointer border-0 bg-transparent p-0" value="#b0281b" @mousedown.prevent @input="richSetColor($event.target.value)" />
+              </label>
+              <button type="button" class="btn-ghost text-xs" title="Insert table" @mousedown.prevent @click="richInsertTable()">Table</button>
             </div>
             <label class="mt-2 flex items-center gap-2 text-sm text-slate-muted">
               <input type="checkbox" class="accent-accent" :checked="!!selected.rich" @change="toggleRich($event.target.checked)" />
@@ -672,6 +684,40 @@
           </li>
         </template>
       </ul>
+    </div>
+
+    <div class="border-t border-slate-line pt-4">
+      <div class="flex items-center justify-between gap-2">
+        <label class="panel-label mb-0">History</label>
+        <button type="button" class="btn-ghost text-[10px]" @click="showHistoryPanel = !showHistoryPanel" x-text="showHistoryPanel ? 'Hide' : 'Show'"></button>
+      </div>
+      <div class="mt-2 space-y-2" x-show="showHistoryPanel" x-cloak>
+        <ul class="max-h-36 space-y-1 overflow-y-auto text-xs">
+          <template x-for="h in historyEntries" :key="h.pastIndex + '-' + h.at">
+            <li>
+              <button type="button" class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left hover:bg-slate-hover" @click="jumpToHistory(h.pastIndex)">
+                <span class="truncate text-fg" x-text="h.label"></span>
+                <span class="shrink-0 font-mono text-[9px] text-slate-muted" x-text="new Date(h.at).toLocaleTimeString()"></span>
+              </button>
+            </li>
+          </template>
+          <li x-show="!historyEntries.length" class="px-2 py-3 text-center text-slate-muted">No undo steps yet</li>
+        </ul>
+        <div class="flex flex-wrap gap-1">
+          <button type="button" class="btn-ghost text-[10px]" @click="saveNamedVersion()">Save version…</button>
+          <button type="button" class="btn-ghost text-[10px]" @click="refreshDocVersions()">Refresh</button>
+        </div>
+        <ul class="max-h-28 space-y-1 overflow-y-auto text-xs" x-show="docVersions.length">
+          <template x-for="v in docVersions" :key="v.id">
+            <li>
+              <button type="button" class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left hover:bg-slate-hover" @click="restoreDocVersion(v.id)">
+                <span class="truncate" x-text="v.label"></span>
+                <span class="font-mono text-[9px] text-slate-muted" x-text="new Date(v.at).toLocaleString()"></span>
+              </button>
+            </li>
+          </template>
+        </ul>
+      </div>
     </div>
   </div>
 </aside>

@@ -220,7 +220,13 @@
     </div>
     <div class="pages-thumb-scroll flex-1 space-y-2 overflow-y-auto p-2.5" data-pages-scroll>
       <template x-for="(page, index) in doc.pages" :key="page.id">
-        <div class="group">
+        <div
+          class="group"
+          draggable="true"
+          @dragstart="onPageThumbDragStart(index, $event)"
+          @dragover.prevent
+          @drop="onPageThumbDrop(index, $event)"
+        >
           <button
             type="button"
             class="page-thumb"
@@ -228,6 +234,7 @@
             :aria-current="index === activePageIndex ? 'true' : 'false'"
             :style="pageThumbStyle"
             @click="setActivePage(index)"
+            title="Drag to reorder"
           >
             <img
               x-show="pageThumbUnderlays[index]"

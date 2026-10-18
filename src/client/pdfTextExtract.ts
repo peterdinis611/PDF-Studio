@@ -176,6 +176,35 @@ export type ExtractEditableOptions = {
   maxOcrPages?: number;
 };
 
+/** Unique text baselines (studio Y) for smart-guide snap on overlay pages. */
+export async function extractPageBaselines(
+  doc: { pageSize: string; pages: { sourcePageIndex?: number }[] },
+  pageIndex: number,
+): Promise<number[]> {
+  const { PAGE_SIZES } = await import("../shared/types.js");
+  const size = PAGE_SIZES[doc.pageSize as keyof typeof PAGE_SIZES] ?? PAGE_SIZES.a4;
+  const page = doc.pages[pageIndex];
+  if (typeof page?.sourcePageIndex !== "number") return [];
+  const { getSessionImportedPdfBytes } = await import("./pdfImport.js");
+  const bytes = getSessionImportedPdfBytes();
+  if (!bytes) return [];
+  const { openPdfJsDocument } = await import("./pdfJsDocument.js");
+  const pdf = await openPdfJsDocument(bytes);
+  try {
+    const runs = await extractTextRunsFromPage(pdf, page.sourcePageIndex, {
+      studioWidth: size.width,
+      studioHeight: size.height,
+    });
+    const ys = new Set<number>();
+    for (const run of mergeRunsIntoLines(runs)) {
+      ys.add(Math.round(run.y + run.fontSize));
+    }
+    return [...ys].sort((a, b) => a - b);
+  } finally {
+    await pdf.destroy();
+  }
+}
+
 /** Extract + merge text and embedded images for every page. */
 export async function extractEditablePages(
   pdf: PDFDocumentProxy,

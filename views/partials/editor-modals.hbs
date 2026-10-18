@@ -118,17 +118,26 @@
           <input type="range" min="0.4" max="1" step="0.05" class="w-full accent-accent" x-model.number="exportSettings.imageQuality" @change="saveExportSettings()" />
           <p class="mt-1 text-xs text-slate-muted" x-text="Math.round(exportSettings.imageQuality * 100) + '%'"></p>
         </div>
+        <div>
+          <label class="panel-label">PDF/A mode</label>
+          <select class="panel-select" x-model="exportSettings.pdfaMode" @change="exportSettings.pdfaLite = exportSettings.pdfaMode !== 'off'; saveExportSettings()">
+            <option value="off">Off</option>
+            <option value="friendly">Friendly (metadata)</option>
+            <option value="strict">Strict (no encryption)</option>
+          </select>
+          <p class="mt-1 text-[11px] text-slate-muted">Best-effort archival hints — not veraPDF certified</p>
+        </div>
         <label class="settings-row">
-          <span>Optimize / compress images (Acrobat Reduce File Size)</span>
+          <span>Optimize / compress images</span>
           <input type="checkbox" class="accent-accent" x-model="exportSettings.compressImages" @change="saveExportSettings()" />
         </label>
         <label class="settings-row">
-          <span>Flatten form fields</span>
-          <input type="checkbox" class="accent-accent" x-model="exportSettings.flatten" @change="saveExportSettings()" />
+          <span>Flatten form fields (AcroForm)</span>
+          <input type="checkbox" class="accent-accent" x-model="exportSettings.flattenForms" @change="exportSettings.flatten = exportSettings.flattenForms; saveExportSettings()" />
         </label>
         <label class="settings-row">
-          <span>PDF/A-friendly metadata</span>
-          <input type="checkbox" class="accent-accent" x-model="exportSettings.pdfaLite" @change="saveExportSettings()" />
+          <span>Flatten annotations (markup, stamps, badges)</span>
+          <input type="checkbox" class="accent-accent" x-model="exportSettings.flattenAnnotations" @change="saveExportSettings()" />
         </label>
         <label class="settings-row">
           <span>Include review comments</span>
@@ -146,8 +155,9 @@
             autocomplete="new-password"
             placeholder="Leave blank for no encryption"
             x-model="exportPassword"
+            :disabled="exportSettings.pdfaMode === 'strict'"
           />
-          <p class="mt-1 text-[11px] text-slate-muted">Not saved. Requires encryption support on export.</p>
+          <p class="mt-1 text-[11px] text-slate-muted" x-text="exportSettings.pdfaMode === 'strict' ? 'Disabled in PDF/A strict mode' : 'Not saved. Open-password encryption.'"></p>
         </div>
       </div>
       <div class="modal-actions">
@@ -333,16 +343,30 @@
 <div x-show="showPreflight" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showPreflight = false">
   <div class="modal-panel max-w-lg" @click.outside="showPreflight = false">
     <h3 class="modal-title">Print / accessibility preflight</h3>
+    <div class="mt-3 flex flex-wrap gap-2 text-[11px]" x-show="preflightSummary">
+      <span class="rounded-md border border-warn/40 px-2 py-0.5 text-warn" x-show="preflightSummary.error" x-text="preflightSummary.error + ' errors'"></span>
+      <span class="rounded-md border border-slate-line px-2 py-0.5 text-slate-muted" x-show="preflightSummary.warn" x-text="preflightSummary.warn + ' warnings'"></span>
+      <span class="rounded-md border border-slate-line px-2 py-0.5 text-slate-muted" x-show="preflightSummary.info" x-text="preflightSummary.info + ' info'"></span>
+    </div>
     <ul class="mt-4 max-h-72 space-y-2 overflow-y-auto text-sm">
       <template x-for="(issue, i) in preflightIssues" :key="i">
-        <li class="rounded-md border border-slate-line px-3 py-2">
-          <span class="text-[10px] uppercase tracking-wide text-slate-muted" x-text="issue.level + ' · ' + issue.code"></span>
-          <p class="text-fg" x-text="issue.message"></p>
+        <li>
+          <button
+            type="button"
+            class="w-full rounded-md border border-slate-line px-3 py-2 text-left transition hover:border-accent/40 hover:bg-slate-hover"
+            :class="issue.level === 'error' && 'border-warn/50'"
+            @click="focusPreflightIssue(issue)"
+          >
+            <span class="text-[10px] uppercase tracking-wide text-slate-muted" x-text="issue.level + ' · ' + issue.code"></span>
+            <p class="text-fg" x-text="issue.message"></p>
+            <p class="mt-0.5 text-[10px] text-accent-soft" x-show="issue.elId">Click to select on canvas</p>
+          </button>
         </li>
       </template>
       <li x-show="!preflightIssues.length" class="py-6 text-center text-slate-muted">No issues.</li>
     </ul>
     <div class="modal-actions">
+      <button type="button" class="btn-ghost" @click="showPreflight = false; openExportModal()">Export…</button>
       <button type="button" class="btn-ghost ml-auto" @click="showPreflight = false">Close</button>
     </div>
   </div>
@@ -544,6 +568,109 @@
       <button type="button" class="btn-ghost" @click="showWatermarkModal = false">Cancel</button>
       <button type="button" class="btn-ghost" @click="clearWatermark(); showWatermarkModal = false">Remove</button>
       <button type="button" class="btn-primary" @click="applyWatermarkDraft()">Apply</button>
+    </div>
+  </div>
+</div>
+
+{{!-- Redaction confirm --}}
+<div x-show="showRedactConfirm" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showRedactConfirm = false">
+  <div class="modal-panel max-w-md" @click.outside="showRedactConfirm = false">
+    <h3 class="modal-title">Confirm redactions</h3>
+    <p class="mt-2 text-sm text-slate-muted">Opaque black rectangles will permanently cover content on export. Review the list, then confirm.</p>
+    <ul class="mt-4 max-h-48 space-y-1 overflow-y-auto text-xs">
+      <template x-for="(r, i) in redactRects()" :key="r.id">
+        <li class="rounded border border-slate-line px-2 py-1.5" x-text="'Page ' + (r.pageIndex + 1) + ' · ' + Math.round(r.width) + '×' + Math.round(r.height) + ' pt'"></li>
+      </template>
+    </ul>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" @click="showRedactConfirm = false">Cancel</button>
+      <button type="button" class="btn-primary" @click="confirmRedactionsAndExport()">Confirm &amp; export</button>
+    </div>
+  </div>
+</div>
+
+{{!-- Fill & Sign wizard --}}
+<div x-show="showFillSign" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showFillSign = false">
+  <div class="modal-panel max-w-lg" @click.outside="showFillSign = false">
+    <h3 class="modal-title">Fill &amp; Sign</h3>
+    <p class="mt-1 text-xs text-slate-muted">Guided path: open PDF → fill fields → sign → export.</p>
+    <ol class="mt-4 space-y-3 text-sm">
+      <li class="rounded-lg border border-slate-line p-3" :class="fillSignStep >= 0 && 'border-accent/40'">
+        <p class="font-medium">1. Open PDF</p>
+        <button type="button" class="btn-ghost mt-2 text-xs" @click="fillSignStep = 0; openPdfImportModal('overlay')">Import PDF…</button>
+      </li>
+      <li class="rounded-lg border border-slate-line p-3" :class="fillSignStep >= 1 && 'border-accent/40'">
+        <p class="font-medium">2. Fill fields</p>
+        <p class="mt-1 text-[11px] text-slate-muted">Enables form preview on the canvas. Add fields from Settings if needed.</p>
+        <button type="button" class="btn-ghost mt-2 text-xs" @click="fillSignStep = 1; formPreviewMode = true; showFillSign = false">Start filling</button>
+      </li>
+      <li class="rounded-lg border border-slate-line p-3" :class="fillSignStep >= 2 && 'border-accent/40'">
+        <p class="font-medium">3. Sign</p>
+        <button type="button" class="btn-ghost mt-2 text-xs" @click="fillSignStep = 2; openSignatureModal()">Add signature…</button>
+      </li>
+      <li class="rounded-lg border border-slate-line p-3" :class="fillSignStep >= 3 && 'border-accent/40'">
+        <p class="font-medium">4. Export</p>
+        <button type="button" class="btn-primary mt-2 text-xs" @click="fillSignStep = 3; exportSettings.flattenForms = true; exportSettings.flatten = true; openExportModal(); showFillSign = false">Export PDF…</button>
+      </li>
+    </ol>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost ml-auto" @click="showFillSign = false">Close</button>
+    </div>
+  </div>
+</div>
+
+{{!-- Batch jobs --}}
+<div x-show="showBatchModal" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showBatchModal = false">
+  <div class="modal-panel max-w-lg" @click.outside="showBatchModal = false">
+    <h3 class="modal-title">Batch jobs</h3>
+    <p class="mt-1 text-xs text-slate-muted">Apply current watermark / Bates tokens / export settings to multiple PDFs → ZIP.</p>
+    <label class="btn-ghost mt-4 flex cursor-pointer justify-center text-xs">
+      <input type="file" class="sr-only" accept="application/pdf,.pdf" multiple @change="onBatchFilesSelected($event)" />
+      Choose PDFs…
+    </label>
+    <ul class="mt-3 max-h-32 space-y-1 overflow-y-auto text-xs text-slate-muted">
+      <template x-for="(f, i) in batchFiles" :key="i">
+        <li x-text="f.name"></li>
+      </template>
+      <li x-show="!batchFiles.length">No files selected</li>
+    </ul>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" @click="showBatchModal = false">Cancel</button>
+      <button type="button" class="btn-primary" :disabled="batchBusy || !batchFiles.length" @click="runBatchExport()">
+        <span x-text="batchBusy ? 'Working…' : 'Export ZIP'"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+{{!-- Compare PDFs --}}
+<div x-show="showCompareModal" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showCompareModal = false">
+  <div class="modal-panel max-w-3xl" @click.outside="showCompareModal = false">
+    <h3 class="modal-title">Compare PDFs</h3>
+    <p class="mt-1 text-xs text-slate-muted">Side-by-side page 1 preview (local only). Overlay mode shows pixel difference tint.</p>
+    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+      <label class="rounded-lg border border-dashed border-slate-line p-4 text-center text-xs">
+        <span class="block text-slate-muted">Document A</span>
+        <span class="mt-1 block font-medium text-fg" x-text="compareFileA?.name || 'Choose PDF…'"></span>
+        <input type="file" accept="application/pdf,.pdf" class="sr-only" @change="onCompareFile($event, 'a')" />
+      </label>
+      <label class="rounded-lg border border-dashed border-slate-line p-4 text-center text-xs">
+        <span class="block text-slate-muted">Document B</span>
+        <span class="mt-1 block font-medium text-fg" x-text="compareFileB?.name || 'Choose PDF…'"></span>
+        <input type="file" accept="application/pdf,.pdf" class="sr-only" @change="onCompareFile($event, 'b')" />
+      </label>
+    </div>
+    <div class="mt-3 flex gap-2">
+      <button type="button" class="btn-ghost text-xs" :class="compareMode === 'split' && 'bg-accent/15 text-accent-soft'" @click="compareMode = 'split'; runComparePreview()">Split</button>
+      <button type="button" class="btn-ghost text-xs" :class="compareMode === 'overlay' && 'bg-accent/15 text-accent-soft'" @click="compareMode = 'overlay'; runComparePreview()">Overlay diff</button>
+      <button type="button" class="btn-ghost text-xs" @click="runComparePreview()">Refresh</button>
+    </div>
+    <div class="mt-4 grid gap-3" :class="compareMode === 'split' ? 'sm:grid-cols-2' : 'grid-cols-1'">
+      <canvas x-ref="compareCanvasA" class="max-h-80 w-full rounded border border-slate-line bg-paper"></canvas>
+      <canvas x-show="compareMode === 'split'" x-ref="compareCanvasB" class="max-h-80 w-full rounded border border-slate-line bg-paper"></canvas>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost ml-auto" @click="showCompareModal = false">Close</button>
     </div>
   </div>
 </div>

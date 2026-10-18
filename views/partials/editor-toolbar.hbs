@@ -103,7 +103,12 @@
       <button type="button" class="menu-item" @click="showFileMenu = false; saveAsUserTemplate()">Save as template…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; openMailMergeModal()">Mail merge…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; exportPngProof()">Export PNG proof ZIP…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; exportActivePageImage('png')">Export page as PNG…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; exportActivePageImage('jpeg')">Export page as JPEG…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; openPreflight()">Preflight checklist…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; openFillSign()">Fill &amp; Sign…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; showBatchModal = true">Batch jobs…</button>
+      <button type="button" class="menu-item" @click="showFileMenu = false; openCompareModal()">Compare PDFs…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; openESign()">E-sign (local)…</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; createShareLink()">Copy local review link</button>
       <button type="button" class="menu-item" @click="showFileMenu = false; openExportModal()">Export PDF…</button>
@@ -443,6 +448,17 @@
         <label class="settings-row mt-2">
           <span>Try filling on canvas</span>
           <input type="checkbox" class="accent-accent" x-model="formPreviewMode" />
+        </label>
+      </div>
+      <div>
+        <label class="panel-label">Canvas</label>
+        <label class="settings-row">
+          <span>Multi-page scroll</span>
+          <input type="checkbox" class="accent-accent" :checked="multiPageScroll" @change="toggleMultiPageScroll()" />
+        </label>
+        <label class="settings-row">
+          <span>Editable PDF ghost underlay</span>
+          <input type="checkbox" class="accent-accent" x-model="editableGhostUnderlay" @change="refreshPdfUnderlay()" />
         </label>
       </div>
       <div>

@@ -161,6 +161,7 @@ export const SHORTCUT_GROUPS: { title: string; items: { keys: string; action: st
       { keys: "Esc", action: "Clear / exit modes" },
       { keys: "Space+drag", action: "Pan canvas" },
       { keys: "PageUp / PageDown", action: "Previous / next page" },
+      { keys: "File menu", action: "Fill & Sign · Batch · Compare · PNG/JPEG page" },
     ],
   },
   {
