@@ -1085,6 +1085,8 @@
     @apply relative shrink-0 overflow-hidden text-left shadow-page transition;
     @apply opacity-75 hover:opacity-100;
     transform: scale(0.98);
+    content-visibility: auto;
+    contain-intrinsic-size: auto 400px;
   }
 
   .page-stack-sheet.is-active {

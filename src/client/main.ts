@@ -763,8 +763,12 @@ function pdfEditor() {
       return { aspectRatio: `${width} / ${height}` };
     },
 
-    /** Skip per-element thumb HTML on large docs (Acrobat-style raster thumbs only). */
+    /**
+     * Skip per-element thumb HTML when PDF underlay thumbs exist (or on large docs).
+     * Avoids double-painting images in the rail.
+     */
     get thumbShowElements(): boolean {
+      if (this.doc.importedPdf) return false;
       const pages = this.doc.pages.length;
       if (pages > 24) return false;
       let els = 0;
@@ -1056,7 +1060,15 @@ function pdfEditor() {
         if (typeof p?.sourcePageIndex === "number") neighbors.push(p.sourcePageIndex);
       }
       prefetchPdfPagePreviews(bytes, neighbors, scale);
-      void this.refreshUnderlayBaselines();
+      // Baselines are for snap only — defer so underlay paint wins
+      const schedule =
+        typeof requestIdleCallback === "function"
+          ? (fn: () => void) => requestIdleCallback(fn, { timeout: 1200 })
+          : (fn: () => void) => setTimeout(fn, 120);
+      schedule(() => {
+        if (gen !== this._underlayGen) return;
+        void this.refreshUnderlayBaselines();
+      });
     },
 
     async ensureActiveThumb() {
@@ -1101,10 +1113,31 @@ function pdfEditor() {
       }
 
       this.thumbsLoading = true;
-      // Drop stale soft thumbs so new high-DPI PNG scale always wins
-      this.pageThumbUnderlays = {};
       this.thumbUnderlayScale = recommendedThumbScale();
       const thumbScale = this.thumbUnderlayScale;
+      // Keep previous thumbs visible until replacements arrive (no blank flash)
+      const pending: Record<number, string | null> = {};
+      let flushScheduled = false;
+      const flushThumbs = () => {
+        flushScheduled = false;
+        if (gen !== this._thumbGen) return;
+        const keys = Object.keys(pending);
+        if (!keys.length) return;
+        const next = { ...this.pageThumbUnderlays };
+        for (const k of keys) {
+          const studioIndex = Number(k);
+          const dataUrl = pending[studioIndex];
+          delete pending[studioIndex];
+          if (dataUrl) next[studioIndex] = dataUrl;
+        }
+        this.pageThumbUnderlays = next;
+      };
+      const scheduleFlush = () => {
+        if (flushScheduled) return;
+        flushScheduled = true;
+        requestAnimationFrame(flushThumbs);
+      };
+
       // Prioritize active page + neighbors first (Acrobat-like responsiveness)
       const active = this.activePageIndex;
       const order = [...studioIndices].sort(
@@ -1124,18 +1157,20 @@ function pdfEditor() {
             signal.cancelled = true;
             return;
           }
-          const next = { ...this.pageThumbUnderlays };
           order.forEach((studioIndex) => {
             if (this.doc.pages[studioIndex].sourcePageIndex === sourcePageIndex) {
-              next[studioIndex] = dataUrl;
+              pending[studioIndex] = dataUrl;
             }
           });
-          this.pageThumbUnderlays = next;
+          scheduleFlush();
         },
-        { chunkSize: studioIndices.length > 40 ? 2 : 4, signal },
+        { chunkSize: 1, signal },
       );
 
-      if (gen === this._thumbGen) this.thumbsLoading = false;
+      if (gen === this._thumbGen) {
+        flushThumbs();
+        this.thumbsLoading = false;
+      }
     },
 
     scrollActiveThumbIntoView() {

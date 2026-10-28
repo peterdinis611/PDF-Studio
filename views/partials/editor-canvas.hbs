@@ -84,6 +84,8 @@
                 class="pointer-events-none absolute inset-0 h-full w-full object-fill"
                 :src="pIndex === activePageIndex && pdfUnderlaySrc ? pdfUnderlaySrc : pageThumbUnderlays[pIndex]"
                 alt=""
+                loading="lazy"
+                decoding="async"
               />
               <span class="page-stack-badge" x-text="pIndex + 1"></span>
             </button>
@@ -113,6 +115,7 @@
           alt=""
           draggable="false"
           decoding="async"
+          fetchpriority="high"
         />
 
         {{!-- Soft print margins — hidden over imported PDF so the page reads clean --}}
@@ -174,6 +177,8 @@
             alt=""
             :style="`opacity:${doc.watermark?.opacity ?? 0.12}; transform:rotate(${doc.watermark?.rotation || -30}deg)`"
             draggable="false"
+            loading="lazy"
+            decoding="async"
           />
         </div>
 
@@ -373,6 +378,8 @@
                   :src="el.src"
                   :alt="el.name"
                   draggable="false"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             </template>
