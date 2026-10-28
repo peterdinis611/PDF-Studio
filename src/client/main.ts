@@ -2701,7 +2701,7 @@ function pdfEditor() {
         height: `${Math.max(el.height, el.type === "line" || el.type === "divider" || el.type === "arrow" ? 8 : 1) * this.zoom}px`,
         opacity: hidden ? "0.28" : String(el.opacity),
         transform: rotating || undefined,
-        outline: this.findHighlightId === el.id ? "2px solid rgb(var(--color-accent))" : undefined,
+        outline: this.findHighlightId === el.id ? "2px solid rgb(var(--rgb-accent))" : undefined,
         outlineOffset: this.findHighlightId === el.id ? "2px" : undefined,
         filter: hidden ? "grayscale(0.4)" : undefined,
         cursor: el.locked ? "not-allowed" : this.tool === "place" ? "crosshair" : "move",

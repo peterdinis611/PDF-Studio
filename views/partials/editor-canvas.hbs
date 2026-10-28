@@ -23,7 +23,7 @@
     <label class="panel-label" for="comment-draft">Comment</label>
     <textarea
       id="comment-draft"
-      class="panel-input mt-1 min-h-[4.5rem]"
+      class="panel-input mt-1 min-h-18"
       x-model="commentDraft"
       x-ref="commentDraftInput"
       @keydown.meta.enter.prevent="submitCommentDraft()"
@@ -94,7 +94,7 @@
       </template>
       <div
         class="page-surface relative shrink-0"
-        :class="tool === 'place' ? 'ring-2 ring-accent/40 ring-offset-4 ring-offset-[rgb(var(--color-canvas))]' : ''"
+        :class="tool === 'place' ? 'ring-2 ring-accent/40 ring-offset-4 ring-offset-[rgb(var(--rgb-canvas))]' : ''"
         :style="pageStyle"
         @mousedown="onPageMouseDown($event)"
         x-ref="page"
@@ -122,7 +122,7 @@
         <div
           x-show="showGuides && !pageExpectsPdfBackdrop"
           x-cloak
-          class="margin-guide pointer-events-none absolute inset-0 z-[1]"
+          class="margin-guide pointer-events-none absolute inset-0 z-1"
           :style="`inset: ${marginGuidePt * zoom}px`"
         ></div>
 
@@ -139,7 +139,7 @@
           >
             <span
               x-show="g.name"
-              class="pointer-events-none absolute whitespace-nowrap rounded bg-accent px-1 py-0.5 text-[9px] font-medium text-white"
+              class="pointer-events-none absolute whitespace-nowrap rounded-sm bg-accent px-1 py-0.5 text-[9px] font-medium text-white"
               :style="g.axis === 'x' ? 'left:4px; top:4px' : 'left:4px; top:4px'"
               x-text="g.name"
             ></span>
@@ -159,7 +159,7 @@
         {{!-- Watermark preview --}}
         <div
           x-show="doc.watermark?.type === 'text'"
-          class="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center"
+          class="pointer-events-none absolute inset-0 z-1 flex items-center justify-center"
         >
           <span
             class="select-none font-bold tracking-widest"
@@ -169,7 +169,7 @@
         </div>
         <div
           x-show="doc.watermark?.type === 'image' && doc.watermark?.src"
-          class="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center"
+          class="pointer-events-none absolute inset-0 z-1 flex items-center justify-center"
         >
           <img
             class="max-h-[55%] max-w-[55%] object-contain select-none"
@@ -188,19 +188,19 @@
             <template x-if="el.type === 'text'">
               <div class="h-full w-full opacity-70">
                 <div
-                  class="md-block h-full w-full overflow-hidden break-words"
+                  class="md-block h-full w-full overflow-hidden wrap-break-word"
                   x-show="el.markdown"
                   :style="textInnerStyle(el)"
                   x-html="renderMarkdownHtml(el.content)"
                 ></div>
                 <div
-                  class="md-block rich-block h-full w-full overflow-hidden break-words"
+                  class="md-block rich-block h-full w-full overflow-hidden wrap-break-word"
                   x-show="el.rich && !el.markdown"
                   :style="textInnerStyle(el)"
                   x-html="renderRichHtml(el.content)"
                 ></div>
                 <div
-                  class="h-full w-full whitespace-pre-wrap break-words"
+                  class="h-full w-full whitespace-pre-wrap wrap-break-word"
                   x-show="!el.markdown && !el.rich"
                   :style="textInnerStyle(el)"
                   x-text="previewText(el.content)"
@@ -223,25 +223,25 @@
               <div class="h-full w-full">
                 <div
                   x-show="editingTextId !== el.id && el.markdown"
-                  class="md-block h-full w-full overflow-hidden break-words"
+                  class="md-block h-full w-full overflow-hidden wrap-break-word"
                   :style="textInnerStyle(el)"
                   x-html="renderMarkdownHtml(el.content)"
                 ></div>
                 <div
                   x-show="editingTextId !== el.id && el.rich && !el.markdown"
-                  class="md-block rich-block h-full w-full overflow-hidden break-words"
+                  class="md-block rich-block h-full w-full overflow-hidden wrap-break-word"
                   :style="textInnerStyle(el)"
                   x-html="renderRichHtml(el.content)"
                 ></div>
                 <div
                   x-show="editingTextId !== el.id && !el.markdown && !el.rich"
-                  class="h-full w-full whitespace-pre-wrap break-words"
+                  class="h-full w-full whitespace-pre-wrap wrap-break-word"
                   :style="textInnerStyle(el)"
                   x-text="displayTextContent(el)"
                 ></div>
                 <div
                   x-show="editingTextId === el.id && !el.rich"
-                  class="h-full w-full whitespace-pre-wrap break-words outline-none"
+                  class="h-full w-full whitespace-pre-wrap wrap-break-word outline-hidden"
                   contenteditable="true"
                   :data-edit-id="el.id"
                   :style="textInnerStyle(el)"
@@ -250,7 +250,7 @@
                 ></div>
                 <div
                   x-show="editingTextId === el.id && el.rich"
-                  class="md-block rich-block tiptap-host h-full w-full overflow-auto outline-none"
+                  class="md-block rich-block tiptap-host h-full w-full overflow-auto outline-hidden"
                   :data-edit-id="el.id"
                   :style="textInnerStyle(el)"
                   @keydown.escape.stop="finishRichTextEdit(el)"
@@ -308,13 +308,13 @@
 
             <template x-if="el.type === 'sticky'">
               <div
-                class="flex h-full w-full flex-col p-2 shadow-sm"
+                class="flex h-full w-full flex-col p-2 shadow-xs"
                 :style="`background:${el.fill}; color:${el.color}; font-size:${el.fontSize * zoom}px`"
               >
-                <div x-show="editingTextId !== el.id" class="flex-1 whitespace-pre-wrap break-words" x-text="el.content"></div>
+                <div x-show="editingTextId !== el.id" class="flex-1 whitespace-pre-wrap wrap-break-word" x-text="el.content"></div>
                 <div
                   x-show="editingTextId === el.id"
-                  class="flex-1 whitespace-pre-wrap break-words outline-none"
+                  class="flex-1 whitespace-pre-wrap wrap-break-word outline-hidden"
                   contenteditable="true"
                   :data-edit-id="el.id"
                   @blur="finishTextEdit($event, el)"
@@ -358,7 +358,7 @@
               <div class="grid h-full w-full overflow-hidden" :style="`grid-template-columns: repeat(${el.cols}, 1fr); grid-template-rows: repeat(${el.rows}, 1fr); border:1px solid ${el.stroke}`">
                 <template x-for="(cell, i) in el.cells" :key="i">
                   <div
-                    class="flex items-center overflow-hidden px-1 outline-none"
+                    class="flex items-center overflow-hidden px-1 outline-hidden"
                     :contenteditable="isSelected(el.id) && !el.locked"
                     :style="`border:0.5px solid ${el.stroke}; background:${el.header && i < el.cols ? el.headerFill : el.fill}; color:${el.header && i < el.cols ? '#fff' : el.color}; font-size:${el.fontSize * zoom}px; font-weight:${el.header && i < el.cols ? '600' : '400'}`"
                     x-text="cell"
@@ -389,7 +389,7 @@
                 <template x-if="formPreviewMode">
                   <input
                     type="text"
-                    class="min-w-0 flex-1 bg-transparent outline-none"
+                    class="min-w-0 flex-1 bg-transparent outline-hidden"
                     :placeholder="el.placeholder"
                     :value="formPreviewValue(el.name, '')"
                     @mousedown.stop
@@ -399,7 +399,7 @@
                 <template x-if="!formPreviewMode">
                   <span class="truncate text-slate-muted" x-text="el.placeholder"></span>
                 </template>
-                <span x-show="!formPreviewMode" class="ml-auto rounded bg-accent/20 px-1 text-[9px] font-semibold uppercase text-accent-soft">Fillable</span>
+                <span x-show="!formPreviewMode" class="ml-auto rounded-sm bg-accent/20 px-1 text-[9px] font-semibold uppercase text-accent-soft">Fillable</span>
               </div>
             </template>
 
@@ -420,7 +420,7 @@
                   <div class="flex min-w-0 flex-1 items-center gap-2">
                     <span class="flex h-4 w-4 shrink-0 items-center justify-center border-2" :style="`border-color:${el.color}`" x-text="el.checked ? '✓' : ''"></span>
                     <span class="truncate" x-text="el.label"></span>
-                    <span class="ml-auto rounded bg-accent/20 px-1 text-[9px] font-semibold uppercase text-accent-soft">Fillable</span>
+                    <span class="ml-auto rounded-sm bg-accent/20 px-1 text-[9px] font-semibold uppercase text-accent-soft">Fillable</span>
                   </div>
                 </template>
               </div>
@@ -430,7 +430,7 @@
               <div class="flex h-full w-full items-center justify-between border px-2" :style="`border-color:${el.borderColor}; font-size:${el.fontSize * zoom}px; color:${el.color}`">
                 <template x-if="formPreviewMode">
                   <select
-                    class="h-full w-full bg-transparent outline-none"
+                    class="h-full w-full bg-transparent outline-hidden"
                     @mousedown.stop
                     @change.stop="setFormPreviewValue(el.name, $event.target.value)"
                   >
@@ -496,7 +496,7 @@
         {{!-- Comments --}}
         <template x-for="c in pageComments" :key="c.id">
           <div
-            class="absolute z-40 max-w-[10rem] rounded-md border px-2 py-1 text-[10px] shadow-sm"
+            class="absolute z-40 max-w-40 rounded-md border px-2 py-1 text-[10px] shadow-xs"
             :class="c.resolved ? 'border-slate-line bg-slate-panel/90 text-slate-muted' : 'border-amber-500/50 bg-amber-50 text-amber-950'"
             :style="`left:${c.x * zoom}px; top:${c.y * zoom}px`"
           >

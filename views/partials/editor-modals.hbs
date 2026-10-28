@@ -43,7 +43,7 @@
     <div class="mt-5">
       <p class="panel-label">File</p>
       <div
-        class="mt-1.5 flex min-h-[7.5rem] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-line bg-black/[0.03] px-4 py-6 text-center transition hover:border-accent dark:bg-white/[0.03]"
+        class="mt-1.5 flex min-h-30 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-line bg-black/3 px-4 py-6 text-center transition hover:border-accent dark:bg-white/3"
         :class="pdfImportDragOver && 'border-accent bg-accent/10'"
         @click="$refs.pdfImportDialogInput.click()"
         @dragover.prevent="pdfImportDragOver = true"
@@ -440,7 +440,7 @@
       <div class="mb-2 flex items-center justify-between gap-3">
         <label class="flex items-center gap-2 text-xs text-slate-muted">
           Ink
-          <input type="color" class="h-7 w-9 cursor-pointer rounded border border-slate-line bg-transparent" x-model="signatureInk" @change="signatureTab === 'type' && renderTypedSignature()" />
+          <input type="color" class="h-7 w-9 cursor-pointer rounded-sm border border-slate-line bg-transparent" x-model="signatureInk" @change="signatureTab === 'type' && renderTypedSignature()" />
         </label>
         <button type="button" class="text-xs text-slate-muted underline hover:text-fg" @click="clearSignaturePad()">Clear</button>
       </div>
@@ -498,7 +498,7 @@
     <div class="flex items-start justify-between gap-3">
       <div>
         <h3 id="shortcuts-modal-title" class="modal-title">Keyboard shortcuts</h3>
-        <p class="mt-1 text-xs text-slate-muted">Press <kbd class="rounded border border-slate-line px-1 font-mono text-[10px]">?</kbd> anytime.</p>
+        <p class="mt-1 text-xs text-slate-muted">Press <kbd class="rounded-sm border border-slate-line px-1 font-mono text-[10px]">?</kbd> anytime.</p>
       </div>
       <button type="button" class="btn-ghost" @click="showShortcuts = false">Close</button>
     </div>
@@ -536,13 +536,13 @@
       <button
         type="button"
         class="flex-1 rounded-lg px-3 py-1.5 text-xs font-medium"
-        :class="watermarkDraft.type === 'text' ? 'bg-slate-panel text-fg shadow-sm' : 'text-slate-muted'"
+        :class="watermarkDraft.type === 'text' ? 'bg-slate-panel text-fg shadow-xs' : 'text-slate-muted'"
         @click="watermarkDraft.type = 'text'"
       >Text</button>
       <button
         type="button"
         class="flex-1 rounded-lg px-3 py-1.5 text-xs font-medium"
-        :class="watermarkDraft.type === 'image' ? 'bg-slate-panel text-fg shadow-sm' : 'text-slate-muted'"
+        :class="watermarkDraft.type === 'image' ? 'bg-slate-panel text-fg shadow-xs' : 'text-slate-muted'"
         @click="watermarkDraft.type = 'image'"
       >Image</button>
     </div>

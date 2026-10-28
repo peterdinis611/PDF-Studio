@@ -51,7 +51,7 @@ export function mountTipTap(
     content: content?.trim() ? content : "<p></p>",
     editorProps: {
       attributes: {
-        class: "tiptap-editor outline-none min-h-full",
+        class: "tiptap-editor outline-hidden min-h-full",
       },
     },
     onUpdate: ({ editor }) => {

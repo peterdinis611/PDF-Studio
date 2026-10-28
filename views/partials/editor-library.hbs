@@ -94,8 +94,8 @@
           </button>
           <button
             type="button"
-            class="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded text-[11px] text-slate-muted hover:bg-slate-hover hover:text-accent-soft group-hover:flex"
-            :class="isFavorite(item.id) ? '!flex text-accent-soft' : ''"
+            class="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded-sm text-[11px] text-slate-muted hover:bg-slate-hover hover:text-accent-soft group-hover:flex"
+            :class="isFavorite(item.id) ? 'flex! text-accent-soft' : ''"
             @click.stop="toggleFavorite(item.id)"
             title="Favorite"
             x-text="isFavorite(item.id) ? '★' : '☆'"

@@ -27,7 +27,7 @@
       class="rail-tab"
       :class="leftRail === 'bookmarks' && 'is-active'"
       @click="leftRail = 'bookmarks'"
-      title="Bookmarks / outline"
+      title="Bookmarks / outline-solid"
     >
       Marks
       <span class="rail-count" x-show="(doc.bookmarks || []).length" x-text="(doc.bookmarks || []).length"></span>
@@ -308,7 +308,7 @@
             x-text="b.title"
           ></button>
           <span class="font-mono text-[10px] text-slate-muted" x-text="b.pageIndex + 1"></span>
-          <button type="button" class="rounded px-1 text-xs opacity-60 hover:opacity-100" @click="removeBookmark(b.id)" title="Remove">×</button>
+          <button type="button" class="rounded-sm px-1 text-xs opacity-60 hover:opacity-100" @click="removeBookmark(b.id)" title="Remove">×</button>
         </li>
       </template>
       <li x-show="!(doc.bookmarks || []).length" class="px-2 py-8 text-center text-xs text-slate-muted">
