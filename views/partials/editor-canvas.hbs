@@ -68,12 +68,13 @@
       @mousedown="onCanvasBackground($event)"
     >
       <template x-if="multiPageScroll">
-        <div class="flex w-full flex-col items-center gap-10">
+        <div class="page-stack">
+          <p class="page-stack-hint">Scroll overview · click a sheet to edit below</p>
           <template x-for="(page, pIndex) in doc.pages" :key="'stack-' + page.id">
             <button
               type="button"
-              class="page-surface relative shrink-0 overflow-hidden text-left shadow-page transition"
-              :class="pIndex === activePageIndex ? 'ring-2 ring-accent/50' : 'opacity-80 hover:opacity-100'"
+              class="page-stack-sheet"
+              :class="pIndex === activePageIndex && 'is-active'"
               :style="pageStyle"
               :data-page-stack="pIndex"
               @click="setActivePage(pIndex)"
@@ -84,10 +85,9 @@
                 :src="pIndex === activePageIndex && pdfUnderlaySrc ? pdfUnderlaySrc : pageThumbUnderlays[pIndex]"
                 alt=""
               />
-              <span class="absolute bottom-2 left-2 rounded bg-ink/80 px-1.5 py-0.5 font-mono text-[10px] text-white" x-text="'Page ' + (pIndex + 1)"></span>
+              <span class="page-stack-badge" x-text="pIndex + 1"></span>
             </button>
           </template>
-          <p class="text-xs text-slate-muted">Multi-page scroll · click a page to edit it below</p>
         </div>
       </template>
       <div

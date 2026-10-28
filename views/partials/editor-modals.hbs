@@ -87,68 +87,70 @@
     aria-labelledby="export-modal-title"
     @keydown.escape.window="showExportModal = false"
   >
-    <div class="modal-panel" @click.outside="showExportModal = false">
-      <h3 id="export-modal-title" class="modal-title">Export PDF</h3>
-      <p class="mt-1 text-xs text-slate-muted">Choose quality options, then download.</p>
-      <div class="mt-5 space-y-4 text-sm">
-        <div>
-          <label class="panel-label">Preset</label>
-          <div class="mt-1.5 flex flex-wrap gap-2">
-            <button
-              type="button"
-              class="btn-ghost"
-              :class="exportSettings.intent === 'screen' && 'bg-accent/15 text-accent-soft'"
-              @click="setExportPreset('screen')"
-            >Screen</button>
-            <button
-              type="button"
-              class="btn-ghost"
-              :class="exportSettings.intent === 'print' && 'bg-accent/15 text-accent-soft'"
-              @click="setExportPreset('print')"
-            >Print</button>
+    <div class="modal-panel modal-panel--export" @click.outside="showExportModal = false">
+      <header class="modal-head">
+        <h3 id="export-modal-title" class="modal-title">Export PDF</h3>
+        <p class="modal-lead">Press-ready options for this document.</p>
+      </header>
+      <div class="modal-body space-y-5 text-sm">
+        <section class="modal-section">
+          <p class="modal-section-label">Preset</p>
+          <div class="seg-control" role="group" aria-label="Export preset">
+            <button type="button" class="seg-btn" :class="exportSettings.intent === 'screen' && 'is-active'" @click="setExportPreset('screen')">Screen</button>
+            <button type="button" class="seg-btn" :class="exportSettings.intent === 'print' && 'is-active'" @click="setExportPreset('print')">Print</button>
           </div>
-          <p class="mt-1 text-[11px] text-slate-muted">Screen = lighter file · Print = higher quality + PDF/A-friendly</p>
-        </div>
-        <div>
-          <label class="panel-label">Margin (pt)</label>
-          <input type="number" min="0" max="72" class="panel-input" x-model.number="exportSettings.margin" @change="saveExportSettings()" />
-        </div>
-        <div>
-          <label class="panel-label">Image quality</label>
-          <input type="range" min="0.4" max="1" step="0.05" class="w-full accent-accent" x-model.number="exportSettings.imageQuality" @change="saveExportSettings()" />
-          <p class="mt-1 text-xs text-slate-muted" x-text="Math.round(exportSettings.imageQuality * 100) + '%'"></p>
-        </div>
-        <div>
-          <label class="panel-label">PDF/A mode</label>
-          <select class="panel-select" x-model="exportSettings.pdfaMode" @change="exportSettings.pdfaLite = exportSettings.pdfaMode !== 'off'; saveExportSettings()">
-            <option value="off">Off</option>
-            <option value="friendly">Friendly (metadata)</option>
-            <option value="strict">Strict (no encryption)</option>
-          </select>
-          <p class="mt-1 text-[11px] text-slate-muted">Best-effort archival hints — not veraPDF certified</p>
-        </div>
-        <label class="settings-row">
-          <span>Optimize / compress images</span>
-          <input type="checkbox" class="accent-accent" x-model="exportSettings.compressImages" @change="saveExportSettings()" />
-        </label>
-        <label class="settings-row">
-          <span>Flatten form fields (AcroForm)</span>
-          <input type="checkbox" class="accent-accent" x-model="exportSettings.flattenForms" @change="exportSettings.flatten = exportSettings.flattenForms; saveExportSettings()" />
-        </label>
-        <label class="settings-row">
-          <span>Flatten annotations (markup, stamps, badges)</span>
-          <input type="checkbox" class="accent-accent" x-model="exportSettings.flattenAnnotations" @change="saveExportSettings()" />
-        </label>
-        <label class="settings-row">
-          <span>Include review comments</span>
-          <input type="checkbox" class="accent-accent" x-model="exportSettings.includeComments" @change="saveExportSettings()" />
-        </label>
-        <label class="settings-row">
-          <span>Include watermark</span>
-          <input type="checkbox" class="accent-accent" x-model="exportSettings.includeWatermark" @change="saveExportSettings()" />
-        </label>
-        <div>
-          <label class="panel-label">Password (optional)</label>
+          <p class="modal-hint">Screen = lighter · Print = higher quality + PDF/A-friendly</p>
+        </section>
+
+        <section class="modal-section grid grid-cols-2 gap-3">
+          <div>
+            <label class="panel-label">Margin (pt)</label>
+            <input type="number" min="0" max="72" class="panel-input" x-model.number="exportSettings.margin" @change="saveExportSettings()" />
+          </div>
+          <div>
+            <label class="panel-label">Quality <span class="font-mono text-[10px] text-slate-muted" x-text="Math.round(exportSettings.imageQuality * 100) + '%'"></span></label>
+            <input type="range" min="0.4" max="1" step="0.05" class="mt-2 w-full accent-accent" x-model.number="exportSettings.imageQuality" @change="saveExportSettings()" />
+          </div>
+        </section>
+
+        <section class="modal-section">
+          <label class="panel-label">PDF/A</label>
+          <div class="seg-control seg-control--3" role="group" aria-label="PDF/A mode">
+            <button type="button" class="seg-btn" :class="exportSettings.pdfaMode === 'off' && 'is-active'" @click="exportSettings.pdfaMode = 'off'; exportSettings.pdfaLite = false; saveExportSettings()">Off</button>
+            <button type="button" class="seg-btn" :class="exportSettings.pdfaMode === 'friendly' && 'is-active'" @click="exportSettings.pdfaMode = 'friendly'; exportSettings.pdfaLite = true; saveExportSettings()">Friendly</button>
+            <button type="button" class="seg-btn" :class="exportSettings.pdfaMode === 'strict' && 'is-active'" @click="exportSettings.pdfaMode = 'strict'; exportSettings.pdfaLite = true; saveExportSettings()">Strict</button>
+          </div>
+          <p class="modal-hint">Best-effort archival hints — not veraPDF certified</p>
+        </section>
+
+        <section class="modal-section">
+          <p class="modal-section-label">Burn &amp; include</p>
+          <div class="toggle-stack">
+            <label class="settings-row">
+              <span>Compress images</span>
+              <input type="checkbox" class="accent-accent" x-model="exportSettings.compressImages" @change="saveExportSettings()" />
+            </label>
+            <label class="settings-row">
+              <span>Flatten form fields</span>
+              <input type="checkbox" class="accent-accent" x-model="exportSettings.flattenForms" @change="exportSettings.flatten = exportSettings.flattenForms; saveExportSettings()" />
+            </label>
+            <label class="settings-row">
+              <span>Flatten annotations</span>
+              <input type="checkbox" class="accent-accent" x-model="exportSettings.flattenAnnotations" @change="saveExportSettings()" />
+            </label>
+            <label class="settings-row">
+              <span>Review comments</span>
+              <input type="checkbox" class="accent-accent" x-model="exportSettings.includeComments" @change="saveExportSettings()" />
+            </label>
+            <label class="settings-row">
+              <span>Watermark</span>
+              <input type="checkbox" class="accent-accent" x-model="exportSettings.includeWatermark" @change="saveExportSettings()" />
+            </label>
+          </div>
+        </section>
+
+        <section class="modal-section">
+          <label class="panel-label">Password <span class="font-normal normal-case tracking-normal text-slate-muted">(optional)</span></label>
           <input
             type="password"
             class="panel-input"
@@ -157,8 +159,8 @@
             x-model="exportPassword"
             :disabled="exportSettings.pdfaMode === 'strict'"
           />
-          <p class="mt-1 text-[11px] text-slate-muted" x-text="exportSettings.pdfaMode === 'strict' ? 'Disabled in PDF/A strict mode' : 'Not saved. Open-password encryption.'"></p>
-        </div>
+          <p class="modal-hint" x-text="exportSettings.pdfaMode === 'strict' ? 'Disabled in PDF/A strict mode' : 'Not saved · open-password only'"></p>
+        </section>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn-ghost" @click="showExportModal = false">Cancel</button>
@@ -342,28 +344,38 @@
 {{!-- Preflight modal --}}
 <div x-show="showPreflight" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showPreflight = false">
   <div class="modal-panel max-w-lg" @click.outside="showPreflight = false">
-    <h3 class="modal-title">Print / accessibility preflight</h3>
-    <div class="mt-3 flex flex-wrap gap-2 text-[11px]" x-show="preflightSummary">
-      <span class="rounded-md border border-warn/40 px-2 py-0.5 text-warn" x-show="preflightSummary.error" x-text="preflightSummary.error + ' errors'"></span>
-      <span class="rounded-md border border-slate-line px-2 py-0.5 text-slate-muted" x-show="preflightSummary.warn" x-text="preflightSummary.warn + ' warnings'"></span>
-      <span class="rounded-md border border-slate-line px-2 py-0.5 text-slate-muted" x-show="preflightSummary.info" x-text="preflightSummary.info + ' info'"></span>
+    <header class="modal-head">
+      <h3 class="modal-title">Preflight</h3>
+      <p class="modal-lead">Print &amp; accessibility checklist before export.</p>
+    </header>
+    <div class="mt-3 flex flex-wrap gap-1.5 text-[11px]" x-show="preflightSummary">
+      <span class="pill pill--error" x-show="preflightSummary.error" x-text="preflightSummary.error + ' errors'"></span>
+      <span class="pill pill--warn" x-show="preflightSummary.warn" x-text="preflightSummary.warn + ' warnings'"></span>
+      <span class="pill" x-show="preflightSummary.info" x-text="preflightSummary.info + ' info'"></span>
     </div>
-    <ul class="mt-4 max-h-72 space-y-2 overflow-y-auto text-sm">
+    <ul class="mt-4 max-h-72 space-y-1.5 overflow-y-auto text-sm">
       <template x-for="(issue, i) in preflightIssues" :key="i">
         <li>
           <button
             type="button"
-            class="w-full rounded-md border border-slate-line px-3 py-2 text-left transition hover:border-accent/40 hover:bg-slate-hover"
-            :class="issue.level === 'error' && 'border-warn/50'"
+            class="preflight-issue"
+            :class="{
+              'preflight-issue--error': issue.level === 'error',
+              'preflight-issue--warn': issue.level === 'warn',
+              'is-focusable': !!issue.elId,
+            }"
             @click="focusPreflightIssue(issue)"
           >
-            <span class="text-[10px] uppercase tracking-wide text-slate-muted" x-text="issue.level + ' · ' + issue.code"></span>
-            <p class="text-fg" x-text="issue.message"></p>
-            <p class="mt-0.5 text-[10px] text-accent-soft" x-show="issue.elId">Click to select on canvas</p>
+            <span class="preflight-issue-meta" x-text="issue.level + ' · ' + issue.code"></span>
+            <p class="preflight-issue-msg" x-text="issue.message"></p>
+            <p class="preflight-issue-hint" x-show="issue.elId">Select on canvas →</p>
           </button>
         </li>
       </template>
-      <li x-show="!preflightIssues.length" class="py-6 text-center text-slate-muted">No issues.</li>
+      <li x-show="!preflightIssues.length" class="empty-state">
+        <p class="empty-state-title">Clean press sheet</p>
+        <p class="empty-state-body">No issues flagged for this document.</p>
+      </li>
     </ul>
     <div class="modal-actions">
       <button type="button" class="btn-ghost" @click="showPreflight = false; openExportModal()">Export…</button>
@@ -375,17 +387,22 @@
 {{!-- E-sign modal --}}
 <div x-show="showESign" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showESign = false">
   <div class="modal-panel max-w-lg" @click.outside="showESign = false">
-    <h3 class="modal-title">E-sign (local MVP)</h3>
-    <p class="mt-1 text-xs text-slate-muted">Signer order + audit trail stay in this browser. Not a legal eIDAS service.</p>
+    <header class="modal-head">
+      <h3 class="modal-title">E-sign</h3>
+      <p class="modal-lead">Local signer order + audit trail. Not eIDAS / not a legal service.</p>
+    </header>
     <div class="mt-4 space-y-3 text-sm" x-show="!eSignPkg">
-      <label class="panel-label">Signers (comma-separated, in order)</label>
+      <label class="panel-label">Signers <span class="font-normal normal-case tracking-normal text-slate-muted">(comma-separated, in order)</span></label>
       <input type="text" class="panel-input" placeholder="Alice, Bob" x-model="eSignNames" />
       <button type="button" class="btn-primary" @click="startESign()">Create package</button>
     </div>
     <div class="mt-4 space-y-2 text-sm" x-show="eSignPkg">
       <template x-for="s in eSignPkg?.signers || []" :key="s.id">
-        <div class="flex items-center justify-between gap-2 rounded-md border border-slate-line px-3 py-2">
-          <span x-text="s.order + '. ' + s.name + ' — ' + s.status"></span>
+        <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-line px-3 py-2">
+          <div class="min-w-0">
+            <p class="truncate font-medium text-fg" x-text="s.order + '. ' + s.name"></p>
+            <p class="font-mono text-[10px] uppercase tracking-wide text-slate-muted" x-text="s.status"></p>
+          </div>
           <button type="button" class="btn-ghost text-xs" :disabled="s.status === 'signed'" @click="signAs(s.id)">Sign</button>
         </div>
       </template>
@@ -408,13 +425,15 @@
   @keydown.escape.window="closeSignatureModal()"
 >
   <div class="modal-panel max-w-xl" @click.outside="closeSignatureModal()">
-    <h3 id="signature-modal-title" class="modal-title">Sign document</h3>
-    <p class="mt-1 text-xs text-slate-muted">Draw, type, or upload a signature — it will be placed on the page.</p>
+    <header class="modal-head">
+      <h3 id="signature-modal-title" class="modal-title">Sign document</h3>
+      <p class="modal-lead">Draw, type, or upload — placed on the active page.</p>
+    </header>
 
-    <div class="mt-4 flex gap-1 rounded-xl border border-slate-line bg-black/5 p-1 dark:bg-white/5">
-      <button type="button" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-medium" :class="signatureTab === 'draw' ? 'bg-slate-panel text-fg shadow-sm' : 'text-slate-muted'" @click="signatureTab = 'draw'; resetSignaturePad()">Draw</button>
-      <button type="button" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-medium" :class="signatureTab === 'type' ? 'bg-slate-panel text-fg shadow-sm' : 'text-slate-muted'" @click="signatureTab = 'type'; clearSignaturePad()">Type</button>
-      <button type="button" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-medium" :class="signatureTab === 'upload' ? 'bg-slate-panel text-fg shadow-sm' : 'text-slate-muted'" @click="signatureTab = 'upload'">Upload</button>
+    <div class="seg-control seg-control--3 mt-4" role="tablist" aria-label="Signature method">
+      <button type="button" class="seg-btn" role="tab" :class="signatureTab === 'draw' && 'is-active'" @click="signatureTab = 'draw'; resetSignaturePad()">Draw</button>
+      <button type="button" class="seg-btn" role="tab" :class="signatureTab === 'type' && 'is-active'" @click="signatureTab = 'type'; clearSignaturePad()">Type</button>
+      <button type="button" class="seg-btn" role="tab" :class="signatureTab === 'upload' && 'is-active'" @click="signatureTab = 'upload'">Upload</button>
     </div>
 
     <div class="mt-4" x-show="signatureTab !== 'upload'">
@@ -575,16 +594,21 @@
 {{!-- Redaction confirm --}}
 <div x-show="showRedactConfirm" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showRedactConfirm = false">
   <div class="modal-panel max-w-md" @click.outside="showRedactConfirm = false">
-    <h3 class="modal-title">Confirm redactions</h3>
-    <p class="mt-2 text-sm text-slate-muted">Opaque black rectangles will permanently cover content on export. Review the list, then confirm.</p>
+    <header class="modal-head">
+      <h3 class="modal-title">Confirm redactions</h3>
+      <p class="modal-lead">Black bars burn in on export. Review before you commit.</p>
+    </header>
     <ul class="mt-4 max-h-48 space-y-1 overflow-y-auto text-xs">
       <template x-for="(r, i) in redactRects()" :key="r.id">
-        <li class="rounded border border-slate-line px-2 py-1.5" x-text="'Page ' + (r.pageIndex + 1) + ' · ' + Math.round(r.width) + '×' + Math.round(r.height) + ' pt'"></li>
+        <li class="file-chip" x-text="'Page ' + (r.pageIndex + 1) + ' · ' + Math.round(r.width) + '×' + Math.round(r.height) + ' pt'"></li>
       </template>
+      <li x-show="!redactRects().length" class="empty-state py-4">
+        <p class="empty-state-body">No redaction marks on the document.</p>
+      </li>
     </ul>
     <div class="modal-actions">
       <button type="button" class="btn-ghost" @click="showRedactConfirm = false">Cancel</button>
-      <button type="button" class="btn-primary" @click="confirmRedactionsAndExport()">Confirm &amp; export</button>
+      <button type="button" class="btn-primary" :disabled="!redactRects().length" @click="confirmRedactionsAndExport()">Confirm &amp; export</button>
     </div>
   </div>
 </div>
@@ -592,25 +616,42 @@
 {{!-- Fill & Sign wizard --}}
 <div x-show="showFillSign" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showFillSign = false">
   <div class="modal-panel max-w-lg" @click.outside="showFillSign = false">
-    <h3 class="modal-title">Fill &amp; Sign</h3>
-    <p class="mt-1 text-xs text-slate-muted">Guided path: open PDF → fill fields → sign → export.</p>
-    <ol class="mt-4 space-y-3 text-sm">
-      <li class="rounded-lg border border-slate-line p-3" :class="fillSignStep >= 0 && 'border-accent/40'">
-        <p class="font-medium">1. Open PDF</p>
-        <button type="button" class="btn-ghost mt-2 text-xs" @click="fillSignStep = 0; openPdfImportModal('overlay')">Import PDF…</button>
+    <header class="modal-head">
+      <h3 class="modal-title">Fill &amp; Sign</h3>
+      <p class="modal-lead">Open → fill → sign → export. One path, local only.</p>
+    </header>
+    <ol class="wizard-steps" aria-label="Fill and sign steps">
+      <li class="wizard-step" :class="{ 'is-active': fillSignStep === 0, 'is-done': fillSignStep > 0 }">
+        <span class="wizard-step-index" aria-hidden="true">1</span>
+        <div class="wizard-step-body">
+          <p class="wizard-step-title">Open PDF</p>
+          <p class="wizard-step-desc">Import an underlay to annotate.</p>
+          <button type="button" class="btn-ghost mt-2 text-xs" @click="fillSignStep = 0; openPdfImportModal('overlay')">Import PDF…</button>
+        </div>
       </li>
-      <li class="rounded-lg border border-slate-line p-3" :class="fillSignStep >= 1 && 'border-accent/40'">
-        <p class="font-medium">2. Fill fields</p>
-        <p class="mt-1 text-[11px] text-slate-muted">Enables form preview on the canvas. Add fields from Settings if needed.</p>
-        <button type="button" class="btn-ghost mt-2 text-xs" @click="fillSignStep = 1; formPreviewMode = true; showFillSign = false">Start filling</button>
+      <li class="wizard-step" :class="{ 'is-active': fillSignStep === 1, 'is-done': fillSignStep > 1 }">
+        <span class="wizard-step-index" aria-hidden="true">2</span>
+        <div class="wizard-step-body">
+          <p class="wizard-step-title">Fill fields</p>
+          <p class="wizard-step-desc">Form preview on canvas. Add fields from Settings if needed.</p>
+          <button type="button" class="btn-ghost mt-2 text-xs" @click="fillSignStep = 1; formPreviewMode = true; showFillSign = false">Start filling</button>
+        </div>
       </li>
-      <li class="rounded-lg border border-slate-line p-3" :class="fillSignStep >= 2 && 'border-accent/40'">
-        <p class="font-medium">3. Sign</p>
-        <button type="button" class="btn-ghost mt-2 text-xs" @click="fillSignStep = 2; openSignatureModal()">Add signature…</button>
+      <li class="wizard-step" :class="{ 'is-active': fillSignStep === 2, 'is-done': fillSignStep > 2 }">
+        <span class="wizard-step-index" aria-hidden="true">3</span>
+        <div class="wizard-step-body">
+          <p class="wizard-step-title">Sign</p>
+          <p class="wizard-step-desc">Draw, type, or upload a signature.</p>
+          <button type="button" class="btn-ghost mt-2 text-xs" @click="fillSignStep = 2; openSignatureModal()">Add signature…</button>
+        </div>
       </li>
-      <li class="rounded-lg border border-slate-line p-3" :class="fillSignStep >= 3 && 'border-accent/40'">
-        <p class="font-medium">4. Export</p>
-        <button type="button" class="btn-primary mt-2 text-xs" @click="fillSignStep = 3; exportSettings.flattenForms = true; exportSettings.flatten = true; openExportModal(); showFillSign = false">Export PDF…</button>
+      <li class="wizard-step" :class="{ 'is-active': fillSignStep === 3, 'is-done': fillSignStep > 3 }">
+        <span class="wizard-step-index" aria-hidden="true">4</span>
+        <div class="wizard-step-body">
+          <p class="wizard-step-title">Export</p>
+          <p class="wizard-step-desc">Flatten forms and download.</p>
+          <button type="button" class="btn-primary mt-2 text-xs" @click="fillSignStep = 3; exportSettings.flattenForms = true; exportSettings.flatten = true; openExportModal(); showFillSign = false">Export PDF…</button>
+        </div>
       </li>
     </ol>
     <div class="modal-actions">
@@ -622,17 +663,19 @@
 {{!-- Batch jobs --}}
 <div x-show="showBatchModal" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showBatchModal = false">
   <div class="modal-panel max-w-lg" @click.outside="showBatchModal = false">
-    <h3 class="modal-title">Batch jobs</h3>
-    <p class="mt-1 text-xs text-slate-muted">Apply current watermark / Bates tokens / export settings to multiple PDFs → ZIP.</p>
-    <label class="btn-ghost mt-4 flex cursor-pointer justify-center text-xs">
+    <header class="modal-head">
+      <h3 class="modal-title">Batch jobs</h3>
+      <p class="modal-lead">Same watermark, Bates, and export settings → ZIP of PDFs.</p>
+    </header>
+    <label class="drop-zone mt-4 cursor-pointer">
       <input type="file" class="sr-only" accept="application/pdf,.pdf" multiple @change="onBatchFilesSelected($event)" />
-      Choose PDFs…
+      <span class="drop-zone-title" x-text="batchFiles.length ? batchFiles.length + ' PDF' + (batchFiles.length === 1 ? '' : 's') + ' selected' : 'Drop PDFs or browse'"></span>
+      <span class="drop-zone-hint">Current document settings apply to every file</span>
     </label>
-    <ul class="mt-3 max-h-32 space-y-1 overflow-y-auto text-xs text-slate-muted">
+    <ul class="file-chip-list mt-3" x-show="batchFiles.length">
       <template x-for="(f, i) in batchFiles" :key="i">
-        <li x-text="f.name"></li>
+        <li class="file-chip" x-text="f.name"></li>
       </template>
-      <li x-show="!batchFiles.length">No files selected</li>
     </ul>
     <div class="modal-actions">
       <button type="button" class="btn-ghost" @click="showBatchModal = false">Cancel</button>
@@ -646,28 +689,35 @@
 {{!-- Compare PDFs --}}
 <div x-show="showCompareModal" x-cloak class="modal-backdrop" role="dialog" aria-modal="true" @keydown.escape.window="showCompareModal = false">
   <div class="modal-panel max-w-3xl" @click.outside="showCompareModal = false">
-    <h3 class="modal-title">Compare PDFs</h3>
-    <p class="mt-1 text-xs text-slate-muted">Side-by-side page 1 preview (local only). Overlay mode shows pixel difference tint.</p>
+    <header class="modal-head">
+      <h3 class="modal-title">Compare PDFs</h3>
+      <p class="modal-lead">Page 1 side-by-side. Overlay tints pixel differences.</p>
+    </header>
     <div class="mt-4 grid gap-3 sm:grid-cols-2">
-      <label class="rounded-lg border border-dashed border-slate-line p-4 text-center text-xs">
-        <span class="block text-slate-muted">Document A</span>
-        <span class="mt-1 block font-medium text-fg" x-text="compareFileA?.name || 'Choose PDF…'"></span>
+      <label class="drop-zone drop-zone--compact cursor-pointer" :class="compareFileA && 'is-filled'">
+        <span class="drop-zone-kicker">Document A</span>
+        <span class="drop-zone-title" x-text="compareFileA?.name || 'Choose PDF…'"></span>
         <input type="file" accept="application/pdf,.pdf" class="sr-only" @change="onCompareFile($event, 'a')" />
       </label>
-      <label class="rounded-lg border border-dashed border-slate-line p-4 text-center text-xs">
-        <span class="block text-slate-muted">Document B</span>
-        <span class="mt-1 block font-medium text-fg" x-text="compareFileB?.name || 'Choose PDF…'"></span>
+      <label class="drop-zone drop-zone--compact cursor-pointer" :class="compareFileB && 'is-filled'">
+        <span class="drop-zone-kicker">Document B</span>
+        <span class="drop-zone-title" x-text="compareFileB?.name || 'Choose PDF…'"></span>
         <input type="file" accept="application/pdf,.pdf" class="sr-only" @change="onCompareFile($event, 'b')" />
       </label>
     </div>
-    <div class="mt-3 flex gap-2">
-      <button type="button" class="btn-ghost text-xs" :class="compareMode === 'split' && 'bg-accent/15 text-accent-soft'" @click="compareMode = 'split'; runComparePreview()">Split</button>
-      <button type="button" class="btn-ghost text-xs" :class="compareMode === 'overlay' && 'bg-accent/15 text-accent-soft'" @click="compareMode = 'overlay'; runComparePreview()">Overlay diff</button>
-      <button type="button" class="btn-ghost text-xs" @click="runComparePreview()">Refresh</button>
+    <div class="mt-3 flex flex-wrap items-center gap-2">
+      <div class="seg-control" role="group" aria-label="Compare mode">
+        <button type="button" class="seg-btn" :class="compareMode === 'split' && 'is-active'" @click="compareMode = 'split'; runComparePreview()">Split</button>
+        <button type="button" class="seg-btn" :class="compareMode === 'overlay' && 'is-active'" @click="compareMode = 'overlay'; runComparePreview()">Overlay</button>
+      </div>
+      <button type="button" class="btn-ghost text-xs" @click="runComparePreview()" :disabled="!compareFileA || !compareFileB">Refresh</button>
     </div>
-    <div class="mt-4 grid gap-3" :class="compareMode === 'split' ? 'sm:grid-cols-2' : 'grid-cols-1'">
-      <canvas x-ref="compareCanvasA" class="max-h-80 w-full rounded border border-slate-line bg-paper"></canvas>
-      <canvas x-show="compareMode === 'split'" x-ref="compareCanvasB" class="max-h-80 w-full rounded border border-slate-line bg-paper"></canvas>
+    <div class="compare-stage mt-4" :class="compareMode === 'split' ? 'compare-stage--split' : 'compare-stage--overlay'">
+      <canvas x-ref="compareCanvasA" class="compare-canvas"></canvas>
+      <canvas x-show="compareMode === 'split'" x-ref="compareCanvasB" class="compare-canvas"></canvas>
+      <p class="empty-state absolute inset-0 m-0" x-show="!compareFileA || !compareFileB">
+        <span class="empty-state-body">Load both PDFs to preview</span>
+      </p>
     </div>
     <div class="modal-actions">
       <button type="button" class="btn-ghost ml-auto" @click="showCompareModal = false">Close</button>
