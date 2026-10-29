@@ -1,12 +1,12 @@
-<div class="np-page np-page--notice" x-data="themeToggle">
+<div class="np-page np-page--notice" x-data="themeToggle" data-home-scroll>
   <a class="np-skip" href="#notice">Skip to content</a>
 
   <div class="np-stock" aria-hidden="true">
-    <div class="np-stock-wash"></div>
+    <div class="np-stock-wash" data-parallax="3"></div>
     <div class="np-stock-fiber"></div>
   </div>
 
-  <header class="np-utility np-utility--static">
+  <header class="np-utility np-utility--static" data-np-nav>
     <div class="np-utility-inner">
       <a href="/" class="np-utility-brand"><i>The</i> PDF Studio</a>
       <div class="np-utility-side">
@@ -26,21 +26,21 @@
 
   <main class="np-notice" id="notice">
     <div class="np-shell np-notice-grid">
-      <div>
-        <p class="np-kicker">Stop press &middot; Error 404</p>
-        <h1 class="np-notice-title">This page never made the edition</h1>
-        <p class="np-notice-lede">
+      <div data-stagger="70">
+        <p class="np-kicker" data-reveal="fade">Stop press &middot; Error 404</p>
+        <h1 class="np-notice-title" data-reveal="up">This page never made the edition</h1>
+        <p class="np-notice-lede" data-reveal="up">
           The address doesn't match anything we set. Go back to the front page, or skip the reading
           and open a blank sheet in the editor.
         </p>
-        <div class="np-actions">
+        <div class="np-actions" data-reveal="up">
           <a href="/" class="np-btn np-btn--ink">Back to the front page</a>
           <a href="/editor?new=1" class="np-btn np-btn--outline">Start a blank sheet</a>
         </div>
-        <p class="np-notice-meta">404 &mdash; page not found</p>
+        <p class="np-notice-meta" data-reveal="fade">404 &mdash; page not found</p>
       </div>
 
-      <div class="np-sheet-wrap" aria-hidden="true">
+      <div class="np-sheet-wrap" data-reveal="right" aria-hidden="true">
         <div class="np-sheet">
           <p class="np-sheet-head">Page not filed</p>
           <div class="np-sheet-lines">

@@ -1,33 +1,77 @@
+/**
+ * Broadsheet landing motion — driven by data-* hooks in the HTML:
+ *
+ *   data-home-scroll     scroll root (page shell)
+ *   data-np-nav          sticky utility bar → .is-scrolled
+ *   data-np-navlink      section links → .is-current
+ *   data-parallax        background wash; optional data-parallax="4" = % travel
+ *   data-press / data-ink / data-plate   masthead press-start (CSS + .is-printed)
+ *   data-reveal          scroll reveal; value = fade | up | left | right | scale
+ *   data-stagger         parent: auto --reveal-delay on child [data-reveal]
+ *   data-stagger-step    ms between children (default 90)
+ *
+ * Prefer attributes over class soup so CSS owns look and JS owns wiring.
+ */
+
 function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function initNavScroll(page: HTMLElement): void {
-  const nav = document.querySelector<HTMLElement>("[data-np-nav]");
-  if (!nav) return;
-  const onScrollPage = () => {
-    nav.classList.toggle("is-scrolled", page.scrollTop > 12);
+/** One passive scroll listener → rAF-batched callbacks. */
+function onScrollRaf(root: HTMLElement, fn: (scrollTop: number) => void): void {
+  let ticking = false;
+  const run = () => {
+    ticking = false;
+    fn(root.scrollTop);
   };
-  page.addEventListener("scroll", onScrollPage, { passive: true });
-  onScrollPage();
+  const onScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(run);
+  };
+  root.addEventListener("scroll", onScroll, { passive: true });
+  fn(root.scrollTop);
+}
+
+function initNavScroll(page: HTMLElement): void {
+  const nav = page.querySelector<HTMLElement>("[data-np-nav]");
+  if (!nav) return;
+  onScrollRaf(page, (top) => {
+    nav.classList.toggle("is-scrolled", top > 12);
+  });
 }
 
 function initPageParallax(page: HTMLElement): void {
-  const wash = document.querySelector<HTMLElement>("[data-parallax-vibe]");
+  const wash = page.querySelector<HTMLElement>("[data-parallax]");
   if (!wash) return;
+  const travel = Number(wash.dataset.parallax) || 4;
 
-  const onScrollPage = () => {
+  onScrollRaf(page, (top) => {
     const max = page.scrollHeight - page.clientHeight;
-    const p = max > 0 ? page.scrollTop / max : 0;
-    wash.style.transform = `translate3d(0, ${p * -4}%, 0)`;
-  };
+    const p = max > 0 ? top / max : 0;
+    wash.style.transform = `translate3d(0, ${p * -travel}%, 0)`;
+  });
+}
 
-  page.addEventListener("scroll", onScrollPage, { passive: true });
-  onScrollPage();
+/** Auto-assign staggered delays for children of [data-stagger]. */
+function applyStagger(page: HTMLElement): void {
+  for (const group of page.querySelectorAll<HTMLElement>("[data-stagger]")) {
+    const step = Number(group.dataset.staggerStep) || Number(group.dataset.stagger) || 90;
+    const kids = [...group.querySelectorAll<HTMLElement>(":scope > [data-reveal], :scope [data-reveal]")].filter(
+      (el) => el.closest("[data-stagger]") === group,
+    );
+    kids.forEach((el, i) => {
+      if (!el.style.getPropertyValue("--reveal-delay")) {
+        el.style.setProperty("--reveal-delay", `${i * step}ms`);
+      }
+    });
+  }
 }
 
 function initChapterReveals(page: HTMLElement): void {
-  const items = [...document.querySelectorAll<HTMLElement>("[data-reveal]")];
+  applyStagger(page);
+
+  const items = [...page.querySelectorAll<HTMLElement>("[data-reveal]")];
   if (!items.length) return;
 
   for (const el of items) {
@@ -44,18 +88,14 @@ function initChapterReveals(page: HTMLElement): void {
         io.unobserve(el);
       }
     },
-    { root: page, rootMargin: "0px 0px -8% 0px", threshold: 0.1 },
+    { root: page, rootMargin: "0px 0px -8% 0px", threshold: 0.12 },
   );
 
   for (const el of items) io.observe(el);
 }
 
-/**
- * Marks which section the reader is currently in, like the page indicator
- * on a newspaper section front.
- */
 function initSectionTracking(page: HTMLElement): void {
-  const links = [...document.querySelectorAll<HTMLAnchorElement>("[data-np-navlink]")];
+  const links = [...page.querySelectorAll<HTMLAnchorElement>("[data-np-navlink]")];
   if (!links.length) return;
 
   const sections = new Map<Element, HTMLAnchorElement>();
@@ -93,7 +133,11 @@ function initSectionTracking(page: HTMLElement): void {
   for (const section of sections.keys()) io.observe(section);
 }
 
-/** Broadsheet landing page: masthead press-start, reveals, section tracking. */
+function markPrinted(page: HTMLElement): void {
+  page.classList.add("is-printed");
+}
+
+/** Broadsheet / notice pages: press-start, reveals, section tracking. */
 export function initHomePreview(): void {
   const page = document.querySelector<HTMLElement>("[data-home-scroll]");
   if (!page) return;
@@ -101,19 +145,17 @@ export function initHomePreview(): void {
   initNavScroll(page);
 
   if (prefersReducedMotion()) {
-    for (const el of document.querySelectorAll("[data-reveal]")) {
+    for (const el of page.querySelectorAll("[data-reveal]")) {
       el.classList.add("is-revealed");
       el.classList.remove("is-reveal-pending");
     }
-    page.classList.add("is-printed");
+    markPrinted(page);
     initSectionTracking(page);
     return;
   }
 
-  // Run the press on the next frame, with a safety net so the masthead can
-  // never be left blank if the frame callback is starved.
-  requestAnimationFrame(() => page.classList.add("is-printed"));
-  window.setTimeout(() => page.classList.add("is-printed"), 900);
+  requestAnimationFrame(() => markPrinted(page));
+  window.setTimeout(() => markPrinted(page), 900);
 
   initPageParallax(page);
   initChapterReveals(page);

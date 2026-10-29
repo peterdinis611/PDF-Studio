@@ -3589,17 +3589,39 @@
   }
 }
 
+/*
+ * Scroll reveals — set data-reveal on the element (optional value = motion).
+ * Parents may use data-stagger so JS fills --reveal-delay automatically.
+ */
 @utility is-reveal-pending {
   &[data-reveal] {
     opacity: 0;
     transform: translate3d(0, 16px, 0);
     transition: none;
+    will-change: opacity, transform;
+  }
+
+  &[data-reveal='fade'] {
+    transform: none;
+  }
+
+  &[data-reveal='left'] {
+    transform: translate3d(-18px, 0, 0);
+  }
+
+  &[data-reveal='right'] {
+    transform: translate3d(18px, 0, 0);
+  }
+
+  &[data-reveal='scale'] {
+    transform: scale(0.96);
   }
 
   @media (prefers-reduced-motion: reduce) {
     &[data-reveal] {
       opacity: 1;
       transform: none;
+      will-change: auto;
     }
   }
 }
@@ -3608,6 +3630,7 @@
   &[data-reveal] {
     opacity: 1;
     transform: none;
+    will-change: auto;
     transition:
       opacity 0.55s ease,
       transform 0.65s var(--np-ease);

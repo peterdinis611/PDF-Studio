@@ -2,7 +2,7 @@
   <a class="np-skip" href="#content">Skip to content</a>
 
   <div class="np-stock" aria-hidden="true">
-    <div class="np-stock-wash" data-parallax-vibe></div>
+    <div class="np-stock-wash" data-parallax="4"></div>
     <div class="np-stock-fiber"></div>
   </div>
 
@@ -187,7 +187,7 @@
 
   <section class="np-section" id="movements">
     <div class="np-shell">
-      <header class="np-section-head" data-reveal>
+      <header class="np-section-head" data-reveal="up">
         <span class="np-slug">Section A · Method</span>
         <h2 class="np-section-title">Blank page to finished PDF, in three movements</h2>
         <p class="np-standfirst">
@@ -195,8 +195,8 @@
           letter, anyone who needs the paperwork to look like it was set properly.
         </p>
       </header>
-      <ol class="np-movements">
-        <li class="np-movement" data-reveal style="--reveal-delay: 0ms">
+      <ol class="np-movements" data-stagger="90">
+        <li class="np-movement" data-reveal="up">
           <span class="np-movement-num" aria-hidden="true">I</span>
           <h3>Choose a starting sheet</h3>
           <p>
@@ -204,7 +204,7 @@
             letter, flyer, CV, proposal, report, certificate, menu.
           </p>
         </li>
-        <li class="np-movement" data-reveal style="--reveal-delay: 90ms">
+        <li class="np-movement" data-reveal="up">
           <span class="np-movement-num" aria-hidden="true">II</span>
           <h3>Set the page</h3>
           <p>
@@ -212,7 +212,7 @@
             a long document in order while you work.
           </p>
         </li>
-        <li class="np-movement" data-reveal style="--reveal-delay: 180ms">
+        <li class="np-movement" data-reveal="up">
           <span class="np-movement-num" aria-hidden="true">III</span>
           <h3>Pull the proof</h3>
           <p>
@@ -227,7 +227,7 @@
   <section class="np-section np-section--tint" id="composing">
     <div class="np-shell np-split">
       <div>
-        <header class="np-section-head" data-reveal style="margin-bottom: 0">
+        <header class="np-section-head" data-reveal="up" style="margin-bottom: 0">
           <span class="np-slug">Section B · Workspace</span>
           <h2 class="np-section-title">The composing room</h2>
           <p class="np-standfirst">
@@ -235,7 +235,7 @@
             adjust in the inspector, export when the layout reads right.
           </p>
         </header>
-        <ul class="np-toc" data-reveal style="--reveal-delay: 80ms">
+        <ul class="np-toc" data-reveal="left">
           <li>
             <span class="np-toc-row">
               <span class="np-toc-name">Page-aware canvas</span>
@@ -279,7 +279,7 @@
         </ul>
       </div>
 
-      <figure class="np-figure" data-reveal style="--reveal-delay: 140ms" aria-hidden="true">
+      <figure class="np-figure" data-reveal="right" aria-hidden="true">
         <div class="np-fig-chrome">
           <span class="np-fig-dot"></span>
           <span class="np-fig-dot"></span>
@@ -303,7 +303,7 @@
 
   <section class="np-section" id="oped">
     <div class="np-shell">
-      <div class="np-oped" data-reveal>
+      <div class="np-oped" data-reveal="up">
         <p class="np-oped-slug">From the editors</p>
         <h2 class="np-oped-title">Your documents do not leave this machine</h2>
         <div class="np-oped-body">
@@ -330,7 +330,7 @@
 
   <section class="np-section np-section--tint" id="classifieds">
     <div class="np-shell">
-      <header class="np-section-head" data-reveal>
+      <header class="np-section-head" data-reveal="up">
         <span class="np-slug">Section C · Classifieds</span>
         <h2 class="np-section-title">Layouts, ready to be taken over</h2>
         <p class="np-standfirst">
@@ -338,8 +338,8 @@
         </p>
       </header>
 
-      <ul class="np-classifieds" data-reveal style="--reveal-delay: 80ms">
-        <li>
+      <ul class="np-classifieds" data-stagger="55">
+        <li data-reveal="scale">
           <a href="/editor?new=1" class="np-ad">
             <span class="np-ad-mini np-mini--blank">
               <span class="np-mini-lines"><i></i><i></i><i></i><i></i></span>
@@ -349,7 +349,7 @@
             <span class="np-ad-open">Open &rarr;</span>
           </a>
         </li>
-        <li>
+        <li data-reveal="scale">
           <a href="/editor?template=invoice" class="np-ad">
             <span class="np-ad-mini np-mini--invoice">
               <span class="np-mini-head"></span>
@@ -362,7 +362,7 @@
             <span class="np-ad-open">Open &rarr;</span>
           </a>
         </li>
-        <li>
+        <li data-reveal="scale">
           <a href="/editor?template=letter" class="np-ad">
             <span class="np-ad-mini np-mini--letter">
               <span class="np-mini-addr"></span>
@@ -373,7 +373,7 @@
             <span class="np-ad-open">Open &rarr;</span>
           </a>
         </li>
-        <li>
+        <li data-reveal="scale">
           <a href="/editor?template=flyer" class="np-ad">
             <span class="np-ad-mini np-mini--flyer">
               <span class="np-mini-hero"></span>
@@ -384,7 +384,7 @@
             <span class="np-ad-open">Open &rarr;</span>
           </a>
         </li>
-        <li>
+        <li data-reveal="scale">
           <a href="/editor?template=cv" class="np-ad">
             <span class="np-ad-mini np-mini--cv">
               <span class="np-mini-sidebar"></span>
@@ -395,7 +395,7 @@
             <span class="np-ad-open">Open &rarr;</span>
           </a>
         </li>
-        <li>
+        <li data-reveal="scale">
           <a href="/editor?template=report" class="np-ad">
             <span class="np-ad-mini np-mini--report">
               <span class="np-mini-band"></span>
@@ -406,7 +406,7 @@
             <span class="np-ad-open">Open &rarr;</span>
           </a>
         </li>
-        <li>
+        <li data-reveal="scale">
           <a href="/editor?template=proposal" class="np-ad">
             <span class="np-ad-mini np-mini--proposal">
               <span class="np-mini-hero"></span>
@@ -417,7 +417,7 @@
             <span class="np-ad-open">Open &rarr;</span>
           </a>
         </li>
-        <li>
+        <li data-reveal="scale">
           <a href="/editor?template=certificate" class="np-ad">
             <span class="np-ad-mini np-mini--cert">
               <span class="np-mini-seal"></span>
@@ -428,7 +428,7 @@
             <span class="np-ad-open">Open &rarr;</span>
           </a>
         </li>
-        <li>
+        <li data-reveal="scale">
           <a href="/editor?template=menu" class="np-ad">
             <span class="np-ad-mini np-mini--menu">
               <span class="np-mini-titlebar"></span>
@@ -440,14 +440,14 @@
           </a>
         </li>
       </ul>
-      <p class="np-classifieds-note" data-reveal>
+      <p class="np-classifieds-note" data-reveal="fade">
         Notices are free to answer. No reply address required.
       </p>
     </div>
   </section>
 
   <section class="np-lastcall" id="lastcall">
-    <div class="np-shell np-lastcall-inner" data-reveal>
+    <div class="np-shell np-lastcall-inner" data-reveal="up">
       <div>
         <p class="np-lastcall-slug">Last call</p>
         <h2 class="np-lastcall-title">The press is warm. Go and finish a page.</h2>
