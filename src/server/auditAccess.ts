@@ -1,5 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
-import { NOTICE_PAGE } from "./pageMeta.js";
+import { noticeView } from "./pageMeta.js";
+
+function siteOrigin(req: Request): string {
+  const configured = process.env.SITE_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+  const proto = (req.get("x-forwarded-proto") || req.protocol || "http").split(",")[0].trim();
+  const host = req.get("x-forwarded-host") || req.get("host") || "localhost";
+  return `${proto}://${host}`;
+}
 
 function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
@@ -42,10 +50,10 @@ export function requireAuditAccess(req: Request, res: Response, next: NextFuncti
       if (isApiRequest(req)) {
         res.status(404).json({ error: "Not found" });
       } else {
-        res.status(404).render("not-found", {
-          title: "Page not found — PDF Studio",
-          ...NOTICE_PAGE,
-        });
+        res.status(404).render(
+          "not-found",
+          noticeView(siteOrigin(req), "not-found", { path: req.path || "/404" }),
+        );
       }
       return;
     }

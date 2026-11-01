@@ -1,4 +1,5 @@
 import type { PdfDocument } from "../shared/types.js";
+import { formatLongDate } from "../shared/dates.js";
 import { blankPage, createLine, createRect, createText, uid } from "./factories.js";
 
 export interface TemplateMeta {
@@ -147,11 +148,7 @@ function letterTemplate(): PdfDocument {
       height: 60,
     }),
     createText(60, 250, {
-      content: new Date().toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }),
+      content: formatLongDate(new Date()),
       fontSize: 12,
       width: 260,
       height: 24,

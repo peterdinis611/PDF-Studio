@@ -267,7 +267,7 @@
             @click="openDocFromLibrary(d.id)"
           >
             <span class="truncate font-medium text-fg" x-text="d.name"></span>
-            <span class="ml-2 shrink-0 font-mono text-[10px] text-slate-muted" x-text="new Date(d.updatedAt).toLocaleString()"></span>
+            <span class="ml-2 shrink-0 font-mono text-[10px] text-slate-muted" x-text="formatDocStamp(d.updatedAt)"></span>
           </button>
         </li>
       </template>

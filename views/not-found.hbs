@@ -27,17 +27,20 @@
   <main class="np-notice" id="notice">
     <div class="np-shell np-notice-grid">
       <div data-stagger="70">
-        <p class="np-kicker" data-reveal="fade">Stop press &middot; Error 404</p>
+        <p class="np-kicker" data-reveal="fade">Stop press · Error 404</p>
         <h1 class="np-notice-title" data-reveal="up">This page never made the edition</h1>
         <p class="np-notice-lede" data-reveal="up">
-          The address doesn't match anything we set. Go back to the front page, or skip the reading
+          The address doesn’t match anything we set. Go back to the front page, or skip the reading
           and open a blank sheet in the editor.
         </p>
         <div class="np-actions" data-reveal="up">
           <a href="/" class="np-btn np-btn--ink">Back to the front page</a>
           <a href="/editor?new=1" class="np-btn np-btn--outline">Start a blank sheet</a>
         </div>
-        <p class="np-notice-meta" data-reveal="fade">404 &mdash; page not found</p>
+        <p class="np-notice-meta" data-reveal="fade">
+          404 — page not found
+          {{#if dateline}} · {{dateline}}{{/if}}
+        </p>
       </div>
 
       <div class="np-sheet-wrap" data-reveal="right" aria-hidden="true">
@@ -50,7 +53,7 @@
             <span class="np-stamp-code">404</span>
             <span class="np-stamp-label">Not in this edition</span>
           </div>
-          <span class="np-sheet-folio">&mdash; / &mdash;</span>
+          <span class="np-sheet-folio">— / —</span>
         </div>
       </div>
     </div>

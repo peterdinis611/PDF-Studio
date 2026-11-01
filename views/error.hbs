@@ -27,7 +27,7 @@
   <main class="np-notice" id="notice">
     <div class="np-shell np-notice-grid">
       <div data-stagger="70">
-        <p class="np-kicker" data-reveal="fade">Stop press &middot; Error 500</p>
+        <p class="np-kicker" data-reveal="fade">Stop press · Error 500</p>
         <h1 class="np-notice-title" data-reveal="up">The press jammed on this one</h1>
         <p class="np-notice-lede" data-reveal="up">
           Something broke while setting this page. Pull the proof again, or head back to the front
@@ -42,7 +42,10 @@
           </button>
           <a href="/" class="np-btn np-btn--outline">Back to the front page</a>
         </div>
-        <p class="np-notice-meta" data-reveal="fade">500 &mdash; server error</p>
+        <p class="np-notice-meta" data-reveal="fade">
+          500 — server error
+          {{#if dateline}} · {{dateline}}{{/if}}
+        </p>
       </div>
 
       <div class="np-sheet-wrap" data-reveal="right" aria-hidden="true">

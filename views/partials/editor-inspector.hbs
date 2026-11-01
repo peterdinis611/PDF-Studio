@@ -705,7 +705,7 @@
             <li>
               <button type="button" class="history-row" @click="jumpToHistory(h.pastIndex)">
                 <span class="history-row-label" x-text="h.label"></span>
-                <span class="history-row-time" x-text="new Date(h.at).toLocaleTimeString()"></span>
+                <span class="history-row-time" x-text="formatHistoryTime(h.at)"></span>
               </button>
             </li>
           </template>
@@ -722,7 +722,7 @@
             <li>
               <button type="button" class="history-row history-row--version" @click="restoreDocVersion(v.id)">
                 <span class="history-row-label" x-text="v.label"></span>
-                <span class="history-row-time" x-text="new Date(v.at).toLocaleString()"></span>
+                <span class="history-row-time" x-text="formatDocStamp(v.at)"></span>
               </button>
             </li>
           </template>

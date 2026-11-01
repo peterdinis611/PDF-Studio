@@ -7,7 +7,7 @@ import { getAssetUrls, publicCacheControl } from "./assets.js";
 import { audit, requestContext } from "./audit.js";
 import { auditTokenConfigured, requireAuditAccess } from "./auditAccess.js";
 import { logger } from "./logger.js";
-import { currentEdition, NOTICE_PAGE, seo } from "./pageMeta.js";
+import { currentEdition, noticeView, seo } from "./pageMeta.js";
 import { apiRouter } from "./routes/api.js";
 import { pruneExpiredUploads, sessionMiddleware, uploadsRoot } from "./session.js";
 import { buildRobotsTxt, buildSitemapXml } from "./sitemap.js";
@@ -159,6 +159,21 @@ app.get("/audit-logs", noStoreHtml, requireAuditAccess, (req, res) => {
 
 app.use("/api", apiRouter);
 
+/** Explicit notice pages — correct status codes, useful for preview and deep links. */
+app.get("/404", noStoreHtml, (req, res) => {
+  res.status(404).render("not-found", noticeView(siteOrigin(req), "not-found", { path: "/404" }));
+});
+
+app.get("/500", noStoreHtml, (req, res) => {
+  res.status(500).render(
+    "error",
+    noticeView(siteOrigin(req), "error", {
+      path: "/500",
+      detail: isProd ? null : "Preview of the server error page.",
+    }),
+  );
+});
+
 app.use("/api", (req, res) => {
   audit("warn", "http.error", `API route not found: ${req.method} ${req.originalUrl}`, {
     sessionId: req.sessionId,
@@ -172,10 +187,10 @@ app.use(noStoreHtml, (req, res) => {
     sessionId: req.sessionId,
     req: requestContext(req, 404),
   });
-  res.status(404).render("not-found", {
-    title: "Page not found — PDF Studio",
-    ...NOTICE_PAGE,
-  });
+  res.status(404).render(
+    "not-found",
+    noticeView(siteOrigin(req), "not-found", { path: req.path || "/404" }),
+  );
 });
 
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
@@ -210,18 +225,20 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   }
 
   if (code === 404) {
-    res.status(404).render("not-found", {
-      title: "Page not found — PDF Studio",
-      ...NOTICE_PAGE,
-    });
+    res.status(404).render(
+      "not-found",
+      noticeView(siteOrigin(req), "not-found", { path: req.path || "/404" }),
+    );
     return;
   }
 
-  res.status(code).render("error", {
-    title: "Something went wrong — PDF Studio",
-    detail: isProd ? null : message,
-    ...NOTICE_PAGE,
-  });
+  res.status(code).render(
+    "error",
+    noticeView(siteOrigin(req), "error", {
+      path: "/500",
+      detail: isProd ? null : message,
+    }),
+  );
 });
 
 app.listen(PORT, HOST, () => {

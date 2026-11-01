@@ -37,6 +37,11 @@ import {
 } from "./factories.js";
 import { scheduleEditorTour, startEditorTour } from "./tour.js";
 import { markdownToHtml } from "../shared/markdown.js";
+import {
+  formatDateTime,
+  formatRelativeShort,
+  formatTime,
+} from "../shared/dates.js";
 import { richHtmlToPlainText, sanitizeRichHtml } from "../shared/richText.js";
 import {
   destroyTipTap,
@@ -1279,6 +1284,15 @@ function pdfEditor() {
       this.canUndo = history.canUndo;
       this.canRedo = history.canRedo;
       this.historyEntries = history.list();
+    },
+
+    /** History / version timestamps via date-fns. */
+    formatHistoryTime(at: number | string) {
+      return formatTime(at);
+    },
+
+    formatDocStamp(at: number | string) {
+      return formatDateTime(at);
     },
 
     jumpToHistory(pastIndex: number) {
@@ -4895,32 +4909,11 @@ function auditLogsPage(opts: { locked: boolean; tokenRequired: boolean }) {
     },
 
     formatTs(ts: string) {
-      try {
-        return new Date(ts).toLocaleString(undefined, {
-          month: "short",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-      } catch {
-        return ts;
-      }
+      return formatDateTime(ts) || ts;
     },
 
     relativeTs(ts: string) {
-      try {
-        const diff = Date.now() - new Date(ts).getTime();
-        const sec = Math.max(0, Math.floor(diff / 1000));
-        if (sec < 60) return `${sec}s`;
-        const min = Math.floor(sec / 60);
-        if (min < 60) return `${min}m`;
-        const hr = Math.floor(min / 60);
-        if (hr < 24) return `${hr}h`;
-        return `${Math.floor(hr / 24)}d`;
-      } catch {
-        return ts;
-      }
+      return formatRelativeShort(ts) || ts;
     },
 
     shortSession(sessionId: string | undefined) {

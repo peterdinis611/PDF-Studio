@@ -52,6 +52,7 @@
     "@tiptap/starter-kit": "^3.32.0",
     "alpinejs": "^3.14.9",
     "animejs": "^4.5.0",
+    "date-fns": "^4.4.0",
     "driver.js": "^1.8.0",
     "express": "^5.1.0",
     "express-handlebars": "^8.0.3",

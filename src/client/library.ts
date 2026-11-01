@@ -1,4 +1,5 @@
 import type { ElementType, IconKind } from "../shared/types.js";
+import { formatLongDate } from "../shared/dates.js";
 import Fuse, { type IFuseOptions } from "fuse.js";
 import {
   createArrow,
@@ -1450,11 +1451,7 @@ function createPreset(id: string, x: number, y: number): PdfElement {
       });
     case "date":
       return createText(x, y, {
-        content: new Date().toLocaleDateString("en-GB", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
+        content: formatLongDate(new Date()),
         fontSize: 12,
         color: "#544d45",
         width: 220,

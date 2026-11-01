@@ -1,3 +1,5 @@
+import { formatIsoDay } from "../shared/dates.js";
+
 export type SitemapEntry = {
   path: string;
   changefreq: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
@@ -18,7 +20,7 @@ export function buildSitemapXml(
   entries: Omit<SitemapEntry, "image">[] = SITEMAP_ENTRIES,
 ): string {
   const site = origin.replace(/\/$/, "");
-  const lastmod = now.toISOString().slice(0, 10);
+  const lastmod = formatIsoDay(now);
   const ogImage = `${site}/public/og.png`;
 
   const resolved: SitemapEntry[] = entries.map((e) => {

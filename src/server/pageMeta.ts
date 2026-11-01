@@ -1,4 +1,5 @@
 /** View context shared by the marketing and notice pages. */
+import { formatDateline, formatEditionNumber, formatIssued } from "../shared/dates.js";
 
 export type SeoInput = {
   /** Full `<title>`. */
@@ -124,8 +125,37 @@ export function seo(origin: string, input: SeoInput): SeoContext {
   };
 }
 
-/** Both error pages are newsprint and neither belongs in a search index. */
+/** Shared chrome flags for notice pages (404 / 500). */
 export const NOTICE_PAGE = { newsprint: true, noindex: true } as const;
+
+export type NoticeKind = "not-found" | "error";
+
+/**
+ * Full view context for 404 / 500 — SEO (noindex) + newsprint masthead furniture.
+ */
+export function noticeView(
+  origin: string,
+  kind: NoticeKind,
+  options?: { detail?: string | null; path?: string },
+): Record<string, unknown> {
+  const is404 = kind === "not-found";
+  const path = options?.path || (is404 ? "/404" : "/500");
+  return {
+    ...seo(origin, {
+      title: is404 ? "Page not found — PDF Studio" : "Something went wrong — PDF Studio",
+      description: is404
+        ? "This address isn’t in the PDF Studio edition. Return home or open a blank sheet in the editor."
+        : "PDF Studio hit an unexpected error. Try again, or return to the front page.",
+      path,
+      noindex: true,
+      schemaType: "WebPage",
+      keywords: "PDF Studio, error, page not found",
+    }),
+    ...NOTICE_PAGE,
+    ...currentEdition(),
+    detail: options?.detail ?? null,
+  };
+}
 
 export type Edition = { dateline: string; edition: string; issued: string };
 
@@ -134,22 +164,9 @@ export type Edition = { dateline: string; edition: string; issued: string };
  * issue number tracks the day of the year and the dateline is today's date.
  */
 export function currentEdition(now = new Date()): Edition {
-  const startOfYear = Date.UTC(now.getUTCFullYear(), 0, 0);
-  const dayOfYear = Math.floor((now.getTime() - startOfYear) / 86_400_000);
   return {
-    dateline: new Intl.DateTimeFormat("en-GB", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      timeZone: "UTC",
-    }).format(now),
-    edition: String(dayOfYear).padStart(3, "0"),
-    issued: new Intl.DateTimeFormat("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      timeZone: "UTC",
-    }).format(now),
+    dateline: formatDateline(now),
+    edition: formatEditionNumber(now),
+    issued: formatIssued(now),
   };
 }
