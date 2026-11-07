@@ -111,7 +111,7 @@ export async function ocrPageToTextElements(
     canvas.height = Math.ceil(drawVp.height);
     const ctx = canvas.getContext("2d");
     if (!ctx) return [];
-    await page.render({ canvasContext: ctx, viewport: drawVp }).promise;
+    await page.render({ canvasContext: ctx, canvas, viewport: drawVp }).promise;
 
     const result = await withTimeout(w.recognize(canvas), OCR_PAGE_MS, `OCR page ${pageIndex + 1}`);
     const text = (result.data?.text || "").trim();

@@ -4047,7 +4047,7 @@ function pdfEditor() {
           canvas.height = Math.floor(viewport.height);
           const ctx = canvas.getContext("2d");
           if (!ctx) return null;
-          await page.render({ canvasContext: ctx, viewport }).promise;
+          await page.render({ canvasContext: ctx, canvas, viewport }).promise;
           return ctx.getImageData(0, 0, canvas.width, canvas.height);
         } finally {
           await pdf.destroy();

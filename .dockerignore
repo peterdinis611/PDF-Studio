@@ -1,16 +1,59 @@
+# Dependencies & build output
 node_modules
 dist
+coverage
+.nyc_output
+*.tsbuildinfo
+public/js/app.*.js
+public/css/app.*.css
+!public/js/app.js
+!public/css/app.css
+
+# VCS / editor / agent
 .git
 .gitignore
-.tmp
-uploads
-*.log
+.gitattributes
+.cursor
+.vscode
+.idea
+*.swp
+.DS_Store
+agent-transcripts
+
+# Secrets & local env
 .env
 .env.*
 !.env.example
-.DS_Store
-README.md
-biome.json
+
+# Logs & temp
+*.log
+npm-debug.log*
+.tmp
+tmp
+uploads
+
+# Docs & tooling (not needed in image)
 **/*.md
-.cursor
-agent-transcripts
+biome.json
+docker-compose*.yaml
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+.github
+.husky
+.prettierrc*
+.prettierignore
+eslint.config.*
+jest.setup.*
+
+# Tests (not needed for production build)
+**/__tests__
+**/*.test.ts
+**/*.spec.ts
+**/test
+**/tests
+jest.config.*
+tsconfig.jest.json
+
+# Source maps from previous local builds
+public/**/*.map

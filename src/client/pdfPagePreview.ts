@@ -246,6 +246,7 @@ async function renderViaPdfJs(
   const drawViewport = page.getViewport({ scale: scale * fit });
   await page.render({
     canvasContext: ctx,
+    canvas,
     viewport: drawViewport,
     intent: "display",
   }).promise;

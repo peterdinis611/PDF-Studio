@@ -1,0 +1,45 @@
+services:
+  pdf-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_VERSION: "24"
+    image: pdf-studio:latest
+    container_name: pdf-studio
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3847}:3847"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3847
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SITE_URL: ${SITE_URL:-}
+      AUDIT_LOG_CAPACITY: ${AUDIT_LOG_CAPACITY:-500}
+      AUDIT_LOGS_TOKEN: ${AUDIT_LOGS_TOKEN:-}
+      GOOGLE_FONTS_API_KEY: ${GOOGLE_FONTS_API_KEY:-}
+    volumes:
+      # Persist uploaded session files across restarts
+      - pdf-studio-uploads:/app/uploads
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3847/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  pdf-studio-uploads:
+    name: pdf-studio-uploads

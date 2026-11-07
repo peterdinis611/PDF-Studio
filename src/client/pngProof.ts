@@ -66,7 +66,7 @@ async function renderPdfPageToBlob(
     canvas.height = Math.floor(viewport.height);
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas unavailable");
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    await page.render({ canvasContext: ctx, canvas, viewport }).promise;
     const mime = format === "jpeg" ? "image/jpeg" : "image/png";
     const dataUrl = canvas.toDataURL(mime, format === "jpeg" ? quality : undefined);
     const res = await fetch(dataUrl);
@@ -97,7 +97,7 @@ export async function exportPngProofZip(
       canvas.height = Math.floor(viewport.height);
       const ctx = canvas.getContext("2d");
       if (!ctx) continue;
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      await page.render({ canvasContext: ctx, canvas, viewport }).promise;
       const dataUrl = canvas.toDataURL("image/png");
       const b64 = dataUrl.split(",")[1] || "";
       zip.file(`page-${String(i).padStart(3, "0")}.png`, b64, { base64: true });
